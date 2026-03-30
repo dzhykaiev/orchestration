@@ -39,21 +39,33 @@ AI-driven software development orchestration platform. Provide a high-level soft
 
 ## Project Structure
 
+<!-- PROJECT_STRUCTURE_START -->
 ```
-orchestration/
-├── apps/
-│   ├── api/              # Fastify REST API server
-│   ├── orchestrator/     # BullMQ workers — planning + implementation
-│   └── web/              # Next.js dashboard
-├── packages/
-│   └── shared/           # Shared types and utilities
-├── contracts/
-│   ├── api/              # API route type contracts
-│   ├── types/            # Shared domain types
-│   └── events/           # Event type definitions
-├── agents/               # Agent execution briefs
-└── docs/                 # Architecture, decisions, runbooks
+agents/
+apps/
+  api/
+    src/
+  orchestrator/
+    src/
+  web/
+    src/
+contracts/
+  api/
+  events/
+  types/
+docs/
+  contracts/
+  decisions/
+  runbooks/
+packages/
+  db/
+    src/
+  shared/
+    src/
+scripts/
 ```
+
+<!-- PROJECT_STRUCTURE_END -->
 
 ## Quick Start
 

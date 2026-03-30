@@ -45,3 +45,6 @@ docker-compose.override.yml
 *.tgz
 .cache/
 tmp/
+
+
+.claude/settings.local.json

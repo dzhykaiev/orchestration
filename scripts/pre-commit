@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Git pre-commit hook: auto-update project documentation
+
+# Find the repo root (works from .git/hooks/ or scripts/)
+ROOT_DIR="$(git rev-parse --show-toplevel)"
+
+if [ -x "$ROOT_DIR/scripts/update-project-docs.sh" ]; then
+  bash "$ROOT_DIR/scripts/update-project-docs.sh"
+fi

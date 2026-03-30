@@ -4,7 +4,20 @@
       "Bash(find /Users/yevhenii.dzhykaiev/Documents/study/orchestration/apps/orchestrator/src -type f \\\\\\(-name *.ts -o -name *.tsx \\\\\\))",
       "Bash(find /Users/yevhenii.dzhykaiev/Documents/study/orchestration/apps/web/src -type f \\\\\\(-name *.ts -o -name *.tsx \\\\\\))",
       "Bash(find /Users/yevhenii.dzhykaiev/Documents/study/orchestration/contracts -type f \\\\\\(-name *.ts -o -name *.json \\\\\\))",
-      "Bash(grep -r claude /Users/yevhenii.dzhykaiev/Documents/study/orchestration --include=*.json --exclude-dir=node_modules)"
+      "Bash(grep -r claude /Users/yevhenii.dzhykaiev/Documents/study/orchestration --include=*.json --exclude-dir=node_modules)",
+      "Bash(npm search:*)",
+      "WebSearch",
+      "Bash(find /Users/yevhenii.dzhykaiev/Documents/study/orchestration -name next.config.* -o -name .env*)",
+      "Bash(grep -r import.*from.*orchestration /Users/yevhenii.dzhykaiev/Documents/study/orchestration/apps --include=*.ts --include=*.tsx)",
+      "Bash(pnpm list:*)",
+      "Bash(pnpm typecheck:*)",
+      "Bash(npx tsc:*)",
+      "Bash(grep -r import.*contracts /Users/yevhenii.dzhykaiev/Documents/study/orchestration/apps --include=*.ts)",
+      "Bash(grep -r @orchestration /Users/yevhenii.dzhykaiev/Documents/study/orchestration/apps --include=*.ts --include=*.tsx)",
+      "Bash(pnpm:*)",
+      "Bash(docker compose:*)",
+      "Bash(curl -s http://localhost:3001/api/projects)",
+      "Bash(python3 -m json.tool)"
     ]
   }
 }

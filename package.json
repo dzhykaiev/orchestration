@@ -21,6 +21,7 @@
     "db:generate": "pnpm --filter @orchestration/db run generate",
     "db:push": "pnpm --filter @orchestration/db run push",
     "db:seed": "pnpm --filter @orchestration/api run db:seed",
-    "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules apps/*/.next apps/*/dist packages/*/dist"
+    "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules apps/*/.next apps/*/dist packages/*/dist",
+    "prepare": "cp scripts/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit"
   }
 }
