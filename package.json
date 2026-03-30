@@ -1,0 +1,24 @@
+{
+  "name": "orchestration",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-driven software orchestration platform",
+  "packageManager": "pnpm@9.15.4",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "pnpm --filter \"./apps/*\" --parallel run dev",
+    "build": "pnpm --filter \"./packages/*\" run build && pnpm --filter \"./apps/*\" run build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "typecheck": "tsc --build --force",
+    "db:migrate": "pnpm --filter @orchestration/db run migrate",
+    "db:generate": "pnpm --filter @orchestration/db run generate",
+    "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules apps/*/.next apps/*/dist packages/*/dist"
+  }
+}

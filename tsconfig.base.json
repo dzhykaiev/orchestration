@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "composite": true,
+    "incremental": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noEmit": false,
+    "outDir": "dist",
+    "paths": {
+      "@orchestration/db": ["./packages/db/src"],
+      "@orchestration/shared": ["./packages/shared/src"],
+      "@orchestration/agent": ["./packages/agent/src"],
+      "@orchestration/queue": ["./packages/queue/src"]
+    }
+  },
+  "exclude": ["node_modules", "dist", ".next"]
+}
