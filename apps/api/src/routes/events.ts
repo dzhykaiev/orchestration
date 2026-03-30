@@ -51,6 +51,7 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
 
     subscriber.on("error", (err) => {
       app.log.error({ err }, "Redis subscriber error");
+      cleanup();
     });
 
     await subscriber.subscribe(EVENTS_CHANNEL);

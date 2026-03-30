@@ -1,38 +1,28 @@
 import type { FastifyPluginAsync } from "fastify";
-import { workstreamRepo, taskRepo } from "@orchestration/db";
+import { workstreamService } from "../services/workstream.service.js";
 import { idParamSchema } from "../schemas/projects.js";
 import { updateWorkstreamSchema } from "../schemas/workstreams.js";
 
 export const workstreamRoutes: FastifyPluginAsync = async (app) => {
   // GET /:id — get workstream by ID
-  app.get<{ Params: { id: string } }>("/:id", async (request, reply) => {
+  app.get<{ Params: { id: string } }>("/:id", async (request) => {
     const { id } = idParamSchema.parse(request.params);
-    const workstream = await workstreamRepo.getWorkstreamById(id);
-    if (!workstream) {
-      return reply.status(404).send({ error: "Workstream not found", statusCode: 404 });
-    }
+    const workstream = await workstreamService.getById(id);
     return { workstream };
   });
 
   // PATCH /:id — update workstream
-  app.patch<{ Params: { id: string } }>("/:id", async (request, reply) => {
+  app.patch<{ Params: { id: string } }>("/:id", async (request) => {
     const { id } = idParamSchema.parse(request.params);
     const body = updateWorkstreamSchema.parse(request.body);
-    const workstream = await workstreamRepo.updateWorkstream(id, body);
-    if (!workstream) {
-      return reply.status(404).send({ error: "Workstream not found", statusCode: 404 });
-    }
+    const workstream = await workstreamService.update(id, body);
     return { workstream };
   });
 
   // GET /:id/tasks — list tasks for a workstream
-  app.get<{ Params: { id: string } }>("/:id/tasks", async (request, reply) => {
+  app.get<{ Params: { id: string } }>("/:id/tasks", async (request) => {
     const { id } = idParamSchema.parse(request.params);
-    const workstream = await workstreamRepo.getWorkstreamById(id);
-    if (!workstream) {
-      return reply.status(404).send({ error: "Workstream not found", statusCode: 404 });
-    }
-    const tasks = await taskRepo.listTasksByWorkstream(id);
+    const tasks = await workstreamService.listTasks(id);
     return { tasks };
   });
 };

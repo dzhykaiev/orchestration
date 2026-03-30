@@ -4,6 +4,7 @@ import { ZodError } from "zod";
 
 const errorHandlerPluginImpl: FastifyPluginAsync = async (app) => {
   app.setErrorHandler((error: Error & { statusCode?: number }, request, reply) => {
+    // Zod validation errors
     if (error instanceof ZodError) {
       return reply.status(400).send({
         error: "Validation Error",
@@ -12,10 +13,19 @@ const errorHandlerPluginImpl: FastifyPluginAsync = async (app) => {
       });
     }
 
+    // Custom application errors (NotFoundError, BusinessError)
+    if (error.statusCode && error.statusCode < 500) {
+      return reply.status(error.statusCode).send({
+        error: error.message,
+        statusCode: error.statusCode,
+      });
+    }
+
+    // Unexpected errors
     request.log.error(error);
     const statusCode = error.statusCode ?? 500;
     return reply.status(statusCode).send({
-      error: error.message || "Internal Server Error",
+      error: statusCode === 500 ? "Internal Server Error" : error.message,
       statusCode,
     });
   });

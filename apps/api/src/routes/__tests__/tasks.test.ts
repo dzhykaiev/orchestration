@@ -1,41 +1,74 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import Fastify from "fastify";
-import { taskRoutes } from "../tasks.js";
+import { ZodError } from "zod";
+
+const createTask = vi.fn().mockImplementation((input: any) =>
+  Promise.resolve({
+    id: "task-uuid",
+    ...input,
+    status: "queued",
+    output: null,
+    filesModified: [],
+    error: null,
+    costUsd: "0",
+    attempts: 0,
+    maxAttempts: input.maxAttempts ?? 3,
+    startedAt: null,
+    completedAt: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  }),
+);
+const getTaskById = vi.fn().mockResolvedValue(null);
+const markTaskCompleted = vi.fn().mockResolvedValue(null);
+const markTaskFailed = vi.fn().mockResolvedValue(null);
+const retryTask = vi.fn().mockResolvedValue(null);
+const updateTotalCost = vi.fn().mockResolvedValue(null);
 
 vi.mock("@orchestration/db", () => ({
   taskRepo: {
-    createTask: vi.fn().mockImplementation((input) =>
-      Promise.resolve({
-        id: "task-uuid",
-        ...input,
-        status: "queued",
-        output: null,
-        filesModified: [],
-        error: null,
-        attempts: 0,
-        maxAttempts: 3,
-        startedAt: null,
-        completedAt: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }),
-    ),
-    getTaskById: vi.fn().mockResolvedValue(null),
-    markTaskCompleted: vi.fn().mockResolvedValue(null),
+    createTask,
+    getTaskById,
+    markTaskCompleted,
+    markTaskFailed,
+    retryTask,
+  },
+  projectRepo: {
+    updateTotalCost,
   },
 }));
 
-vi.mock("../../services/orchestrator-client.js", () => ({
-  implementationQueue: { add: vi.fn() },
-}));
+const mockQueues = {
+  planning: { add: vi.fn() },
+  implementation: { add: vi.fn() },
+  validation: { add: vi.fn() },
+};
+
+const { taskRoutes } = await import("../tasks.js");
 
 async function buildApp() {
   const app = Fastify();
+  app.decorate("queues", mockQueues as any);
+  app.setErrorHandler((error: Error & { statusCode?: number }, _request, reply) => {
+    if (error instanceof ZodError) {
+      return reply.status(400).send({
+        error: "Validation Error",
+        statusCode: 400,
+        details: error.flatten(),
+      });
+    }
+    const statusCode = error.statusCode ?? 500;
+    return reply.status(statusCode).send({ error: error.message, statusCode });
+  });
   await app.register(taskRoutes, { prefix: "/api/tasks" });
   return app;
 }
 
 describe("Task Routes", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("POST /api/tasks creates a task", async () => {
     const app = await buildApp();
     const res = await app.inject({
@@ -49,5 +82,32 @@ describe("Task Routes", () => {
       },
     });
     expect(res.statusCode).toBe(201);
+    const body = JSON.parse(res.payload);
+    expect(body.task.role).toBe("backend");
+    expect(body.task.status).toBe("queued");
+  });
+
+  it("POST /api/tasks/:id/retry returns 404 for non-existent task", async () => {
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/tasks/00000000-0000-0000-0000-000000000001/retry",
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("POST /api/tasks/:id/complete returns 404 for non-existent task", async () => {
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/tasks/00000000-0000-0000-0000-000000000001/complete",
+      payload: {
+        taskId: "00000000-0000-0000-0000-000000000001",
+        status: "completed",
+        output: "Done",
+        filesModified: [],
+      },
+    });
+    expect(res.statusCode).toBe(404);
   });
 });

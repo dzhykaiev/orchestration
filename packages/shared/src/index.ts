@@ -1,6 +1,7 @@
 export type {
   Project,
   ProjectStatus,
+  LLMProviderType,
   CreateProjectInput,
   UpdateProjectInput,
   Workstream,

@@ -8,6 +8,7 @@ export interface Project {
   status: ProjectStatus;
   architecture?: string;
   provider: LLMProviderType;
+  totalCostUsd: string;
   createdAt: Date;
   updatedAt: Date;
 }

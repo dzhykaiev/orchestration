@@ -1,30 +1,9 @@
-import Fastify from "fastify";
-import cors from "@fastify/cors";
-import { errorHandlerPlugin } from "./plugins/error-handler.js";
-import { projectRoutes } from "./routes/projects.js";
-import { workstreamRoutes } from "./routes/workstreams.js";
-import { taskRoutes } from "./routes/tasks.js";
-import { eventRoutes } from "./routes/events.js";
-import { fileRoutes } from "./routes/files.js";
-import { client as dbClient } from "@orchestration/db";
+import { buildApp } from "./app.js";
 
 const PORT = parseInt(process.env.PORT || "3001", 10);
 
 async function main() {
-  const app = Fastify({ logger: true });
-
-  await app.register(cors, { origin: true });
-  await app.register(errorHandlerPlugin);
-
-  // Register routes
-  await app.register(projectRoutes, { prefix: "/api/projects" });
-  await app.register(workstreamRoutes, { prefix: "/api/workstreams" });
-  await app.register(taskRoutes, { prefix: "/api/tasks" });
-  await app.register(eventRoutes, { prefix: "/api/events" });
-  await app.register(fileRoutes, { prefix: "/api/projects" });
-
-  // Health check
-  app.get("/health", async () => ({ status: "ok" }));
+  const app = await buildApp({ logger: true });
 
   let shuttingDown = false;
   const shutdown = async () => {
@@ -39,7 +18,6 @@ async function main() {
 
     try {
       await app.close();
-      await dbClient.end();
       clearTimeout(forceTimeout);
       console.log("Shutdown complete");
       process.exit(0);

@@ -109,10 +109,16 @@ ${project.architecture || "No architecture document available."}
       errorMessage,
     );
 
-    // Don't fail the workstream — store the error as validation output
+    // Store the error as validation output
     await workstreamRepo.updateWorkstream(workstreamId, {
       validationStatus: "error" as ValidationStatus,
       validationOutput: `Validation error: ${errorMessage}`,
+    });
+
+    eventBus.emitTyped("workstream.failed", {
+      workstreamId,
+      projectId,
+      error: `Validation error: ${errorMessage}`,
     });
   }
 }

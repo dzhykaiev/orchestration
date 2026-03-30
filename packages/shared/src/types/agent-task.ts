@@ -11,6 +11,7 @@ export interface AgentTask {
   output?: string;
   filesModified: string[];
   error?: string;
+  costUsd: string;
   attempts: number;
   maxAttempts: number;
   startedAt?: Date;
