@@ -6,10 +6,10 @@ async function fetchAPI<T>(path: string, opts?: RequestInit): Promise<T> {
     ...opts,
   });
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(error.error || `API error: ${res.status}`);
+    const body = await res.json().catch(() => ({ error: res.statusText })) as Record<string, string>;
+    throw new Error(body.error || `API error: ${res.status}`);
   }
-  return res.json();
+  return res.json() as Promise<T>;
 }
 
 // --- Types ---

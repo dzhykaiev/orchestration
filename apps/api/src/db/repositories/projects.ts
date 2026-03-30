@@ -1,6 +1,6 @@
 import { eq, sql, desc } from "drizzle-orm";
-import { db, schema } from "../index.js";
-import type { CreateProjectInput, UpdateProjectInput } from "../../../../../contracts/types/project.js";
+import { db, schema } from "@orchestration/db";
+import type { CreateProjectInput, UpdateProjectInput } from "@orchestration/shared";
 
 export async function listProjects(opts: { limit: number; offset: number }) {
   const [items, countResult] = await Promise.all([

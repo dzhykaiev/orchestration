@@ -17,8 +17,10 @@
     "format": "biome format --write .",
     "format:check": "biome format .",
     "typecheck": "tsc --build --force",
-    "db:migrate": "pnpm --filter @orchestration/db run migrate",
+    "db:migrate": "pnpm --filter @orchestration/api run db:migrate",
     "db:generate": "pnpm --filter @orchestration/db run generate",
+    "db:push": "pnpm --filter @orchestration/db run push",
+    "db:seed": "pnpm --filter @orchestration/api run db:seed",
     "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules apps/*/.next apps/*/dist packages/*/dist"
   }
 }

@@ -2,9 +2,9 @@ import { Queue } from "bullmq";
 import IORedis from "ioredis";
 import * as repo from "../db/repositories.js";
 import { buildSystemPrompt, buildUserMessage } from "../prompts/implementation.js";
-import type { AgentRole } from "../../../../contracts/types/agent-task.js";
+import type { AgentRole } from "@orchestration/shared";
 
-const connection = new IORedis(process.env.REDIS_URL || "redis://localhost:6379");
+const connection = new IORedis.default(process.env.REDIS_URL || "redis://localhost:6379");
 const implementationQueue = new Queue("implementation", { connection });
 
 export async function checkWorkstreamCompletion(

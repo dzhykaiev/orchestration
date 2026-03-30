@@ -1,4 +1,4 @@
-import type { AgentRole } from "../../../../contracts/types/agent-task.js";
+import type { AgentRole } from "@orchestration/shared";
 import { AGENT_BRIEFS, OUTPUT_FORMAT_INSTRUCTION } from "./briefs.js";
 
 export function buildSystemPrompt(

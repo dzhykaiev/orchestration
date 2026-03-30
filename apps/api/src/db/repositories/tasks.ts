@@ -1,6 +1,6 @@
 import { eq, sql, asc } from "drizzle-orm";
-import { db, schema } from "../index.js";
-import type { CreateAgentTaskInput } from "../../../../../contracts/types/agent-task.js";
+import { db, schema } from "@orchestration/db";
+import type { CreateAgentTaskInput } from "@orchestration/shared";
 
 export async function listTasksByWorkstream(workstreamId: string) {
   return db

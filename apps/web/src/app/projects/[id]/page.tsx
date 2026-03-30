@@ -148,15 +148,17 @@ export default function ProjectDetailPage() {
                 {ws.objective}
               </p>
 
-              {expandedWs === ws.id && tasksByWorkstream[ws.id] && (
+              {expandedWs === ws.id && tasksByWorkstream[ws.id] && (() => {
+                const tasks = tasksByWorkstream[ws.id]!;
+                return (
                 <div style={{ marginTop: "1rem", paddingLeft: "1rem", borderLeft: "2px solid #e0e0e0" }}>
                   <h4 style={{ margin: "0 0 0.5rem", fontSize: "0.9rem" }}>
-                    Tasks ({tasksByWorkstream[ws.id].length})
+                    Tasks ({tasks.length})
                   </h4>
-                  {tasksByWorkstream[ws.id].length === 0 ? (
+                  {tasks.length === 0 ? (
                     <p className="text-sm text-muted">No tasks yet.</p>
                   ) : (
-                    tasksByWorkstream[ws.id].map((task) => (
+                    tasks.map((task) => (
                       <div
                         key={task.id}
                         style={{
@@ -189,7 +191,8 @@ export default function ProjectDetailPage() {
                     ))
                   )}
                 </div>
-              )}
+                );
+              })()}
             </div>
           ))}
         </>

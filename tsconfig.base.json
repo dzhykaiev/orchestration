@@ -20,9 +20,7 @@
     "outDir": "dist",
     "paths": {
       "@orchestration/db": ["./packages/db/src"],
-      "@orchestration/shared": ["./packages/shared/src"],
-      "@orchestration/agent": ["./packages/agent/src"],
-      "@orchestration/queue": ["./packages/queue/src"]
+      "@orchestration/shared": ["./packages/shared/src"]
     }
   },
   "exclude": ["node_modules", "dist", ".next"]

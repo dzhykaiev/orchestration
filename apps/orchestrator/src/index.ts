@@ -3,7 +3,7 @@ import IORedis from "ioredis";
 import { handlePlanningJob } from "./workers/planning.js";
 import { handleImplementationJob } from "./workers/implementation.js";
 
-const connection = new IORedis(process.env.REDIS_URL || "redis://localhost:6379");
+const connection = new IORedis.default(process.env.REDIS_URL || "redis://localhost:6379");
 
 async function main() {
   console.log("Starting orchestrator workers...");

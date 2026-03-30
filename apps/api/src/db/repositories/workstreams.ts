@@ -1,9 +1,9 @@
 import { eq, asc } from "drizzle-orm";
-import { db, schema } from "../index.js";
+import { db, schema } from "@orchestration/db";
 import type {
   CreateWorkstreamInput,
   UpdateWorkstreamInput,
-} from "../../../../../contracts/types/workstream.js";
+} from "@orchestration/shared";
 
 export async function listWorkstreamsByProject(projectId: string) {
   return db
@@ -48,15 +48,4 @@ export async function updateWorkstream(id: string, input: UpdateWorkstreamInput)
     .returning();
 
   return ws ?? null;
-}
-
-export async function getCompletedWorkstreamIds(projectId: string) {
-  const rows = await db
-    .select({ id: schema.workstreams.id })
-    .from(schema.workstreams)
-    .where(eq(schema.workstreams.projectId, projectId));
-
-  return rows
-    .filter((r) => true) // all IDs returned; caller filters by status if needed
-    .map((r) => r.id);
 }

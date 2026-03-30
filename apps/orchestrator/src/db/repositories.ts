@@ -1,5 +1,5 @@
-import { eq, sql, asc, desc } from "drizzle-orm";
-import { db, schema } from "./index.js";
+import { eq, sql, asc } from "drizzle-orm";
+import { db, schema } from "@orchestration/db";
 
 // --- Projects ---
 

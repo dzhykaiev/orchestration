@@ -1,4 +1,4 @@
-import type { AgentRole } from "../../../../contracts/types/agent-task.js";
+import type { AgentRole } from "@orchestration/shared";
 
 export const AGENT_BRIEFS: Record<AgentRole, string> = {
   architect: `You are a software architect. Design systems, define contracts, and create technical documentation.`,

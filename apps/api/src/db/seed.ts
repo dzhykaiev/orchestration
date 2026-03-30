@@ -1,9 +1,8 @@
-import { db, schema } from "./index.js";
+import { db, schema } from "@orchestration/db";
 
 async function seed() {
   console.log("Seeding database...");
 
-  // Project 1: draft state
   const [draftProject] = await db
     .insert(schema.projects)
     .values({
@@ -12,9 +11,8 @@ async function seed() {
       status: "draft",
     })
     .returning();
-  console.log("Created draft project:", draftProject.id);
+  console.log("Created draft project:", draftProject!.id);
 
-  // Project 2: in_progress state with workstreams and tasks
   const [activeProject] = await db
     .insert(schema.projects)
     .values({
@@ -24,13 +22,12 @@ async function seed() {
       architecture: "## Architecture\n\nMonolith REST API with PostgreSQL.\n\n### Endpoints\n- /api/products\n- /api/orders\n- /api/users",
     })
     .returning();
-  console.log("Created active project:", activeProject.id);
+  console.log("Created active project:", activeProject!.id);
 
-  // Workstreams for active project
   const [wsData] = await db
     .insert(schema.workstreams)
     .values({
-      projectId: activeProject.id,
+      projectId: activeProject!.id,
       name: "Data Layer",
       objective: "Set up database schema for products, orders, and users",
       status: "completed",
@@ -44,11 +41,11 @@ async function seed() {
   const [wsApi] = await db
     .insert(schema.workstreams)
     .values({
-      projectId: activeProject.id,
+      projectId: activeProject!.id,
       name: "API Server",
       objective: "Implement REST endpoints for products, orders, and users",
       status: "in_progress",
-      dependencies: [wsData.id],
+      dependencies: [wsData!.id],
       deliverables: ["routes/products.ts", "routes/orders.ts", "routes/users.ts"],
       ownedPaths: ["src/routes/", "src/services/"],
       assignedAgent: "backend",
@@ -56,24 +53,20 @@ async function seed() {
     })
     .returning();
 
-  const [wsFrontend] = await db
-    .insert(schema.workstreams)
-    .values({
-      projectId: activeProject.id,
-      name: "Admin Dashboard",
-      objective: "Build admin UI for managing products and viewing orders",
-      status: "pending",
-      dependencies: [wsApi.id],
-      deliverables: ["pages/", "components/"],
-      ownedPaths: ["src/app/"],
-      order: 3,
-    })
-    .returning();
+  await db.insert(schema.workstreams).values({
+    projectId: activeProject!.id,
+    name: "Admin Dashboard",
+    objective: "Build admin UI for managing products and viewing orders",
+    status: "pending",
+    dependencies: [wsApi!.id],
+    deliverables: ["pages/", "components/"],
+    ownedPaths: ["src/app/"],
+    order: 3,
+  });
 
-  // Tasks for completed workstream
   await db.insert(schema.agentTasks).values({
-    workstreamId: wsData.id,
-    projectId: activeProject.id,
+    workstreamId: wsData!.id,
+    projectId: activeProject!.id,
     role: "data",
     prompt: "Create the database schema for products, orders, and users tables",
     status: "completed",
@@ -83,10 +76,9 @@ async function seed() {
     completedAt: new Date(),
   });
 
-  // Tasks for in-progress workstream
   await db.insert(schema.agentTasks).values({
-    workstreamId: wsApi.id,
-    projectId: activeProject.id,
+    workstreamId: wsApi!.id,
+    projectId: activeProject!.id,
     role: "backend",
     prompt: "Implement CRUD endpoints for the products resource",
     status: "completed",
@@ -97,8 +89,8 @@ async function seed() {
   });
 
   await db.insert(schema.agentTasks).values({
-    workstreamId: wsApi.id,
-    projectId: activeProject.id,
+    workstreamId: wsApi!.id,
+    projectId: activeProject!.id,
     role: "backend",
     prompt: "Implement CRUD endpoints for the orders resource",
     status: "running",

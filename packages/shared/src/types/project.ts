@@ -1,0 +1,23 @@
+export type ProjectStatus = "draft" | "planning" | "in_progress" | "completed" | "failed";
+
+export interface Project {
+  id: string;
+  name: string;
+  goal: string;
+  status: ProjectStatus;
+  architecture?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CreateProjectInput {
+  name: string;
+  goal: string;
+}
+
+export interface UpdateProjectInput {
+  name?: string;
+  goal?: string;
+  status?: ProjectStatus;
+  architecture?: string;
+}

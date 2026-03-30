@@ -9,9 +9,9 @@ import {
 } from "../prompts/architect.js";
 import { buildUserMessage } from "../prompts/implementation.js";
 import * as repo from "../db/repositories.js";
-import type { AgentRole } from "../../../../contracts/types/agent-task.js";
+import type { AgentRole } from "@orchestration/shared";
 
-const connection = new IORedis(process.env.REDIS_URL || "redis://localhost:6379");
+const connection = new IORedis.default(process.env.REDIS_URL || "redis://localhost:6379");
 const implementationQueue = new Queue("implementation", { connection });
 
 interface PlanningJobData {

@@ -52,7 +52,7 @@ export default function NewProjectPage() {
             type="text"
             placeholder="e.g., E-Commerce Platform"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
             required
             maxLength={200}
           />
@@ -70,7 +70,7 @@ export default function NewProjectPage() {
             className="textarea"
             placeholder="Describe the software you want built. Be specific about features, tech requirements, and constraints."
             value={goal}
-            onChange={(e) => setGoal(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setGoal(e.target.value)}
             required
             maxLength={5000}
             rows={6}
