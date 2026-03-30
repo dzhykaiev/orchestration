@@ -12,6 +12,8 @@
   "dependencies": {
     "bullmq": "^5.30.0",
     "ioredis": "^5.4.0",
+    "drizzle-orm": "^0.39.0",
+    "postgres": "^3.4.0",
     "@anthropic-ai/sdk": "^0.39.0",
     "@orchestration/shared": "workspace:*"
   },

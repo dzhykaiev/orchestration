@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import { errorHandlerPlugin } from "./plugins/error-handler.js";
 import { projectRoutes } from "./routes/projects.js";
 import { workstreamRoutes } from "./routes/workstreams.js";
 import { taskRoutes } from "./routes/tasks.js";
@@ -10,6 +11,7 @@ async function main() {
   const app = Fastify({ logger: true });
 
   await app.register(cors, { origin: true });
+  await app.register(errorHandlerPlugin);
 
   // Register routes
   await app.register(projectRoutes, { prefix: "/api/projects" });

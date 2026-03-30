@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /Users/yevhenii.dzhykaiev/Documents/study/orchestration/apps/orchestrator/src -type f \\\\\\(-name *.ts -o -name *.tsx \\\\\\))",
+      "Bash(find /Users/yevhenii.dzhykaiev/Documents/study/orchestration/apps/web/src -type f \\\\\\(-name *.ts -o -name *.tsx \\\\\\))",
+      "Bash(find /Users/yevhenii.dzhykaiev/Documents/study/orchestration/contracts -type f \\\\\\(-name *.ts -o -name *.json \\\\\\))",
+      "Bash(grep -r claude /Users/yevhenii.dzhykaiev/Documents/study/orchestration --include=*.json --exclude-dir=node_modules)"
+    ]
+  }
+}
