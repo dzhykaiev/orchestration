@@ -4,10 +4,7 @@ import type { FileChange } from "./response-parser.js";
 
 const OUTPUT_BASE = process.env.OUTPUT_DIR || "./output";
 
-export async function writeFiles(
-  projectId: string,
-  files: FileChange[],
-): Promise<string[]> {
+export async function writeFiles(projectId: string, files: FileChange[]): Promise<string[]> {
   const projectDir = resolve(OUTPUT_BASE, projectId);
   const written: string[] = [];
 

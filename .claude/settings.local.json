@@ -29,7 +29,15 @@
       "Bash(brew --prefix postgresql@17)",
       "Bash(brew --prefix postgresql@16)",
       "Bash(docker ps:*)",
-      "Bash(/opt/homebrew/opt/postgresql@17/bin/psql \"postgresql://postgres:postgres@localhost:5432/orchestration\" -c \"SELECT id, name, status FROM projects ORDER BY created_at DESC;\" 2>&1)"
+      "Bash(/opt/homebrew/opt/postgresql@17/bin/psql \"postgresql://postgres:postgres@localhost:5432/orchestration\" -c \"SELECT id, name, status FROM projects ORDER BY created_at DESC;\" 2>&1)",
+      "Bash(find /Users/yevhenii.dzhykaiev/Documents/study/orchestration/apps/web/src/app -type f -name \"page.tsx\" -exec wc -l {} +)",
+      "Bash(find . -name .env* -type f)",
+      "Bash(grep -r \"react-beautiful-dnd\\\\|dnd-kit\\\\|react-dnd\\\\|drag\\\\|drop\" /Users/yevhenii.dzhykaiev/Documents/study/orchestration/apps/web --include=*.json --include=*.ts --include=*.tsx)",
+      "Bash(curl -s http://localhost:3001/api/projects -H \"Origin: http://localhost:3000\" -D -)",
+      "Bash(grep:*)",
+      "Bash(npx biome:*)",
+      "Bash(find /Users/yevhenii.dzhykaiev/Documents/study/orchestration -type f -name *skill*)",
+      "Bash(find /Users/yevhenii.dzhykaiev/Documents/study/orchestration/apps/orchestrator/src/agents -type f -name *.ts)"
     ]
   }
 }

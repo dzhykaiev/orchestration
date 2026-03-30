@@ -1,4 +1,4 @@
-import { workstreamRepo, taskRepo, projectRepo } from "@orchestration/db";
+import { projectRepo, taskRepo, workstreamRepo } from "@orchestration/db";
 import type { CreateWorkstreamInput, UpdateWorkstreamInput } from "@orchestration/shared";
 import { NotFoundError } from "./project.service.js";
 
@@ -18,7 +18,11 @@ export class WorkstreamService {
       throw new NotFoundError("Project not found");
     }
 
-    return workstreamRepo.createWorkstream(input);
+    const workstream = await workstreamRepo.createWorkstream(input);
+    if (!workstream) {
+      throw new NotFoundError("Failed to create workstream");
+    }
+    return workstream;
   }
 
   async update(id: string, input: UpdateWorkstreamInput) {

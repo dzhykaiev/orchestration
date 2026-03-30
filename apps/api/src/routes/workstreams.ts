@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from "fastify";
-import { workstreamService } from "../services/workstream.service.js";
 import { idParamSchema } from "../schemas/projects.js";
 import { updateWorkstreamSchema } from "../schemas/workstreams.js";
+import { workstreamService } from "../services/workstream.service.js";
 
 export const workstreamRoutes: FastifyPluginAsync = async (app) => {
   // GET /:id — get workstream by ID

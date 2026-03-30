@@ -10,13 +10,13 @@ This is a TypeScript monorepo managed with pnpm workspaces:
 
 | Component | Path | Tech |
 |---|---|---|
-| API server | `apps/api` | Fastify |
-| Web dashboard | `apps/web` | Next.js |
+| API server | `apps/api` | Fastify 5, Zod validation |
+| Web dashboard | `apps/web` | Next.js 15, React 19 |
 | Orchestrator service | `apps/orchestrator` | BullMQ workers |
-| Shared package | `packages/shared` | TypeScript types, utilities |
-| Database | — | PostgreSQL |
+| Shared types | `packages/shared` | TypeScript types, enums |
+| Database | `packages/db` | PostgreSQL, Drizzle ORM |
 | Queue | — | BullMQ / Redis |
-| AI | — | Anthropic Claude API |
+| AI | `apps/orchestrator/src/llm/` | LLM provider abstraction |
 
 ## Owned Files
 
@@ -24,35 +24,38 @@ You have write access to these paths only:
 
 - `apps/web/src/**` — all frontend application code
 
-Typical structure you should create/maintain:
+Current structure:
 
 ```
 apps/web/src/
-├── app/                    # Next.js App Router pages
-│   ├── layout.tsx
-│   ├── page.tsx            # Dashboard / project list
+├── app/                          # Next.js App Router pages
+│   ├── layout.tsx                # Root layout, theme script, header
+│   ├── page.tsx                  # Dashboard — project list
+│   ├── globals.css               # CSS variables, dark mode theming
+│   ├── error.tsx                 # Error boundary
+│   ├── loading.tsx               # Loading state
+│   ├── not-found.tsx             # 404 page
 │   ├── projects/
-│   │   ├── page.tsx        # Project list
-│   │   ├── new/page.tsx    # Create project form
-│   │   └── [id]/
-│   │       ├── page.tsx    # Project detail
-│   │       └── workstreams/
-│   │           └── page.tsx
-│   └── globals.css
+│   │   ├── new/page.tsx          # Create project form
+│   │   └── [id]/page.tsx         # Project detail (workstreams, tasks, files)
+│   └── board/
+│       └── page.tsx              # Feature board (Kanban-style)
 ├── components/
-│   ├── ui/                 # Reusable primitives (Button, Card, Input, etc.)
-│   ├── projects/           # Project-specific components
-│   ├── workstreams/        # Workstream visualization components
-│   └── layout/             # Shell, Sidebar, Header
-├── hooks/
-│   ├── use-projects.ts
-│   ├── use-workstreams.ts
-│   └── use-realtime.ts     # SSE/WebSocket hook for live updates
-├── lib/
-│   ├── api-client.ts       # Typed fetch wrapper for the API
-│   └── utils.ts
+│   ├── ActivityFeed.tsx          # Task/workstream activity timeline
+│   ├── DependencyGraph.tsx       # Dagre-based workstream dependency visualization
+│   ├── FileTree.tsx              # File explorer tree view
+│   ├── FileViewer.tsx            # File content viewer
+│   ├── board/                    # Feature board components
+│   └── ui/                       # Reusable UI primitives
+│       ├── StatusBadge.tsx
+│       ├── Modal.tsx
+│       ├── Toast.tsx
+│       ├── ThemeToggle.tsx
+│       ├── Skeleton.tsx
+│       └── ... (13+ components)
+├── hooks/                        # React hooks for API calls
+├── lib/                          # Utilities, API client
 └── types/
-    └── index.ts            # Re-exports from @orchestration/shared (if needed)
 ```
 
 ## Boundaries
@@ -62,10 +65,12 @@ apps/web/src/
 - Read contracts from `contracts/api/` to know the exact API shape you are calling
 - Read shared types from `packages/shared/src/types/` and use them for all data structures
 - Use the Next.js App Router (not Pages Router)
-- Build a typed API client in `apps/web/src/lib/api-client.ts` that matches the contracts
+- Build a typed API client in `apps/web/src/lib/` that matches the contracts
 - Handle loading, error, and empty states for every data-fetching view
 - Make the layout responsive (works on desktop and tablet at minimum)
 - Use React Server Components where possible; use `"use client"` only when needed
+- Subscribe to SSE events (`GET /api/events`) for real-time progress updates
+- Support dark/light theme via CSS variables in `globals.css`
 
 ### You MUST NOT
 
@@ -73,6 +78,7 @@ apps/web/src/
   - `apps/api/*`
   - `apps/orchestrator/*`
   - `packages/shared/src/types/*`
+  - `packages/db/*`
   - `contracts/*`
 - Implement backend logic or API routes in Next.js (all data comes from the Fastify API)
 - Duplicate type definitions that exist in `@orchestration/shared`
@@ -93,30 +99,27 @@ Before you start, these must exist:
 | Route | Purpose |
 |---|---|
 | `/` | Dashboard — overview of all projects with status summary |
-| `/projects` | Project list with search/filter |
-| `/projects/new` | Create project form |
-| `/projects/[id]` | Project detail — shows workstreams, progress, agent status |
-| `/projects/[id]/workstreams` | Detailed workstream view with dependency graph |
+| `/projects/new` | Create project form (goal, name, mode, LLM provider) |
+| `/projects/[id]` | Project detail — workstreams, tasks, files, activity feed |
+| `/board` | Feature board — Kanban-style feature tracking |
 
 ### 2. Components (`apps/web/src/components/`)
 
-- **UI primitives**: Button, Card, Input, Badge, Skeleton, Modal, Toast
-- **Project components**: ProjectCard, ProjectForm, ProjectStatusBadge
-- **Workstream components**: WorkstreamList, WorkstreamCard, ProgressBar, DependencyGraph
-- **Layout components**: AppShell, Sidebar, Header, BreadcrumbNav
+- **UI primitives**: StatusBadge, Modal, Toast, ThemeToggle, Skeleton, etc.
+- **Visualization**: DependencyGraph (dagre-based workstream DAG), FileTree, FileViewer
+- **Activity**: ActivityFeed (task/workstream progress timeline)
+- **Board**: Feature board Kanban components
 
-### 3. Data Hooks (`apps/web/src/hooks/`)
+### 3. Real-time Updates
 
-- `use-projects.ts` — fetch, create, update, delete projects
-- `use-workstreams.ts` — fetch workstreams for a project
-- `use-realtime.ts` — subscribe to SSE/WebSocket for live progress updates
+- SSE subscription to `GET /api/events` for live project/workstream/task events
+- UI auto-updates on `project.*`, `workstream.*`, `task.*` events without page reload
 
-### 4. API Client (`apps/web/src/lib/api-client.ts`)
+### 4. API Client (`apps/web/src/lib/`)
 
 - Typed fetch wrapper with methods for every API endpoint
-- Handles base URL configuration via environment variable (`NEXT_PUBLIC_API_URL`)
-- Includes error parsing that matches the standard error response shape
-- Returns typed responses matching the contracts
+- Handles base URL configuration via `NEXT_PUBLIC_API_URL` environment variable
+- Error parsing matching the standard error response shape
 
 ## Dependencies
 
@@ -125,21 +128,22 @@ Before you start, these must exist:
 | Architect | Contracts in `contracts/api/`, types in `packages/shared/src/types/` | Files exist and export types |
 | Backend agent | Running API at configured URL | API responds to `GET /health` |
 
-## Forbidden Changes
+## Key Libraries
 
-- `apps/api/*` — backend agent's territory
-- `apps/orchestrator/*` — orchestrator agent's territory
-- `packages/shared/src/types/*` — architect's territory
-- `contracts/*` — architect's territory
+- `@xyflow/react` — for DependencyGraph interactive visualization
+- `@dagrejs/dagre` — for DAG layout computation
 
 ## Done Criteria
 
-- [ ] Dashboard page renders and shows project list
+- [ ] Dashboard page renders and shows project list with status badges
 - [ ] Can create a new project via the form and see it in the list
-- [ ] Project detail page shows workstreams with progress indicators
-- [ ] Real-time updates reflect in the UI without manual refresh
+- [ ] Project detail page shows workstreams, tasks, file tree, and activity feed
+- [ ] DependencyGraph visualizes workstream dependencies as interactive DAG
+- [ ] Feature board page with Kanban columns
+- [ ] Real-time SSE updates reflect in the UI without manual refresh
 - [ ] All pages handle loading, error, and empty states
+- [ ] Dark/light theme toggle works
 - [ ] Layout is responsive (desktop + tablet)
 - [ ] API client is fully typed and matches contracts
-- [ ] No TypeScript errors (`pnpm tsc --noEmit` in `apps/web`)
+- [ ] No TypeScript errors (`pnpm typecheck`)
 - [ ] No use of `any` type

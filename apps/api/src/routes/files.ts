@@ -1,8 +1,10 @@
+import { readFile, readdir, stat } from "node:fs/promises";
+import { join, resolve } from "node:path";
 import type { FastifyPluginAsync } from "fastify";
-import { readdir, stat, readFile } from "node:fs/promises";
-import { resolve, join } from "node:path";
 
-const PROJECTS_DIR = resolve(process.env.PROJECTS_DIR || join(process.cwd(), "..", "orchestrator", "projects"));
+const PROJECTS_DIR = resolve(
+  process.env.PROJECTS_DIR || join(process.cwd(), "..", "orchestrator", "projects"),
+);
 const MAX_FILE_SIZE = 100 * 1024; // 100KB
 
 function isBinary(buffer: Buffer): boolean {
@@ -40,9 +42,9 @@ export const fileRoutes: FastifyPluginAsync = async (app) => {
       }
 
       // Read directory
-      let entries;
+      let entries: import("node:fs").Dirent[] | undefined;
       try {
-        entries = await readdir(targetDir, { withFileTypes: true });
+        entries = (await readdir(targetDir, { withFileTypes: true })) as import("node:fs").Dirent[];
       } catch {
         return reply.status(404).send({ error: "Directory not found", statusCode: 404 });
       }
@@ -95,7 +97,7 @@ export const fileRoutes: FastifyPluginAsync = async (app) => {
       }
 
       // Check file exists and get stats
-      let s;
+      let s: import("node:fs").Stats | undefined;
       try {
         s = await stat(fullPath);
       } catch {
@@ -116,7 +118,9 @@ export const fileRoutes: FastifyPluginAsync = async (app) => {
       const buffer = await readFile(fullPath);
 
       if (isBinary(buffer)) {
-        return reply.status(400).send({ error: "Binary files cannot be displayed", statusCode: 400 });
+        return reply
+          .status(400)
+          .send({ error: "Binary files cannot be displayed", statusCode: 400 });
       }
 
       return { content: buffer.toString("utf-8"), path: filePath, size: s.size };

@@ -2,7 +2,7 @@
 
 ## Mission
 
-Design and implement the data layer — database schema, migrations, repository pattern, and seed data. You own the PostgreSQL schema and provide the data access layer that the backend agent's services consume.
+Design and implement the data layer — database schema, migrations, repository pattern, and seed data. You own the PostgreSQL schema via Drizzle ORM and provide the data access layer that both the API and orchestrator consume.
 
 ## System Context
 
@@ -10,162 +10,145 @@ This is a TypeScript monorepo managed with pnpm workspaces:
 
 | Component | Path | Tech |
 |---|---|---|
-| API server | `apps/api` | Fastify |
-| Web dashboard | `apps/web` | Next.js |
+| API server | `apps/api` | Fastify 5, Zod validation |
+| Web dashboard | `apps/web` | Next.js 15, React 19 |
 | Orchestrator service | `apps/orchestrator` | BullMQ workers |
-| Shared package | `packages/shared` | TypeScript types, utilities |
-| Database | — | PostgreSQL |
+| Shared types | `packages/shared` | TypeScript types, enums |
+| Database | `packages/db` | PostgreSQL, Drizzle ORM 0.39, postgres.js driver |
 | Queue | — | BullMQ / Redis |
-| AI | — | Anthropic Claude API |
+| AI | `apps/orchestrator/src/llm/` | LLM provider abstraction |
 
 ## Owned Files
 
 You have write access to these paths only:
 
-- `apps/api/src/db/**` — all database-related code
-- Seed scripts (e.g., `apps/api/src/db/seed.ts` or `scripts/seed.ts`)
-- `packages/shared/src/types/` — **only** if a schema change requires updating an entity type (coordinate with architect)
+- `packages/db/src/**` — all database code (schema, repositories, client)
+- `packages/db/drizzle/**` — generated Drizzle migration files
+- `apps/api/src/db/seed.ts` — seed data script
 
-Typical structure you should create/maintain:
+Current structure:
 
 ```
-apps/api/src/db/
-├── index.ts                # Database connection setup, pool export
-├── migrations/
-│   ├── 001_create_projects.sql
-│   ├── 002_create_workstreams.sql
-│   ├── 003_create_agents.sql
-│   ├── 004_create_tasks.sql
-│   └── 005_create_events.sql
-├── repositories/
-│   ├── base.repository.ts  # Base class with common CRUD methods
-│   ├── project.repository.ts
-│   ├── workstream.repository.ts
-│   ├── agent.repository.ts
-│   └── task.repository.ts
-├── seed.ts                 # Seed data loader
-└── utils/
-    ├── migrate.ts          # Migration runner
-    └── query-builder.ts    # Optional query helpers
+packages/db/
+├── src/
+│   ├── schema.ts            # Drizzle ORM schema (tables, enums, relations, indexes)
+│   ├── client.ts            # PostgreSQL connection (postgres.js driver)
+│   ├── index.ts             # Barrel export (db client, schema, repositories)
+│   └── repositories/
+│       ├── projects.ts      # CRUD + getProjectById, updateProject, deleteProject
+│       ├── workstreams.ts   # CRUD + dependencies, validation status tracking
+│       ├── tasks.ts         # CRUD + markTaskStarted/Completed/Failed
+│       └── features.ts     # CRUD for feature board
+├── drizzle/                 # Generated migration SQL files
+├── drizzle.config.ts        # Drizzle Kit configuration
+├── package.json
+└── tsconfig.json
 ```
 
 ## Boundaries
 
 ### You MUST
 
-- Read entity types from `packages/shared/src/types/` and ensure the database schema matches them exactly
-- Read architecture docs from `docs/architecture/data-model.md` for entity relationships
-- Write migrations as sequential numbered SQL files — idempotent where possible
-- Implement the repository pattern: one repository class per entity
+- Define all tables in `packages/db/src/schema.ts` using Drizzle ORM schema builders
+- Ensure the schema matches entity types in `packages/shared/src/types/`
+- Implement the repository pattern: one repository file per entity in `packages/db/src/repositories/`
 - Every repository must expose at minimum: `findById`, `findAll` (with pagination), `create`, `update`, `delete`
+- Use Drizzle's query builder — never concatenate raw SQL strings
 - Add indexes on all foreign key columns and commonly queried fields
-- Add `created_at` and `updated_at` timestamps to every table
-- Use parameterized queries — never concatenate SQL strings
-- Provide a seed script that populates the database with realistic sample data
+- Add `createdAt` and `updatedAt` timestamps to every table
+- Use JSONB columns for flexible data (dependencies, deliverables, ownedPaths, filesModified)
+- Define PostgreSQL enums for status fields using `pgEnum`
+- Export all schema, repositories, and client from `packages/db/src/index.ts`
+- Generate migrations via `pnpm db:generate` (Drizzle Kit)
+- Provide seed data that can run via `pnpm db:seed`
 
 ### You MUST NOT
 
 - Modify files outside your owned paths:
   - `apps/web/*`
-  - `apps/orchestrator/src/services/*`
+  - `apps/orchestrator/src/*` (except reading for context)
   - `apps/api/src/routes/*`
   - `apps/api/src/services/*`
+  - `contracts/*`
 - Create API routes or service logic
-- Use an ORM — use a lightweight query library (e.g., `pg`, `postgres`, or `kysely`) with raw SQL or a query builder
+- Use raw SQL queries — use Drizzle ORM query builder exclusively
 - Delete or modify existing migrations that have been applied — create new migrations for schema changes
+
+## Current Schema
+
+The schema (`packages/db/src/schema.ts`) currently defines:
+
+**Enums:**
+- `projectStatus`: draft, planning, in_progress, completed, failed, archived
+- `workstreamStatus`: pending, blocked, in_progress, completed, failed
+- `taskStatus`: queued, running, completed, failed, cancelled
+- `agentRole`: architect, backend, frontend, data, devops, qa
+- `featureStatus`: backlog, planned, in_progress, done, cancelled
+- `featureType`: feature, bug, improvement, task
+
+**Tables:**
+- `projects` — id, name, goal, status, mode, llmProvider, repoUrl, projectDir, costUsd, ...
+- `workstreams` — id, projectId(FK), name, description, role, status, validationStatus, dependencies(JSONB), deliverables(JSONB), ownedPaths(JSONB), ...
+- `agentTasks` — id, workstreamId(FK), projectId(FK), role, status, prompt, output, costUsd, filesModified(JSONB), ...
+- `features` — id, projectId(FK), title, description, type, status, priority, ...
 
 ## Required Inputs
 
 Before you start, these must exist:
 
-1. **Entity types** — `packages/shared/src/types/entities.ts` with all entity definitions
-2. **Data model documentation** — `docs/architecture/data-model.md` with relationships and cardinality
+1. **Entity types** — `packages/shared/src/types/` with all entity definitions
+2. **Architecture docs** — `docs/` with entity relationships and data model
 
 ## Expected Outputs
 
-### 1. Database Connection (`apps/api/src/db/index.ts`)
+### 1. Schema (`packages/db/src/schema.ts`)
 
-- PostgreSQL connection pool setup
-- Configuration via environment variables: `DATABASE_URL` or individual `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
-- Connection health check function
-- Graceful shutdown (pool cleanup)
+- Drizzle ORM table definitions with proper types, foreign keys, and indexes
+- PostgreSQL enums for all status/role fields
+- JSONB columns for arrays/objects (dependencies, deliverables, etc.)
+- Timestamp columns on every table
 
-### 2. Migrations (`apps/api/src/db/migrations/`)
+### 2. Repositories (`packages/db/src/repositories/`)
 
-One SQL file per migration, numbered sequentially. Each migration must:
-
-- Create the table with all columns matching the entity type
-- Define primary keys, foreign keys, and constraints
-- Add indexes on foreign keys and frequently queried columns
-- Include `created_at TIMESTAMPTZ DEFAULT NOW()` and `updated_at TIMESTAMPTZ DEFAULT NOW()`
-- Be safe to run multiple times (use `IF NOT EXISTS` or a migration tracking table)
-
-Expected tables (based on typical orchestration platform):
-
-| Table | Key Relationships |
-|---|---|
-| `projects` | Top-level entity |
-| `workstreams` | Belongs to project |
-| `agents` | Assigned to workstream |
-| `tasks` | Belongs to workstream, assigned to agent |
-| `events` | Polymorphic log of actions on any entity |
-
-### 3. Repositories (`apps/api/src/db/repositories/`)
-
-Each repository class must:
-
-- Accept a database pool/client in its constructor
+Each repository must:
+- Accept the Drizzle DB instance
 - Return typed results using shared types from `@orchestration/shared`
 - Support pagination via `limit`/`offset` on list queries
 - Support filtering on common fields (e.g., `findByProjectId` on workstreams)
-- Use parameterized queries for all user-supplied values
+- Provide convenience methods for status transitions (e.g., `markTaskCompleted`)
 
-```typescript
-// Example interface (do not copy verbatim — adapt to actual entity types)
-class ProjectRepository {
-  findById(id: string): Promise<Project | null>
-  findAll(opts: PaginationOptions): Promise<PaginatedResult<Project>>
-  create(data: CreateProjectInput): Promise<Project>
-  update(id: string, data: UpdateProjectInput): Promise<Project>
-  delete(id: string): Promise<void>
-}
-```
+### 3. Client (`packages/db/src/client.ts`)
 
-### 4. Migration Runner (`apps/api/src/db/utils/migrate.ts`)
+- PostgreSQL connection via `postgres` (postgres.js) driver
+- Configuration via `DATABASE_URL` environment variable
+- Drizzle ORM instance wrapping the connection
 
-- Reads SQL files from `migrations/` directory in order
-- Tracks which migrations have been applied (use a `_migrations` table)
-- Can be run via a script: `pnpm db:migrate`
+### 4. Migrations (`packages/db/drizzle/`)
+
+- Generated by Drizzle Kit from schema changes (`pnpm db:generate`)
+- Applied via `pnpm db:migrate` or `pnpm db:push`
 
 ### 5. Seed Script (`apps/api/src/db/seed.ts`)
 
 - Creates 2-3 sample projects with workstreams, agents, and tasks
-- Uses the repository classes (not raw SQL) to insert data
-- Can be run via a script: `pnpm db:seed`
-- Idempotent — safe to run multiple times (clears or upserts)
+- Uses the repository classes for data insertion
+- Idempotent — safe to run multiple times
 
 ## Dependencies
 
 | Agent | What you need from them | Status check |
 |---|---|---|
-| Architect | Entity types in `packages/shared/src/types/`, data model doc in `docs/architecture/data-model.md` | Files exist and define all entities |
-
-## Forbidden Changes
-
-- `apps/web/*` — frontend agent's territory
-- `apps/orchestrator/src/services/*` — orchestrator agent's territory
-- `apps/api/src/routes/*` — backend agent's territory
-- `apps/api/src/services/*` — backend agent's territory
-- `contracts/*` — architect's territory
+| Architect | Entity types in `packages/shared/src/types/`, data model docs | Files exist and define all entities |
 
 ## Done Criteria
 
-- [ ] All entity tables exist as migrations in `apps/api/src/db/migrations/`
-- [ ] Migrations run cleanly from a fresh database (`pnpm db:migrate`)
-- [ ] Every table has `created_at` and `updated_at` columns
+- [ ] All entity tables defined in `packages/db/src/schema.ts` with Drizzle ORM
+- [ ] Schema matches types in `packages/shared/src/types/`
+- [ ] Migrations generate and apply cleanly (`pnpm db:generate && pnpm db:push`)
+- [ ] Every table has `createdAt` and `updatedAt` columns
 - [ ] Foreign keys and indexes are defined for all relationships
-- [ ] Repository class exists for each entity with `findById`, `findAll`, `create`, `update`, `delete`
-- [ ] All repository methods use parameterized queries (no string concatenation)
-- [ ] Seed script runs and populates the database with sample data (`pnpm db:seed`)
-- [ ] Database connection pool handles graceful shutdown
-- [ ] `pnpm tsc --noEmit` passes with no type errors in `apps/api`
+- [ ] Repository exists for each entity with full CRUD + convenience methods
+- [ ] All repositories exported from `packages/db/src/index.ts`
+- [ ] Repositories used by both `apps/api` and `apps/orchestrator` (shared data layer)
+- [ ] Seed script runs and populates the database (`pnpm db:seed`)
+- [ ] `pnpm typecheck` passes with no type errors

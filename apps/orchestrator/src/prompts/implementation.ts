@@ -28,10 +28,7 @@ const SHARED_STANDARDS = `
 - For SQL migrations, ensure they are idempotent where possible (\`IF NOT EXISTS\`, \`ON CONFLICT\`, etc.).
 - For configuration files, ensure they are valid (parseable YAML, JSON, etc.).`;
 
-export function buildSystemPrompt(
-  role: AgentRole,
-  architecture: string,
-): string {
+export function buildSystemPrompt(role: AgentRole, architecture: string): string {
   const brief = AGENT_BRIEFS[role];
 
   return `${brief}

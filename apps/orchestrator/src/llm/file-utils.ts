@@ -49,10 +49,7 @@ export async function snapshotFiles(dir: string): Promise<Map<string, number>> {
 /**
  * Find files that were created or modified between two snapshots.
  */
-export function diffSnapshots(
-  before: Map<string, number>,
-  after: Map<string, number>,
-): string[] {
+export function diffSnapshots(before: Map<string, number>, after: Map<string, number>): string[] {
   const changed: string[] = [];
   for (const [path, mtimeMs] of after) {
     const prevMtime = before.get(path);

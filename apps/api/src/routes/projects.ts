@@ -1,13 +1,13 @@
 import type { FastifyPluginAsync } from "fastify";
-import { projectService } from "../services/project.service.js";
-import { workstreamService } from "../services/workstream.service.js";
 import {
   createProjectSchema,
-  updateProjectSchema,
   idParamSchema,
   listQuerySchema,
+  updateProjectSchema,
 } from "../schemas/projects.js";
 import { createWorkstreamSchema } from "../schemas/workstreams.js";
+import { projectService } from "../services/project.service.js";
+import { workstreamService } from "../services/workstream.service.js";
 
 export const projectRoutes: FastifyPluginAsync = async (app) => {
   // GET / — list projects (excludes archived by default)

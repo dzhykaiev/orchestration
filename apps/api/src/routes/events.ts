@@ -1,6 +1,6 @@
+import type { OrchestratorEvent } from "@orchestration/shared";
 import type { FastifyPluginAsync } from "fastify";
 import IORedis from "ioredis";
-import type { OrchestratorEvent } from "@orchestration/shared";
 import { EVENTS_CHANNEL } from "../events/channel.js";
 
 const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
@@ -43,7 +43,9 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
         }
 
         const id = Date.now();
-        reply.raw.write(`id: ${id}\nevent: ${event.type}\ndata: ${JSON.stringify(event.payload)}\n\n`);
+        reply.raw.write(
+          `id: ${id}\nevent: ${event.type}\ndata: ${JSON.stringify(event.payload)}\n\n`,
+        );
       } catch (err) {
         app.log.error({ err }, "Failed to process SSE event");
       }

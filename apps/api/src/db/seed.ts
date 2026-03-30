@@ -11,7 +11,7 @@ async function seed() {
       status: "draft",
     })
     .returning();
-  console.log("Created draft project:", draftProject!.id);
+  console.log("Created draft project:", draftProject?.id);
 
   const [activeProject] = await db
     .insert(schema.projects)
@@ -19,15 +19,18 @@ async function seed() {
       name: "E-Commerce API",
       goal: "Build a REST API for an e-commerce platform with products, orders, and user accounts",
       status: "in_progress",
-      architecture: "## Architecture\n\nMonolith REST API with PostgreSQL.\n\n### Endpoints\n- /api/products\n- /api/orders\n- /api/users",
+      architecture:
+        "## Architecture\n\nMonolith REST API with PostgreSQL.\n\n### Endpoints\n- /api/products\n- /api/orders\n- /api/users",
     })
     .returning();
-  console.log("Created active project:", activeProject!.id);
+  console.log("Created active project:", activeProject?.id);
+
+  if (!activeProject) throw new Error("Failed to create active project");
 
   const [wsData] = await db
     .insert(schema.workstreams)
     .values({
-      projectId: activeProject!.id,
+      projectId: activeProject.id,
       name: "Data Layer",
       objective: "Set up database schema for products, orders, and users",
       status: "completed",
@@ -38,14 +41,16 @@ async function seed() {
     })
     .returning();
 
+  if (!wsData) throw new Error("Failed to create Data Layer workstream");
+
   const [wsApi] = await db
     .insert(schema.workstreams)
     .values({
-      projectId: activeProject!.id,
+      projectId: activeProject.id,
       name: "API Server",
       objective: "Implement REST endpoints for products, orders, and users",
       status: "in_progress",
-      dependencies: [wsData!.id],
+      dependencies: [wsData.id],
       deliverables: ["routes/products.ts", "routes/orders.ts", "routes/users.ts"],
       ownedPaths: ["src/routes/", "src/services/"],
       assignedAgent: "backend",
@@ -53,20 +58,22 @@ async function seed() {
     })
     .returning();
 
+  if (!wsApi) throw new Error("Failed to create API Server workstream");
+
   await db.insert(schema.workstreams).values({
-    projectId: activeProject!.id,
+    projectId: activeProject.id,
     name: "Admin Dashboard",
     objective: "Build admin UI for managing products and viewing orders",
     status: "pending",
-    dependencies: [wsApi!.id],
+    dependencies: [wsApi.id],
     deliverables: ["pages/", "components/"],
     ownedPaths: ["src/app/"],
     order: 3,
   });
 
   await db.insert(schema.agentTasks).values({
-    workstreamId: wsData!.id,
-    projectId: activeProject!.id,
+    workstreamId: wsData.id,
+    projectId: activeProject.id,
     role: "data",
     prompt: "Create the database schema for products, orders, and users tables",
     status: "completed",
@@ -77,8 +84,8 @@ async function seed() {
   });
 
   await db.insert(schema.agentTasks).values({
-    workstreamId: wsApi!.id,
-    projectId: activeProject!.id,
+    workstreamId: wsApi.id,
+    projectId: activeProject.id,
     role: "backend",
     prompt: "Implement CRUD endpoints for the products resource",
     status: "completed",
@@ -89,8 +96,8 @@ async function seed() {
   });
 
   await db.insert(schema.agentTasks).values({
-    workstreamId: wsApi!.id,
-    projectId: activeProject!.id,
+    workstreamId: wsApi.id,
+    projectId: activeProject.id,
     role: "backend",
     prompt: "Implement CRUD endpoints for the orders resource",
     status: "running",

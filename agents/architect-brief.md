@@ -12,13 +12,13 @@ This is a TypeScript monorepo managed with pnpm workspaces:
 
 | Component | Path | Tech |
 |---|---|---|
-| API server | `apps/api` | Fastify |
-| Web dashboard | `apps/web` | Next.js |
-| Orchestrator service | `apps/orchestrator` | BullMQ workers |
-| Shared package | `packages/shared` | TypeScript types, utilities |
-| Database | — | PostgreSQL |
+| API server | `apps/api` | Fastify 5, Zod validation |
+| Web dashboard | `apps/web` | Next.js 15, React 19 |
+| Orchestrator service | `apps/orchestrator` | BullMQ workers (planning, implementation, validation) |
+| Shared types | `packages/shared` | TypeScript types, enums, event definitions |
+| Database | `packages/db` | PostgreSQL, Drizzle ORM, repositories |
 | Queue | — | BullMQ / Redis |
-| AI | — | Anthropic Claude API |
+| AI | `apps/orchestrator/src/llm/` | LLM provider abstraction (Claude CLI, OpenCode) |
 
 ## Owned Files
 
@@ -32,23 +32,49 @@ You have write access to these paths only:
 
 ### You MUST
 
-- Define all entity types in `packages/shared/src/types/` and export them from the package index
+- Define all entity types in `packages/shared/src/types/` and export them from `packages/shared/src/types/index.ts`
 - Define all API contracts in `contracts/api/` (request/response shapes, endpoints, methods, status codes)
-- Define all queue/event contracts in `contracts/events/` (job names, payloads, retry policies)
-- Document the database entity-relationship model in `docs/architecture/`
-- Create a workstream plan in `docs/workstreams/` that describes what each agent should build and in what order
-- Use strict TypeScript types — no `any`, prefer branded types for IDs
+- Define all queue/event contracts in `contracts/events/` (job names, payloads, SSE event types)
+- Document the database entity-relationship model in `docs/`
+- Create a workstream plan that describes what each agent should build and in what order
+- Use strict TypeScript types — no `any`, prefer union literal types for statuses and roles
 
 ### You MUST NOT
 
 - Modify any application implementation code:
   - `apps/api/src/routes/*`
   - `apps/api/src/services/*`
+  - `apps/api/src/schemas/*`
   - `apps/web/src/*`
-  - `apps/orchestrator/src/services/*`
-- Write database migrations (that is the data agent's job)
+  - `apps/orchestrator/src/*`
+- Modify database schema (`packages/db/src/schema.ts`) or repositories (`packages/db/src/repositories/*`)
 - Install dependencies or modify `package.json` files
 - Create test files
+
+## Current Type Definitions
+
+Types already exist in `packages/shared/src/types/`:
+
+| File | Entities |
+|---|---|
+| `project.ts` | Project, ProjectStatus, ProjectMode, LLMProviderType, CreateProjectInput, UpdateProjectInput |
+| `workstream.ts` | Workstream, WorkstreamStatus, ValidationStatus, CreateWorkstreamInput, UpdateWorkstreamInput |
+| `agent-task.ts` | AgentTask, AgentTaskStatus, AgentRole, CreateAgentTaskInput, AgentTaskResult |
+| `feature.ts` | Feature, FeatureStatus, FeatureType, CreateFeatureInput, UpdateFeatureInput |
+| `events.ts` | OrchestratorEvent (union type), EventType, EVENTS_CHANNEL |
+| `llm-provider.ts` | LLMProvider interface, RunOptions, RunResult |
+| `env.ts` | EnvContract |
+
+## Current Contracts
+
+Contracts already exist in `contracts/`:
+
+| File | Contents |
+|---|---|
+| `contracts/api/projects.ts` | ListProjects, GetProject, CreateProject, UpdateProject, PlanProject request/response |
+| `contracts/api/workstreams.ts` | Workstream CRUD contracts |
+| `contracts/api/agent-tasks.ts` | AgentTask CRUD contracts |
+| `contracts/events/index.ts` | OrchestratorEvent union: project.*, workstream.*, task.* events |
 
 ## Required Inputs
 
@@ -56,44 +82,30 @@ You have write access to these paths only:
 
 ## Expected Outputs
 
-### 1. Architecture Documentation (`docs/architecture/`)
+### 1. Architecture Documentation (`docs/`)
 
-- `overview.md` — system-level architecture, component responsibilities, data flow
-- `data-model.md` — entity definitions, relationships, cardinality
-- `api-design.md` — REST API design principles, versioning strategy, error format
+- System-level architecture, component responsibilities, data flow
+- Entity definitions, relationships, cardinality
+- API design principles, error format
 
 ### 2. API Contracts (`contracts/api/`)
 
-One file per resource, e.g.:
-
-- `contracts/api/projects.ts` — CRUD endpoints for projects
-- `contracts/api/workstreams.ts` — workstream management endpoints
-- `contracts/api/agents.ts` — agent status and control endpoints
-
-Each contract file must define:
-
-```typescript
-// HTTP method + path
-// Request params, query, body types
-// Response body type
-// Possible error codes
-```
+One file per resource with typed request/response shapes, endpoints, methods, error codes.
 
 ### 3. Event Contracts (`contracts/events/`)
 
-- `contracts/events/jobs.ts` — BullMQ job names, payload types, retry config
-- `contracts/events/notifications.ts` — real-time event types (WebSocket/SSE)
+- BullMQ job names, payload types, retry config
+- SSE event types for real-time UI updates
 
 ### 4. Shared Types (`packages/shared/src/types/`)
 
-- `packages/shared/src/types/entities.ts` — Project, Workstream, Agent, Task, etc.
-- `packages/shared/src/types/enums.ts` — Status enums, role enums
-- `packages/shared/src/types/common.ts` — Pagination, error shapes, branded ID types
-- `packages/shared/src/types/index.ts` — barrel export
+- Entity types matching DB schema in `packages/db/src/schema.ts`
+- Status enums as union literal types
+- Barrel export from `index.ts`
 
-### 5. Workstream Plan (`docs/workstreams/`)
+### 5. Workstream Plan
 
-- `plan.md` — ordered list of implementation workstreams with dependencies
+- Ordered list of implementation workstreams with dependencies
 - One section per agent describing their scope, inputs, and done criteria
 
 ## Dependencies
@@ -104,9 +116,9 @@ None. This agent runs first.
 
 - [ ] All entity types are defined in `packages/shared/src/types/` and exported
 - [ ] All API endpoints have contracts in `contracts/api/` with request/response types
-- [ ] All queue job types have contracts in `contracts/events/`
-- [ ] Architecture overview document exists and describes system data flow
+- [ ] All queue job types and SSE events have contracts in `contracts/events/`
+- [ ] Architecture documentation exists and describes system data flow
 - [ ] Data model document exists with all entities and relationships
 - [ ] Workstream plan exists with clear agent assignments and dependency order
 - [ ] No use of `any` type in any contract or type file
-- [ ] All types compile without errors (`pnpm tsc --noEmit` in `packages/shared`)
+- [ ] All types compile without errors (`pnpm typecheck`)

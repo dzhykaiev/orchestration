@@ -55,6 +55,9 @@ export class FeatureService {
       projectMode: "existing",
       repoPath: selfRepoPath,
     });
+    if (!project) {
+      throw new Error("Failed to create project for feature");
+    }
 
     await featureRepo.updateFeature(id, {
       status: "in_progress",

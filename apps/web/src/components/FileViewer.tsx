@@ -25,7 +25,8 @@ export function FileViewer({ projectId, filePath, onClose }: FileViewerProps) {
     setLoading(true);
     setError(null);
     setContent(null);
-    api.files.content(projectId, filePath)
+    api.files
+      .content(projectId, filePath)
       .then((res) => {
         setContent(res.content);
         setSize(res.size);
@@ -41,8 +42,21 @@ export function FileViewer({ projectId, filePath, onClose }: FileViewerProps) {
   const fileName = filePath.split("/").pop() || filePath;
 
   return (
-    <div className="file-viewer-backdrop" onClick={onClose}>
-      <div className="file-viewer-modal" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="file-viewer-backdrop"
+      role="button"
+      tabIndex={0}
+      onClick={onClose}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") onClose();
+      }}
+    >
+      <div
+        className="file-viewer-modal"
+        role="dialog"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+      >
         <div className="file-viewer-header">
           <div>
             <strong style={{ fontFamily: "var(--font-mono)", fontSize: "0.9rem" }}>
@@ -52,16 +66,14 @@ export function FileViewer({ projectId, filePath, onClose }: FileViewerProps) {
               {filePath} ({formatSize(size)})
             </div>
           </div>
-          <button className="modal-close" onClick={onClose}>
+          <button type="button" className="modal-close" onClick={onClose}>
             &times;
           </button>
         </div>
         <div className="file-viewer-body">
           {loading && <p className="text-muted">Loading...</p>}
           {error && <p style={{ color: "var(--color-danger)" }}>{error}</p>}
-          {content !== null && (
-            <pre className="file-viewer-content">{content}</pre>
-          )}
+          {content !== null && <pre className="file-viewer-content">{content}</pre>}
         </div>
       </div>
     </div>

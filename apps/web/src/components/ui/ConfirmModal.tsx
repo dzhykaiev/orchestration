@@ -32,10 +32,11 @@ export function ConfirmModal({
     <Modal isOpen={isOpen} onClose={onClose} title={title}>
       <p>{message}</p>
       <div className="modal-footer">
-        <button className="btn btn-secondary" onClick={onClose}>
+        <button type="button" className="btn btn-secondary" onClick={onClose}>
           {cancelText}
         </button>
         <button
+          type="button"
           className={`btn ${variant === "danger" ? "btn-danger" : "btn-primary"}`}
           onClick={handleConfirm}
         >

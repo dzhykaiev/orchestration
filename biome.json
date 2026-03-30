@@ -20,17 +20,13 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true
+      "recommended": true,
+      "a11y": {
+        "useSemanticElements": "off"
+      }
     }
   },
   "files": {
-    "ignore": [
-      "node_modules",
-      "dist",
-      ".next",
-      "coverage",
-      ".turbo",
-      "*.tsbuildinfo"
-    ]
+    "ignore": ["node_modules", "dist", ".next", "coverage", ".turbo", "*.tsbuildinfo"]
   }
 }

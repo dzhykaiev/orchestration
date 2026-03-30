@@ -53,7 +53,14 @@ export function SkeletonProjectDetail() {
       </div>
 
       {/* Stat cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "0.75rem", margin: "1rem 0" }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
+          gap: "0.75rem",
+          margin: "1rem 0",
+        }}
+      >
         <SkeletonStatCard />
         <SkeletonStatCard />
         <SkeletonStatCard />

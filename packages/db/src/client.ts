@@ -3,8 +3,7 @@ import postgres from "postgres";
 import * as schema from "./schema.js";
 
 const connectionString =
-  process.env.DATABASE_URL ||
-  "postgresql://postgres:postgres@localhost:5432/orchestration";
+  process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/orchestration";
 
 const client = postgres(connectionString);
 export { client };

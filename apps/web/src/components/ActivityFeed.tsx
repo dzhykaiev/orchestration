@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { timeAgo } from "../lib/utils";
 import type { ActivityItem } from "../lib/activity";
+import { timeAgo } from "../lib/utils";
 
 interface ActivityFeedProps {
   events: ActivityItem[];
@@ -75,24 +75,13 @@ export function ActivityFeed({ events, maxItems = 20, connected }: ActivityFeedP
             const color = CATEGORY_COLORS[category];
             const opacity = Math.max(0.4, 1 - i * 0.04);
             return (
-              <div
-                key={item.id}
-                className="activity-item"
-                style={{ opacity }}
-              >
-                <span
-                  className="activity-icon"
-                  style={{ borderColor: color }}
-                >
+              <div key={item.id} className="activity-item" style={{ opacity }}>
+                <span className="activity-icon" style={{ borderColor: color }}>
                   {EVENT_ICONS[item.type] ?? "\u{1F4DD}"}
                 </span>
                 <div className="activity-body">
-                  <span className="activity-description">
-                    {item.description}
-                  </span>
-                  <span className="activity-time">
-                    {timeAgo(item.timestamp.toISOString())}
-                  </span>
+                  <span className="activity-description">{item.description}</span>
+                  <span className="activity-time">{timeAgo(item.timestamp.toISOString())}</span>
                 </div>
               </div>
             );

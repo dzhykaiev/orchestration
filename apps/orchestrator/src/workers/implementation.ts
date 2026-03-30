@@ -1,14 +1,14 @@
+import { resolve } from "node:path";
+import { projectRepo, taskRepo, workstreamRepo } from "@orchestration/db";
+import type { AgentRole } from "@orchestration/shared";
 import type { Job } from "bullmq";
 import { Queue } from "bullmq";
 import IORedis from "ioredis";
-import { resolve } from "node:path";
+import { eventBus } from "../events/index.js";
+import { diffSnapshots, snapshotFiles } from "../llm/file-utils.js";
 import { createLLMProvider } from "../llm/index.js";
-import { snapshotFiles, diffSnapshots } from "../llm/file-utils.js";
 import { buildSystemPrompt } from "../prompts/implementation.js";
 import { checkWorkstreamCompletion } from "../tracking/progress.js";
-import { projectRepo, workstreamRepo, taskRepo } from "@orchestration/db";
-import type { AgentRole } from "@orchestration/shared";
-import { eventBus } from "../events/index.js";
 
 const connection = new IORedis.default(process.env.REDIS_URL || "redis://localhost:6379", {
   maxRetriesPerRequest: null,
@@ -55,10 +55,7 @@ export async function handleImplementationJob(job: Job<ImplementationJobData>) {
     const filesBefore = await snapshotFiles(projectDir);
 
     // 5. Build system prompt based on role
-    const systemPrompt = buildSystemPrompt(
-      role as AgentRole,
-      project.architecture || "",
-    );
+    const systemPrompt = buildSystemPrompt(role as AgentRole, project.architecture || "");
 
     // 6. Run agent
     const runResult = await llmProvider.run({
@@ -74,10 +71,14 @@ export async function handleImplementationJob(job: Job<ImplementationJobData>) {
 
     // 7. Diff files to find what was created/modified
     const filesAfter = await snapshotFiles(projectDir);
-    const newOrModified = diffSnapshots(filesBefore, filesAfter)
-      .map((f) => f.replace(projectDir + "/", ""));
+    const newOrModified = diffSnapshots(filesBefore, filesAfter).map((f) =>
+      f.replace(`${projectDir}/`, ""),
+    );
 
-    console.log(`${role} agent created/modified ${newOrModified.length} files:`, newOrModified.slice(0, 10));
+    console.log(
+      `${role} agent created/modified ${newOrModified.length} files:`,
+      newOrModified.slice(0, 10),
+    );
 
     // 8. Mark task completed
     await taskRepo.markTaskCompleted(taskId, result, newOrModified, costUsd);
@@ -101,7 +102,15 @@ export async function handleImplementationJob(job: Job<ImplementationJobData>) {
 
       await implementationQueue.add(
         "implement",
-        { taskId, workstreamId, projectId, role, prompt: retryPrompt, provider, sessionId: resumeSessionId },
+        {
+          taskId,
+          workstreamId,
+          projectId,
+          role,
+          prompt: retryPrompt,
+          provider,
+          sessionId: resumeSessionId,
+        },
         { delay: 5000 * task.attempts },
       );
     } else {

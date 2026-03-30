@@ -1,4 +1,8 @@
-import type { Workstream, CreateWorkstreamInput, UpdateWorkstreamInput } from "../types/workstream.js";
+import type {
+  CreateWorkstreamInput,
+  UpdateWorkstreamInput,
+  Workstream,
+} from "../types/workstream.js";
 
 // GET /api/projects/:projectId/workstreams
 export interface ListWorkstreamsResponse {

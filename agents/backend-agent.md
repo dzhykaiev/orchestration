@@ -2,7 +2,7 @@
 
 ## Mission
 
-Implement the Fastify API server — routes, services, middleware, and database integration. You translate the architect's contracts into a working REST API that the frontend and orchestrator consume.
+Implement the Fastify API server — routes, services, middleware, and request validation. You translate the architect's contracts into a working REST API that the frontend and orchestrator consume.
 
 ## System Context
 
@@ -10,13 +10,13 @@ This is a TypeScript monorepo managed with pnpm workspaces:
 
 | Component | Path | Tech |
 |---|---|---|
-| API server | `apps/api` | Fastify |
-| Web dashboard | `apps/web` | Next.js |
+| API server | `apps/api` | Fastify 5, Zod validation |
+| Web dashboard | `apps/web` | Next.js 15, React 19 |
 | Orchestrator service | `apps/orchestrator` | BullMQ workers |
-| Shared package | `packages/shared` | TypeScript types, utilities |
-| Database | — | PostgreSQL |
+| Shared types | `packages/shared` | TypeScript types, enums |
+| Database | `packages/db` | PostgreSQL, Drizzle ORM, repositories |
 | Queue | — | BullMQ / Redis |
-| AI | — | Anthropic Claude API |
+| AI | `apps/orchestrator/src/llm/` | LLM provider abstraction |
 
 ## Owned Files
 
@@ -24,27 +24,42 @@ You have write access to these paths only:
 
 - `apps/api/src/**` — all API application code
 
-Typical structure you should create/maintain:
+Current structure:
 
 ```
 apps/api/src/
-├── index.ts              # Server entry point
-├── app.ts                # Fastify app factory
+├── index.ts              # Server entry point, graceful shutdown
+├── app.ts                # Fastify app factory (CORS, plugins, routes)
 ├── routes/
-│   ├── projects.ts       # /api/projects routes
-│   ├── workstreams.ts    # /api/workstreams routes
-│   └── agents.ts         # /api/agents routes
+│   ├── projects.ts       # /api/projects — CRUD + plan/stop/archive
+│   ├── workstreams.ts    # /api/workstreams
+│   ├── tasks.ts          # /api/tasks
+│   ├── features.ts       # /api/features
+│   ├── files.ts          # /api/projects/:id/files
+│   ├── events.ts         # /api/events — SSE endpoint
+│   ├── health.ts         # /health
+│   └── __tests__/        # Route integration tests
+├── schemas/
+│   ├── projects.ts       # Zod schemas for project validation
+│   ├── workstreams.ts    # Zod schemas for workstream validation
+│   ├── tasks.ts          # Zod schemas for task validation
+│   └── features.ts       # Zod schemas for feature validation
 ├── services/
 │   ├── project.service.ts
 │   ├── workstream.service.ts
-│   └── agent.service.ts
-├── middleware/
-│   ├── error-handler.ts
-│   ├── validation.ts
-│   └── auth.ts
+│   ├── feature.service.ts
+│   ├── agent.service.ts
+│   └── orchestrator-client.ts  # BullMQ job enqueuing
+├── db/
+│   ├── index.ts          # DB connection (delegates to @orchestration/db)
+│   ├── migrate.ts        # Migration runner
+│   └── seed.ts           # Seed data
+├── events/
+│   └── channel.ts        # SSE event publishing
 ├── plugins/
-│   ├── database.ts       # Fastify plugin for DB connection
-│   └── redis.ts          # Fastify plugin for Redis/BullMQ
+│   ├── database.ts       # Fastify DB plugin
+│   ├── error-handler.ts  # Global error handler
+│   └── redis.ts          # Redis + BullMQ queue plugin
 └── utils/
 ```
 
@@ -53,12 +68,13 @@ apps/api/src/
 ### You MUST
 
 - Read contracts from `contracts/api/` and implement every defined endpoint exactly as specified
-- Read shared types from `packages/shared/src/types/` and use them — do not redefine types locally
-- Use Fastify's schema-based validation for all request inputs
-- Implement proper error handling with consistent error response shapes
-- Use the repository classes from `apps/api/src/db/` (created by the data agent) for all database access
+- Import shared types from `@orchestration/shared` — do not redefine types locally
+- Use Zod schemas in `apps/api/src/schemas/` for all request input validation
+- Implement proper error handling with consistent error response shapes via the error-handler plugin
+- Use repository classes from `@orchestration/db` (in `packages/db/src/repositories/`) for all database access
 - Return proper HTTP status codes as defined in contracts
 - Register routes with Fastify's plugin system (one plugin per resource)
+- Use BullMQ queues (via `orchestrator-client.ts`) for job enqueuing
 
 ### You MUST NOT
 
@@ -66,10 +82,11 @@ apps/api/src/
   - `apps/web/*`
   - `apps/orchestrator/*`
   - `packages/shared/src/types/*`
+  - `packages/db/src/*`
   - `contracts/*`
-- Create or modify database migrations (`apps/api/src/db/migrations/`)
+- Modify the DB schema or repositories (those live in `packages/db`)
 - Redefine shared types locally — always import from `@orchestration/shared`
-- Hardcode configuration values — use environment variables via Fastify config plugin
+- Hardcode configuration values — use environment variables
 
 ## Required Inputs
 
@@ -77,66 +94,48 @@ Before you start, these must exist:
 
 1. **API contracts** — `contracts/api/*.ts` defining every endpoint's method, path, request shape, and response shape
 2. **Shared types** — `packages/shared/src/types/` with entity types, enums, and common types
-3. **Database repositories** — `apps/api/src/db/repositories/` providing data access methods (from data agent)
+3. **Database repositories** — `packages/db/src/repositories/` providing data access methods
 
 ## Expected Outputs
 
 ### 1. Route Handlers (`apps/api/src/routes/`)
 
-For each resource defined in contracts:
+For each resource: register CRUD routes, apply Zod schema validation, call services, return typed responses.
 
-- Register all CRUD routes (GET, POST, PUT/PATCH, DELETE)
-- Apply request schema validation
-- Call the appropriate service method
-- Return typed responses
+### 2. Zod Schemas (`apps/api/src/schemas/`)
 
-### 2. Service Layer (`apps/api/src/services/`)
+Per-resource Zod schemas for request body, params, and query validation.
 
-- One service per resource encapsulating business logic
-- Services call repositories, never query the database directly
-- Services handle business validation (e.g., "cannot delete a project with running workstreams")
+### 3. Service Layer (`apps/api/src/services/`)
 
-### 3. Middleware (`apps/api/src/middleware/`)
+One service per resource. Services call repositories (never query DB directly), handle business logic.
 
-- Global error handler that catches all errors and returns the standard error shape
-- Request validation plugin using Fastify schemas
-- CORS configuration
-- Request logging
+### 4. SSE Events (`apps/api/src/events/`)
 
-### 4. Fastify Plugins (`apps/api/src/plugins/`)
+Real-time event publishing via SSE channel for orchestrator progress updates.
 
-- Database connection plugin (registers DB pool on Fastify instance)
+### 5. Plugins (`apps/api/src/plugins/`)
+
+- Database connection plugin (registers DB pool)
 - Redis connection plugin (for BullMQ queue access)
-
-### 5. App Factory (`apps/api/src/app.ts`)
-
-- Creates and configures the Fastify instance
-- Registers all plugins, middleware, and route handlers
-- Exports factory function for testing
+- Error handler plugin (global error formatting)
 
 ## Dependencies
 
 | Agent | What you need from them | Status check |
 |---|---|---|
 | Architect | Contracts in `contracts/api/`, types in `packages/shared/src/types/` | Files exist and export types |
-| Data agent | Repository classes in `apps/api/src/db/repositories/` | Classes exist and export CRUD methods |
-
-## Forbidden Changes
-
-- `apps/web/*` — frontend agent's territory
-- `apps/orchestrator/*` — orchestrator agent's territory
-- `packages/shared/src/types/*` — architect's territory
-- `contracts/*` — architect's territory
-- `apps/api/src/db/migrations/*` — data agent's territory
+| Data agent | Repository classes in `packages/db/src/repositories/` | Classes exist and export CRUD methods |
 
 ## Done Criteria
 
 - [ ] Every endpoint in `contracts/api/` has a corresponding route handler
-- [ ] All routes use Fastify schema validation for request params, query, and body
+- [ ] All routes use Zod schema validation for request params, query, and body
 - [ ] All routes return responses matching the contract's response types
 - [ ] Error handler returns the standard error shape for all error codes
 - [ ] Services contain business logic; routes are thin (delegate to services)
-- [ ] No direct SQL queries in routes or services — all DB access via repositories
+- [ ] No direct SQL queries in routes or services — all DB access via `@orchestration/db` repositories
+- [ ] SSE endpoint publishes orchestrator events in real time
 - [ ] App factory function works and can be used in tests
-- [ ] `pnpm tsc --noEmit` passes in `apps/api` with no type errors
-- [ ] Can CRUD projects and workstreams via HTTP requests
+- [ ] `pnpm typecheck` passes with no type errors
+- [ ] Can CRUD projects, workstreams, tasks, and features via HTTP requests

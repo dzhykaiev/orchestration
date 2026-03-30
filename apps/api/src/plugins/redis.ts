@@ -1,7 +1,7 @@
+import { Queue } from "bullmq";
 import type { FastifyPluginAsync } from "fastify";
 import fp from "fastify-plugin";
 import IORedis from "ioredis";
-import { Queue } from "bullmq";
 
 declare module "fastify" {
   interface FastifyInstance {

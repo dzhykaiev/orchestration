@@ -1,4 +1,4 @@
-import type { AgentTask, CreateAgentTaskInput, AgentTaskResult } from "../types/agent-task.js";
+import type { AgentTask, AgentTaskResult, CreateAgentTaskInput } from "../types/agent-task.js";
 
 // GET /api/workstreams/:workstreamId/tasks
 export interface ListAgentTasksResponse {

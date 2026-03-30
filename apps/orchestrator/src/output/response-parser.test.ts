@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { parseFileChanges } from "./response-parser.js";
 
 describe("parseFileChanges", () => {
@@ -19,10 +19,10 @@ export function add(a: number, b: number) {
 
     const files = parseFileChanges(response);
     expect(files).toHaveLength(2);
-    expect(files[0]!.path).toBe("src/index.ts");
-    expect(files[0]!.content).toContain('console.log("hello")');
-    expect(files[1]!.path).toBe("src/utils.ts");
-    expect(files[1]!.content).toContain("export function add");
+    expect(files[0]?.path).toBe("src/index.ts");
+    expect(files[0]?.content).toContain('console.log("hello")');
+    expect(files[1]?.path).toBe("src/utils.ts");
+    expect(files[1]?.content).toContain("export function add");
   });
 
   it("falls back to annotated markdown blocks", () => {
@@ -34,8 +34,8 @@ const x = 42;
 
     const files = parseFileChanges(response);
     expect(files).toHaveLength(1);
-    expect(files[0]!.path).toBe("src/main.ts");
-    expect(files[0]!.content).toContain("const x = 42");
+    expect(files[0]?.path).toBe("src/main.ts");
+    expect(files[0]?.content).toContain("const x = 42");
   });
 
   it("returns empty array for no file blocks", () => {
@@ -57,6 +57,6 @@ const b = 2;
     const files = parseFileChanges(response);
     // Should return XML files only (preferred format)
     expect(files).toHaveLength(1);
-    expect(files[0]!.path).toBe("src/a.ts");
+    expect(files[0]?.path).toBe("src/a.ts");
   });
 });

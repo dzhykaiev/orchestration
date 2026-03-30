@@ -1,20 +1,20 @@
 "use client";
 
-import { useCallback, useMemo, useEffect } from "react";
 import {
-  ReactFlow,
   Background,
   Controls,
-  MiniMap,
-  useNodesState,
-  useEdgesState,
-  type Node,
   type Edge,
-  type NodeTypes,
-  type NodeMouseHandler,
-  Position,
   Handle,
+  MiniMap,
+  type Node,
+  type NodeMouseHandler,
+  type NodeTypes,
+  Position,
+  ReactFlow,
+  useEdgesState,
+  useNodesState,
 } from "@xyflow/react";
+import { useCallback, useEffect, useMemo } from "react";
 import "@xyflow/react/dist/style.css";
 import dagre from "@dagrejs/dagre";
 
@@ -52,20 +52,16 @@ interface DependencyGraphProps {
   onNodeClick?: (wsId: string) => void;
 }
 
-function getLayoutedElements(
-  nodes: Node[],
-  edges: Edge[],
-  direction = "LR"
-) {
+function getLayoutedElements(nodes: Node[], edges: Edge[], direction = "LR") {
   dagreGraph.setGraph({ rankdir: direction, nodesep: 50, ranksep: 80 });
 
-  nodes.forEach((node) => {
+  for (const node of nodes) {
     dagreGraph.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
-  });
+  }
 
-  edges.forEach((edge) => {
+  for (const edge of edges) {
     dagreGraph.setEdge(edge.source, edge.target);
-  });
+  }
 
   dagre.layout(dagreGraph);
 
@@ -101,9 +97,7 @@ function WorkstreamNode({ data }: { data: Record<string, unknown> }) {
         padding: "10px 14px",
         minWidth: 160,
         maxWidth: NODE_WIDTH,
-        boxShadow: isActive
-          ? `0 0 12px ${color}44`
-          : "var(--shadow)",
+        boxShadow: isActive ? `0 0 12px ${color}44` : "var(--shadow)",
       }}
     >
       <Handle type="target" position={Position.Left} style={{ background: color }} />
@@ -212,7 +206,7 @@ export function DependencyGraph({ workstreams, onNodeClick }: DependencyGraphPro
     (_, node) => {
       onNodeClick?.(node.id);
     },
-    [onNodeClick]
+    [onNodeClick],
   );
 
   return (

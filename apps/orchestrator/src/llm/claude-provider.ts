@@ -1,8 +1,8 @@
-import type { LLMProvider, RunOptions, RunResult } from "@orchestration/shared";
 import { spawn } from "node:child_process";
-import { writeFile, mkdtemp, rm } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
+import type { LLMProvider, RunOptions, RunResult } from "@orchestration/shared";
 import { listFilesRecursive } from "./file-utils.js";
 
 /**
@@ -47,11 +47,15 @@ export class ClaudeProvider implements LLMProvider {
       await writeFile(promptFile, prompt, "utf-8");
 
       return await new Promise<RunResult>((resolvePromise, reject) => {
-        const child = spawn("sh", ["-c", `cat "${promptFile}" | claude ${args.map((a) => `'${a}'`).join(" ")}`], {
-          stdio: ["pipe", "pipe", "pipe"],
-          cwd,
-          env: { ...process.env },
-        });
+        const child = spawn(
+          "sh",
+          ["-c", `cat "${promptFile}" | claude ${args.map((a) => `'${a}'`).join(" ")}`],
+          {
+            stdio: ["pipe", "pipe", "pipe"],
+            cwd,
+            env: { ...process.env },
+          },
+        );
 
         let stdout = "";
         let stderr = "";
@@ -70,9 +74,7 @@ export class ClaudeProvider implements LLMProvider {
 
         child.on("close", (code) => {
           if (code !== 0 && code !== null) {
-            reject(
-              new Error(`claude CLI exited with code ${code}: ${stderr || stdout}`),
-            );
+            reject(new Error(`claude CLI exited with code ${code}: ${stderr || stdout}`));
             return;
           }
 

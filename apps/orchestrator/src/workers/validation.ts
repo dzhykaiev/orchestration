@@ -1,10 +1,10 @@
-import type { Job } from "bullmq";
 import { resolve } from "node:path";
+import { projectRepo, taskRepo, workstreamRepo } from "@orchestration/db";
+import type { ValidationStatus } from "@orchestration/shared";
+import type { Job } from "bullmq";
+import { eventBus } from "../events/index.js";
 import { createLLMProvider } from "../llm/index.js";
 import { AGENT_BRIEFS } from "../prompts/briefs.js";
-import { projectRepo, workstreamRepo, taskRepo } from "@orchestration/db";
-import type { ValidationStatus } from "@orchestration/shared";
-import { eventBus } from "../events/index.js";
 
 const PROJECTS_DIR = resolve(process.env.PROJECTS_DIR || "./projects");
 
@@ -85,7 +85,8 @@ ${project.architecture || "No architecture document available."}
 
     // Parse verdict
     const verdictMatch = result.match(/VERDICT:\s*(PASS|FAIL)/i);
-    const validationStatus: ValidationStatus = verdictMatch?.[1]?.toLowerCase() === "pass" ? "pass" : "fail";
+    const validationStatus: ValidationStatus =
+      verdictMatch?.[1]?.toLowerCase() === "pass" ? "pass" : "fail";
 
     // Store validation result on workstream
     await workstreamRepo.updateWorkstream(workstreamId, {
@@ -99,15 +100,10 @@ ${project.architecture || "No architecture document available."}
       validationResult: { status: validationStatus, output: result },
     });
 
-    console.log(
-      `[Validation] Workstream ${workstreamId} validation ${validationStatus}`,
-    );
+    console.log(`[Validation] Workstream ${workstreamId} validation ${validationStatus}`);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(
-      `[Validation] Validation failed for workstream ${workstreamId}:`,
-      errorMessage,
-    );
+    console.error(`[Validation] Validation failed for workstream ${workstreamId}:`, errorMessage);
 
     // Store the error as validation output
     await workstreamRepo.updateWorkstream(workstreamId, {

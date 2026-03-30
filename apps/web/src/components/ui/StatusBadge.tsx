@@ -15,7 +15,10 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
 };
 
 export function StatusBadge({ status }: { status: string }) {
-  const colors = STATUS_COLORS[status] ?? { bg: "var(--color-status-neutral-bg)", text: "var(--color-status-neutral-text)" };
+  const colors = STATUS_COLORS[status] ?? {
+    bg: "var(--color-status-neutral-bg)",
+    text: "var(--color-status-neutral-text)",
+  };
 
   return (
     <span

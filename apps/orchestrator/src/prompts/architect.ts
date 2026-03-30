@@ -94,9 +94,7 @@ export function parseArchitecture(response: string): string {
   return idx >= 0 ? response.substring(0, idx).trim() : response;
 }
 
-export function parseWorkstreams(
-  response: string,
-): Array<{
+export function parseWorkstreams(response: string): Array<{
   name: string;
   objective: string;
   dependencies: string[];
@@ -107,17 +105,19 @@ export function parseWorkstreams(
 }> {
   const match = response.match(/<workstreams>\s*([\s\S]*?)\s*<\/workstreams>/);
   if (match) {
-    return JSON.parse(match[1]!);
+    return JSON.parse(match[1] ?? "[]");
   }
 
   console.warn("No <workstreams> block found in architect response, creating default workstream");
-  return [{
-    name: "Full Implementation",
-    objective: "Implement the complete project based on architect output",
-    dependencies: [],
-    deliverables: ["*"],
-    ownedPaths: ["./"],
-    assignedAgent: "backend",
-    order: 1,
-  }];
+  return [
+    {
+      name: "Full Implementation",
+      objective: "Implement the complete project based on architect output",
+      dependencies: [],
+      deliverables: ["*"],
+      ownedPaths: ["./"],
+      assignedAgent: "backend",
+      order: 1,
+    },
+  ];
 }

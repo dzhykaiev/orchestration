@@ -909,7 +909,8 @@ it.skip("should return 404 when project does not exist", () => {
 - [ ] Tests are independent — can run in any order, no shared mutable state between tests`;
 
 export const AGENT_BRIEFS: Record<AgentRole, string> = {
-  architect: `You are a software architect. You have full access to the project directory. Create files, scaffold the project, and design the system.`,
+  architect:
+    "You are a software architect. You have full access to the project directory. Create files, scaffold the project, and design the system.",
 
   backend: BACKEND_BRIEF,
 

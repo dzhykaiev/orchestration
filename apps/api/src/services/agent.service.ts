@@ -1,11 +1,14 @@
-import { taskRepo, projectRepo } from "@orchestration/db";
+import { projectRepo, taskRepo } from "@orchestration/db";
 import type { CreateAgentTaskInput } from "@orchestration/shared";
 import type { Queue } from "bullmq";
-import { NotFoundError, BusinessError } from "./project.service.js";
+import { BusinessError, NotFoundError } from "./project.service.js";
 
 export class AgentService {
   async create(input: CreateAgentTaskInput, implementationQueue: Queue) {
     const task = await taskRepo.createTask(input);
+    if (!task) {
+      throw new Error("Failed to create task");
+    }
 
     await implementationQueue.add("implement", {
       taskId: task.id,

@@ -1,23 +1,23 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { api, type Project, type Workstream, type AgentTask } from "../../../lib/api";
-import { StatusBadge } from "../../../components/ui/StatusBadge";
-import { ProgressBar } from "../../../components/ui/ProgressBar";
-import { SkeletonProjectDetail } from "../../../components/ui/SkeletonProjectDetail";
-import { ConfirmModal } from "../../../components/ui/ConfirmModal";
-import { usePolling } from "../../../hooks/usePolling";
-import { useSSE } from "../../../hooks/useSSE";
-import { useToastContext } from "../../../components/ui/ToastProvider";
-import { timeAgo, getProviderStyle } from "../../../lib/utils";
+import { useParams, useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 import { FileTree } from "../../../components/FileTree";
 import { FileViewer } from "../../../components/FileViewer";
+import { ConfirmModal } from "../../../components/ui/ConfirmModal";
+import { ProgressBar } from "../../../components/ui/ProgressBar";
+import { SkeletonProjectDetail } from "../../../components/ui/SkeletonProjectDetail";
+import { StatusBadge } from "../../../components/ui/StatusBadge";
+import { useToastContext } from "../../../components/ui/ToastProvider";
+import { usePolling } from "../../../hooks/usePolling";
+import { useSSE } from "../../../hooks/useSSE";
+import { type AgentTask, type Project, type Workstream, api } from "../../../lib/api";
+import { getProviderStyle, timeAgo } from "../../../lib/utils";
 
 const DependencyGraph = dynamic(
   () => import("../../../components/DependencyGraph").then((m) => m.DependencyGraph),
-  { ssr: false, loading: () => <div className="dependency-graph-loading">Loading graph...</div> }
+  { ssr: false, loading: () => <div className="dependency-graph-loading">Loading graph...</div> },
 );
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -221,7 +221,12 @@ export default function ProjectDetailPage() {
 
   return (
     <div>
-      <button className="btn btn-secondary" onClick={() => router.push("/")} style={{ marginBottom: "1rem" }}>
+      <button
+        type="button"
+        className="btn btn-secondary"
+        onClick={() => router.push("/")}
+        style={{ marginBottom: "1rem" }}
+      >
         Back
       </button>
 
@@ -244,12 +249,15 @@ export default function ProjectDetailPage() {
         </div>
         <StatusBadge status={project.status} />
       </div>
-      <p className="text-muted" style={{ margin: "0 0 1rem" }}>{project.goal}</p>
+      <p className="text-muted" style={{ margin: "0 0 1rem" }}>
+        {project.goal}
+      </p>
 
       {/* Action buttons */}
       <div style={{ display: "flex", gap: 8, marginBottom: "1.5rem", flexWrap: "wrap" }}>
         {project.status === "draft" && (
           <button
+            type="button"
             className="btn btn-primary"
             onClick={handleStartPlanning}
             disabled={planning}
@@ -260,6 +268,7 @@ export default function ProjectDetailPage() {
 
         {canStop && (
           <button
+            type="button"
             className="btn"
             onClick={() => setConfirmAction("stop")}
             disabled={stopping}
@@ -271,6 +280,7 @@ export default function ProjectDetailPage() {
 
         {canArchive && (
           <button
+            type="button"
             className="btn btn-secondary"
             onClick={() => setConfirmAction("archive")}
             disabled={archiving}
@@ -281,6 +291,7 @@ export default function ProjectDetailPage() {
 
         {canDelete && (
           <button
+            type="button"
             className="btn"
             onClick={() => setConfirmAction("delete")}
             disabled={deleting}
@@ -294,7 +305,9 @@ export default function ProjectDetailPage() {
           <select
             className="input"
             value={project.provider}
-            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleProviderChange(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+              handleProviderChange(e.target.value)
+            }
             style={{ padding: "0.35rem 0.5rem", width: "auto" }}
           >
             <option value="opencode">OpenCode</option>
@@ -305,7 +318,10 @@ export default function ProjectDetailPage() {
 
       {/* Live status banner */}
       {project.status === "planning" && (
-        <div className="card" style={{ background: "var(--color-status-blue-bg)", borderColor: "var(--color-border)" }}>
+        <div
+          className="card"
+          style={{ background: "var(--color-status-blue-bg)", borderColor: "var(--color-border)" }}
+        >
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: "1.2rem" }}>&#9881;</span>
             <strong>Architect agent is planning...</strong>
@@ -317,10 +333,18 @@ export default function ProjectDetailPage() {
       )}
 
       {project.status === "in_progress" && runningTasks.length > 0 && (
-        <div className="card" style={{ background: "var(--color-status-yellow-bg)", borderColor: "var(--color-border)" }}>
+        <div
+          className="card"
+          style={{
+            background: "var(--color-status-yellow-bg)",
+            borderColor: "var(--color-border)",
+          }}
+        >
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: "1.2rem" }}>&#9881;</span>
-            <strong>{runningTasks.length} agent{runningTasks.length > 1 ? "s" : ""} working</strong>
+            <strong>
+              {runningTasks.length} agent{runningTasks.length > 1 ? "s" : ""} working
+            </strong>
           </div>
           <div style={{ marginTop: 8 }}>
             {runningTasks.map((t) => (
@@ -345,16 +369,23 @@ export default function ProjectDetailPage() {
       )}
 
       {project.status === "completed" && (
-        <div className="card" style={{ background: "var(--color-status-green-bg)", borderColor: "var(--color-border)" }}>
+        <div
+          className="card"
+          style={{ background: "var(--color-status-green-bg)", borderColor: "var(--color-border)" }}
+        >
           <strong>Project completed</strong>
           <p className="text-sm" style={{ margin: "4px 0 0" }}>
-            All workstreams finished. Output files in <code>apps/orchestrator/projects/{project.id.slice(0, 8)}...</code>
+            All workstreams finished. Output files in{" "}
+            <code>apps/orchestrator/projects/{project.id.slice(0, 8)}...</code>
           </p>
         </div>
       )}
 
       {project.status === "failed" && (
-        <div className="card" style={{ background: "var(--color-status-red-bg)", borderColor: "var(--color-border)" }}>
+        <div
+          className="card"
+          style={{ background: "var(--color-status-red-bg)", borderColor: "var(--color-border)" }}
+        >
           <strong>Project failed</strong>
           <p className="text-sm" style={{ margin: "4px 0 0" }}>
             One or more workstreams failed after max retries, or the project was stopped.
@@ -363,28 +394,50 @@ export default function ProjectDetailPage() {
       )}
 
       {project.status === "archived" && (
-        <div className="card" style={{ background: "var(--color-status-gray-bg)", borderColor: "var(--color-border)" }}>
+        <div
+          className="card"
+          style={{ background: "var(--color-status-gray-bg)", borderColor: "var(--color-border)" }}
+        >
           <strong>Project archived</strong>
         </div>
       )}
 
       {/* Summary stats */}
       {workstreams.length > 0 && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "0.75rem", margin: "1rem 0" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
+            gap: "0.75rem",
+            margin: "1rem 0",
+          }}
+        >
           <div className="card" style={{ textAlign: "center", padding: "0.75rem" }}>
             <div style={{ fontSize: "1.5rem", fontWeight: 700 }}>{workstreams.length}</div>
             <div className="text-sm text-muted">Workstreams</div>
           </div>
           <div className="card" style={{ textAlign: "center", padding: "0.75rem" }}>
-            <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--color-success)" }}>{completedWs}</div>
+            <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--color-success)" }}>
+              {completedWs}
+            </div>
             <div className="text-sm text-muted">Completed</div>
           </div>
           <div className="card" style={{ textAlign: "center", padding: "0.75rem" }}>
-            <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--color-warning)" }}>{activeWs}</div>
+            <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--color-warning)" }}>
+              {activeWs}
+            </div>
             <div className="text-sm text-muted">In Progress</div>
           </div>
           <div className="card" style={{ textAlign: "center", padding: "0.75rem" }}>
-            <div style={{ fontSize: "1.5rem", fontWeight: 700, color: failedWs > 0 ? "var(--color-danger)" : "var(--color-text-muted)" }}>{failedWs}</div>
+            <div
+              style={{
+                fontSize: "1.5rem",
+                fontWeight: 700,
+                color: failedWs > 0 ? "var(--color-danger)" : "var(--color-text-muted)",
+              }}
+            >
+              {failedWs}
+            </div>
             <div className="text-sm text-muted">Failed</div>
           </div>
         </div>
@@ -395,7 +448,9 @@ export default function ProjectDetailPage() {
         <div style={{ marginBottom: "1.5rem" }}>
           <div className="flex justify-between items-center mb-1">
             <span style={{ fontWeight: 500 }}>Overall Progress</span>
-            <span className="text-sm text-muted">{Math.round((completedWs / workstreams.length) * 100)}%</span>
+            <span className="text-sm text-muted">
+              {Math.round((completedWs / workstreams.length) * 100)}%
+            </span>
           </div>
           <ProgressBar value={completedWs} max={workstreams.length} />
         </div>
@@ -435,10 +490,7 @@ export default function ProjectDetailPage() {
       <details style={{ marginBottom: "1.5rem" }}>
         <summary style={{ cursor: "pointer", fontWeight: 500 }}>Project Files</summary>
         <div style={{ marginTop: "0.5rem" }}>
-          <FileTree
-            projectId={projectId}
-            onFileClick={(path) => setSelectedFile(path)}
-          />
+          <FileTree projectId={projectId} onFileClick={(path) => setSelectedFile(path)} />
         </div>
       </details>
 
@@ -458,19 +510,30 @@ export default function ProjectDetailPage() {
                 className="card"
                 style={{
                   borderLeft: `4px solid ${
-                    ws.status === "completed" ? "var(--color-success)" :
-                    ws.status === "in_progress" ? "var(--color-warning)" :
-                    ws.status === "failed" ? "var(--color-danger)" : "var(--color-border)"
+                    ws.status === "completed"
+                      ? "var(--color-success)"
+                      : ws.status === "in_progress"
+                        ? "var(--color-warning)"
+                        : ws.status === "failed"
+                          ? "var(--color-danger)"
+                          : "var(--color-border)"
                   }`,
                 }}
               >
                 <div
                   className="flex justify-between items-center"
+                  role="button"
+                  tabIndex={0}
                   style={{ cursor: "pointer" }}
                   onClick={() => toggleWs(ws.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") toggleWs(ws.id);
+                  }}
                 >
                   <div>
-                    <span style={{ marginRight: 6, fontSize: "0.8rem" }}>{isExpanded ? "▼" : "▶"}</span>
+                    <span style={{ marginRight: 6, fontSize: "0.8rem" }}>
+                      {isExpanded ? "▼" : "▶"}
+                    </span>
                     <strong>{ws.name}</strong>
                     {ws.assignedAgent && (
                       <span
@@ -492,7 +555,9 @@ export default function ProjectDetailPage() {
                   <StatusBadge status={ws.status} />
                 </div>
 
-                <p className="text-sm text-muted" style={{ margin: "0.5rem 0 0" }}>{ws.objective}</p>
+                <p className="text-sm text-muted" style={{ margin: "0.5rem 0 0" }}>
+                  {ws.objective}
+                </p>
 
                 {tasks.length > 0 && (
                   <div style={{ marginTop: 8 }}>
@@ -501,10 +566,28 @@ export default function ProjectDetailPage() {
                 )}
 
                 {ws.deliverables.length > 0 && (
-                  <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4 }}>
+                  <div
+                    style={{
+                      marginTop: 8,
+                      display: "flex",
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                      gap: 4,
+                    }}
+                  >
                     <span className="text-sm text-muted">Deliverables: </span>
-                    {ws.deliverables.map((d, i) => (
-                      <code key={i} className="text-sm" style={{ background: "var(--color-status-neutral-bg)", color: "var(--color-status-neutral-text)", padding: "1px 4px", borderRadius: 3, fontSize: "0.75rem" }}>
+                    {ws.deliverables.map((d) => (
+                      <code
+                        key={d}
+                        className="text-sm"
+                        style={{
+                          background: "var(--color-status-neutral-bg)",
+                          color: "var(--color-status-neutral-text)",
+                          padding: "1px 4px",
+                          borderRadius: 3,
+                          fontSize: "0.75rem",
+                        }}
+                      >
                         {d}
                       </code>
                     ))}
@@ -514,16 +597,25 @@ export default function ProjectDetailPage() {
                 {ws.dependencies.length > 0 && (
                   <div style={{ marginTop: 4 }}>
                     <span className="text-sm text-muted">
-                      Depends on: {ws.dependencies.map((depId) => {
-                        const dep = workstreams.find((w) => w.id === depId || w.name === depId);
-                        return dep ? dep.name : depId.slice(0, 8);
-                      }).join(", ")}
+                      Depends on:{" "}
+                      {ws.dependencies
+                        .map((depId) => {
+                          const dep = workstreams.find((w) => w.id === depId || w.name === depId);
+                          return dep ? dep.name : depId.slice(0, 8);
+                        })
+                        .join(", ")}
                     </span>
                   </div>
                 )}
 
                 {isExpanded && (
-                  <div style={{ marginTop: "1rem", borderTop: "1px solid var(--color-border)", paddingTop: "0.75rem" }}>
+                  <div
+                    style={{
+                      marginTop: "1rem",
+                      borderTop: "1px solid var(--color-border)",
+                      paddingTop: "0.75rem",
+                    }}
+                  >
                     {tasks.length === 0 ? (
                       <p className="text-sm text-muted">
                         {ws.status === "pending" ? "Waiting for dependencies..." : "No tasks yet."}
@@ -547,7 +639,13 @@ export default function ProjectDetailPage() {
                                 attempt {task.attempts}/{task.maxAttempts}
                               </span>
                               {task.status === "running" && (
-                                <span style={{ marginLeft: 8, color: "var(--color-warning)", fontSize: "0.8rem" }}>
+                                <span
+                                  style={{
+                                    marginLeft: 8,
+                                    color: "var(--color-warning)",
+                                    fontSize: "0.8rem",
+                                  }}
+                                >
                                   &#8987; working...
                                 </span>
                               )}
@@ -556,6 +654,7 @@ export default function ProjectDetailPage() {
                               <StatusBadge status={task.status} />
                               {task.status === "failed" && (
                                 <button
+                                  type="button"
                                   className="btn"
                                   onClick={(e: React.MouseEvent) => {
                                     e.stopPropagation();
@@ -577,12 +676,26 @@ export default function ProjectDetailPage() {
                             </div>
                           </div>
 
-                          <p className="text-sm" style={{ margin: "6px 0 0", color: "var(--color-text-muted)" }}>
-                            {task.prompt.length > 150 ? task.prompt.slice(0, 150) + "..." : task.prompt}
+                          <p
+                            className="text-sm"
+                            style={{ margin: "6px 0 0", color: "var(--color-text-muted)" }}
+                          >
+                            {task.prompt.length > 150
+                              ? `${task.prompt.slice(0, 150)}...`
+                              : task.prompt}
                           </p>
 
                           {task.error && (
-                            <div style={{ marginTop: 6, padding: "6px 10px", background: "var(--color-status-red-bg)", borderRadius: 4, fontSize: "0.8rem", color: "var(--color-status-red-text)" }}>
+                            <div
+                              style={{
+                                marginTop: 6,
+                                padding: "6px 10px",
+                                background: "var(--color-status-red-bg)",
+                                borderRadius: 4,
+                                fontSize: "0.8rem",
+                                color: "var(--color-status-red-text)",
+                              }}
+                            >
                               {task.error}
                             </div>
                           )}
@@ -593,8 +706,16 @@ export default function ProjectDetailPage() {
                                 Files ({task.filesModified.length}):
                               </span>
                               <div style={{ marginTop: 4 }}>
-                                {task.filesModified.map((f, i) => (
-                                  <code key={i} style={{ display: "block", fontSize: "0.75rem", color: "var(--color-success)", padding: "1px 0" }}>
+                                {task.filesModified.map((f) => (
+                                  <code
+                                    key={f}
+                                    style={{
+                                      display: "block",
+                                      fontSize: "0.75rem",
+                                      color: "var(--color-success)",
+                                      padding: "1px 0",
+                                    }}
+                                  >
                                     + {f}
                                   </code>
                                 ))}
@@ -605,6 +726,7 @@ export default function ProjectDetailPage() {
                           {task.output && (
                             <div style={{ marginTop: 8 }}>
                               <button
+                                type="button"
                                 className="text-sm"
                                 style={{
                                   background: "none",
@@ -617,7 +739,9 @@ export default function ProjectDetailPage() {
                                 }}
                                 onClick={(e: React.MouseEvent) => {
                                   e.stopPropagation();
-                                  setExpandedTaskOutput(expandedTaskOutput === task.id ? null : task.id);
+                                  setExpandedTaskOutput(
+                                    expandedTaskOutput === task.id ? null : task.id,
+                                  );
                                 }}
                               >
                                 {expandedTaskOutput === task.id ? "Hide output" : "Show output"}
@@ -644,10 +768,17 @@ export default function ProjectDetailPage() {
                             </div>
                           )}
 
-                            <div className="text-sm text-muted" style={{ marginTop: 6, fontSize: "0.7rem" }}>
+                          <div
+                            className="text-sm text-muted"
+                            style={{ marginTop: 6, fontSize: "0.7rem" }}
+                          >
                             Created {timeAgo(task.createdAt)}
-                            {task.status === "completed" && task.updatedAt && ` · Finished ${timeAgo(task.updatedAt)}`}
-                            {task.costUsd != null && task.costUsd > 0 && ` · $${task.costUsd.toFixed(4)}`}
+                            {task.status === "completed" &&
+                              task.updatedAt &&
+                              ` · Finished ${timeAgo(task.updatedAt)}`}
+                            {task.costUsd != null &&
+                              task.costUsd > 0 &&
+                              ` · $${task.costUsd.toFixed(4)}`}
                           </div>
                         </div>
                       ))

@@ -1,4 +1,4 @@
-import { projectRepo, workstreamRepo, taskRepo } from "@orchestration/db";
+import { projectRepo, taskRepo, workstreamRepo } from "@orchestration/db";
 import type { CreateProjectInput, UpdateProjectInput } from "@orchestration/shared";
 import type { Queue } from "bullmq";
 
@@ -16,7 +16,11 @@ export class ProjectService {
   }
 
   async create(input: CreateProjectInput) {
-    return projectRepo.createProject(input);
+    const project = await projectRepo.createProject(input);
+    if (!project) {
+      throw new BusinessError("Failed to create project");
+    }
+    return project;
   }
 
   async update(id: string, input: UpdateProjectInput) {
@@ -42,7 +46,7 @@ export class ProjectService {
     });
 
     const workstreams = await workstreamRepo.listWorkstreamsByProject(id);
-    return { project: updated!, workstreams };
+    return { project: updated ?? project, workstreams };
   }
 
   async stop(id: string, planningQueue: Queue, implementationQueue: Queue) {
@@ -77,7 +81,8 @@ export class ProjectService {
     }
 
     const updated = await projectRepo.updateProject(id, { status: "failed" });
-    return updated!;
+    if (!updated) throw new NotFoundError("Project not found");
+    return updated;
   }
 
   async archive(id: string) {
@@ -88,7 +93,8 @@ export class ProjectService {
     }
 
     const updated = await projectRepo.updateProject(id, { status: "archived" });
-    return updated!;
+    if (!updated) throw new NotFoundError("Project not found");
+    return updated;
   }
 
   async delete(id: string) {

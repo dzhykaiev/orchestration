@@ -1,5 +1,10 @@
+import {
+  EVENTS_CHANNEL,
+  type EventPayload,
+  type EventType,
+  type OrchestratorEvent,
+} from "@orchestration/shared";
 import IORedis from "ioredis";
-import { EVENTS_CHANNEL, type OrchestratorEvent, type EventType, type EventPayload } from "@orchestration/shared";
 
 const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 const CHANNEL = EVENTS_CHANNEL;

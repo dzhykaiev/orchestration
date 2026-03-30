@@ -88,6 +88,11 @@ async function unblockDependents(completedWorkstreamId: string, projectId: strin
         prompt: buildUserMessage(`Implement the ${ws.name} workstream: ${ws.objective}`, ws),
       });
 
+      if (!task) {
+        console.warn(`[Progress] Failed to create task for workstream ${ws.id}`);
+        continue;
+      }
+
       eventBus.emitTyped("task.queued", { taskId: task.id, workstreamId: ws.id });
 
       await implementationQueue.add("implement", {

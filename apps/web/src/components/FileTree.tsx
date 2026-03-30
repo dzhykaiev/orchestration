@@ -61,13 +61,16 @@ function FileTreeItem({
     <div>
       <div
         className="file-tree-item"
+        role="button"
+        tabIndex={0}
         style={{ paddingLeft: level * 16 }}
         onClick={handleToggle}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") handleToggle();
+        }}
       >
         <span className="file-tree-icon">
-          {entry.type === "directory"
-            ? (expanded ? "\u25BC" : "\u25B6")
-            : "\u{1F4C4}"}
+          {entry.type === "directory" ? (expanded ? "\u25BC" : "\u25B6") : "\u{1F4C4}"}
         </span>
         <span className="file-tree-name">{entry.name}</span>
         {entry.type === "file" && entry.size !== undefined && (
@@ -80,7 +83,10 @@ function FileTreeItem({
       {entry.type === "directory" && expanded && children && (
         <div>
           {children.length === 0 ? (
-            <div className="file-tree-item text-muted" style={{ paddingLeft: (level + 1) * 16, fontStyle: "italic" }}>
+            <div
+              className="file-tree-item text-muted"
+              style={{ paddingLeft: (level + 1) * 16, fontStyle: "italic" }}
+            >
               Empty
             </div>
           ) : (
@@ -124,6 +130,7 @@ export function FileTree({ projectId, basePath = "", onFileClick, level = 0 }: F
     return (
       <div className="file-tree">
         <button
+          type="button"
           className="btn btn-secondary"
           onClick={load}
           disabled={loading}

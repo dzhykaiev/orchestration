@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useCallback, useEffect } from "react";
 
 export interface ToastData {
   id: string;
@@ -23,11 +23,7 @@ export function Toast({ id, message, type, onDismiss }: ToastProps) {
   return (
     <div className={`toast toast-${type}`} role="alert">
       <span className="toast-message">{message}</span>
-      <button
-        className="toast-close"
-        onClick={handleDismiss}
-        aria-label="Dismiss"
-      >
+      <button type="button" className="toast-close" onClick={handleDismiss} aria-label="Dismiss">
         &times;
       </button>
     </div>

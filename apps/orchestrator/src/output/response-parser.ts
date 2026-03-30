@@ -19,13 +19,14 @@ export function parseFileChanges(response: string): FileChange[] {
 function parseXmlFiles(response: string): FileChange[] {
   const files: FileChange[] = [];
   const regex = new RegExp(XML_FILE_REGEX.source, "g");
-  let match: RegExpExecArray | null;
+  let match = regex.exec(response);
 
-  while ((match = regex.exec(response)) !== null) {
+  while (match !== null) {
     files.push({
-      path: match[1]!.trim(),
-      content: match[2]!,
+      path: match[1]?.trim() ?? "",
+      content: match[2] ?? "",
     });
+    match = regex.exec(response);
   }
 
   return files;
@@ -34,13 +35,14 @@ function parseXmlFiles(response: string): FileChange[] {
 function parseMarkdownFiles(response: string): FileChange[] {
   const files: FileChange[] = [];
   const regex = new RegExp(MARKDOWN_FILE_REGEX.source, "g");
-  let match: RegExpExecArray | null;
+  let match = regex.exec(response);
 
-  while ((match = regex.exec(response)) !== null) {
+  while (match !== null) {
     files.push({
-      path: match[1]!.trim(),
-      content: match[2]!,
+      path: match[1]?.trim() ?? "",
+      content: match[2] ?? "",
     });
+    match = regex.exec(response);
   }
 
   return files;

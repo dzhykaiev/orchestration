@@ -1,6 +1,6 @@
-import { eq, sql, asc } from "drizzle-orm";
-import { db, schema } from "../client.js";
 import type { CreateAgentTaskInput } from "@orchestration/shared";
+import { asc, eq, sql } from "drizzle-orm";
+import { db, schema } from "../client.js";
 
 export async function listTasksByWorkstream(workstreamId: string) {
   return db
@@ -32,7 +32,7 @@ export async function createTask(input: CreateAgentTaskInput) {
     })
     .returning();
 
-  return task!;
+  return task ?? null;
 }
 
 export async function markTaskStarted(id: string) {
@@ -114,9 +114,7 @@ export async function retryTask(id: string) {
 }
 
 export async function deleteTasksByProject(projectId: string) {
-  return db
-    .delete(schema.agentTasks)
-    .where(eq(schema.agentTasks.projectId, projectId));
+  return db.delete(schema.agentTasks).where(eq(schema.agentTasks.projectId, projectId));
 }
 
 export async function countTasksByWorkstream(workstreamId: string) {

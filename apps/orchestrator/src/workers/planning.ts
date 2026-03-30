@@ -94,9 +94,9 @@ export async function handlePlanningJob(job: Job<PlanningJobData>) {
     workstreamDefs = parseWorkstreams(result);
   } catch {
     // Architect completed the whole project without needing workstreams
-    console.log(`No workstreams block — architect completed the project directly`);
+    console.log("No workstreams block — architect completed the project directly");
     const createdFiles = await llmProvider.listFiles(projectDir);
-    const relativeFiles = createdFiles.map((f) => f.replace(projectDir + "/", ""));
+    const relativeFiles = createdFiles.map((f) => f.replace(`${projectDir}/`, ""));
     console.log(`Architect created ${relativeFiles.length} files:`, relativeFiles);
     await projectRepo.updateProject(projectId, {
       architecture: architecture || result,
@@ -107,7 +107,7 @@ export async function handlePlanningJob(job: Job<PlanningJobData>) {
 
   // 6. Track files created by architect
   const createdFiles = await llmProvider.listFiles(projectDir);
-  const relativeFiles = createdFiles.map((f) => f.replace(projectDir + "/", ""));
+  const relativeFiles = createdFiles.map((f) => f.replace(`${projectDir}/`, ""));
   console.log(`Architect created ${relativeFiles.length} files:`, relativeFiles);
 
   // 7. Store architecture on project
@@ -126,6 +126,10 @@ export async function handlePlanningJob(job: Job<PlanningJobData>) {
       assignedAgent: wsDef.assignedAgent,
       order: wsDef.order,
     });
+    if (!ws) {
+      console.warn(`Failed to create workstream: ${wsDef.name}`);
+      continue;
+    }
     createdWorkstreams.push(ws);
   }
 
@@ -147,6 +151,11 @@ export async function handlePlanningJob(job: Job<PlanningJobData>) {
         role,
         prompt: buildUserMessage(`Implement the ${ws.name} workstream: ${ws.objective}`, ws),
       });
+
+      if (!task) {
+        console.warn(`Failed to create task for workstream: ${ws.name}`);
+        continue;
+      }
 
       await implementationQueue.add("implement", {
         taskId: task.id,

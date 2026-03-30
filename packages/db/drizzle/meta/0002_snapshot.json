@@ -152,12 +152,8 @@
           "name": "agent_tasks_workstream_id_workstreams_id_fk",
           "tableFrom": "agent_tasks",
           "tableTo": "workstreams",
-          "columnsFrom": [
-            "workstream_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["workstream_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -165,12 +161,8 @@
           "name": "agent_tasks_project_id_projects_id_fk",
           "tableFrom": "agent_tasks",
           "tableTo": "projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -363,12 +355,8 @@
           "name": "workstreams_project_id_projects_id_fk",
           "tableFrom": "workstreams",
           "tableTo": "projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -384,48 +372,22 @@
     "public.agent_role": {
       "name": "agent_role",
       "schema": "public",
-      "values": [
-        "architect",
-        "backend",
-        "frontend",
-        "data",
-        "devops",
-        "qa"
-      ]
+      "values": ["architect", "backend", "frontend", "data", "devops", "qa"]
     },
     "public.project_status": {
       "name": "project_status",
       "schema": "public",
-      "values": [
-        "draft",
-        "planning",
-        "in_progress",
-        "completed",
-        "failed",
-        "archived"
-      ]
+      "values": ["draft", "planning", "in_progress", "completed", "failed", "archived"]
     },
     "public.task_status": {
       "name": "task_status",
       "schema": "public",
-      "values": [
-        "queued",
-        "running",
-        "completed",
-        "failed",
-        "cancelled"
-      ]
+      "values": ["queued", "running", "completed", "failed", "cancelled"]
     },
     "public.workstream_status": {
       "name": "workstream_status",
       "schema": "public",
-      "values": [
-        "pending",
-        "blocked",
-        "in_progress",
-        "completed",
-        "failed"
-      ]
+      "values": ["pending", "blocked", "in_progress", "completed", "failed"]
     }
   },
   "schemas": {},

@@ -1,9 +1,6 @@
-import { eq, asc } from "drizzle-orm";
+import type { CreateWorkstreamInput, UpdateWorkstreamInput } from "@orchestration/shared";
+import { asc, eq } from "drizzle-orm";
 import { db, schema } from "../client.js";
-import type {
-  CreateWorkstreamInput,
-  UpdateWorkstreamInput,
-} from "@orchestration/shared";
 
 export async function listWorkstreamsByProject(projectId: string) {
   return db
@@ -38,7 +35,7 @@ export async function createWorkstream(input: CreateWorkstreamInput) {
     })
     .returning();
 
-  return ws!;
+  return ws ?? null;
 }
 
 export async function updateWorkstream(id: string, input: UpdateWorkstreamInput) {

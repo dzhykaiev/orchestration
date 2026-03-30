@@ -1,16 +1,16 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import type { OrchestratorEvent } from "@orchestration/shared";
 import Link from "next/link";
-import { api, type Project } from "../lib/api";
-import { StatusBadge } from "../components/ui/StatusBadge";
-import { SkeletonCard } from "../components/ui/SkeletonCard";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityFeed } from "../components/ActivityFeed";
+import { SkeletonCard } from "../components/ui/SkeletonCard";
+import { StatusBadge } from "../components/ui/StatusBadge";
 import { usePolling } from "../hooks/usePolling";
 import { useSSE } from "../hooks/useSSE";
-import { timeAgo, getProviderStyle } from "../lib/utils";
-import { eventToActivity, type ActivityItem } from "../lib/activity";
-import type { OrchestratorEvent } from "@orchestration/shared";
+import { type ActivityItem, eventToActivity } from "../lib/activity";
+import { type Project, api } from "../lib/api";
+import { getProviderStyle, timeAgo } from "../lib/utils";
 
 const STATUS_ICONS: Record<string, string> = {
   draft: "\u{1F4DD}",
@@ -26,7 +26,14 @@ const PROVIDER_LABELS: Record<string, string> = {
   opencode: "OpenCode",
 };
 
-const ALL_STATUSES = ["draft", "planning", "in_progress", "completed", "failed", "archived"] as const;
+const ALL_STATUSES = [
+  "draft",
+  "planning",
+  "in_progress",
+  "completed",
+  "failed",
+  "archived",
+] as const;
 
 const STATUS_LABELS: Record<string, string> = {
   all: "All",
@@ -66,11 +73,9 @@ export default function HomePage() {
 
   useEffect(() => {
     fetchProjects();
-  }, [fetchProjects, showArchived]);
+  }, [fetchProjects]);
 
-  const hasActive = projects.some((p) =>
-    ["planning", "in_progress"].includes(p.status),
-  );
+  const hasActive = projects.some((p) => ["planning", "in_progress"].includes(p.status));
   usePolling(fetchProjects, 10000, hasActive);
 
   const { connected } = useSSE({
@@ -105,9 +110,7 @@ export default function HomePage() {
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.goal.toLowerCase().includes(q),
+        (p) => p.name.toLowerCase().includes(q) || p.goal.toLowerCase().includes(q),
       );
     }
 
@@ -128,7 +131,7 @@ export default function HomePage() {
     return result;
   }, [projects, statusFilter, searchQuery, sortBy]);
 
-  const archivedCount = statusCounts["archived"] ?? 0;
+  const archivedCount = statusCounts.archived ?? 0;
 
   if (loading) {
     return (
@@ -144,7 +147,9 @@ export default function HomePage() {
     return (
       <div>
         <p style={{ color: "var(--color-danger)" }}>Error: {error}</p>
-        <button className="btn btn-secondary" onClick={fetchProjects}>Retry</button>
+        <button type="button" className="btn btn-secondary" onClick={fetchProjects}>
+          Retry
+        </button>
       </div>
     );
   }
@@ -155,11 +160,21 @@ export default function HomePage() {
         <div className="flex justify-between items-center mb-2">
           <h2 style={{ margin: 0 }}>Projects ({total})</h2>
           {archivedCount > 0 && (
-            <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: "0.85rem" }}>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                cursor: "pointer",
+                fontSize: "0.85rem",
+              }}
+            >
               <input
                 type="checkbox"
                 checked={showArchived}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setShowArchived(e.target.checked)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setShowArchived(e.target.checked)
+                }
               />
               Show archived ({archivedCount})
             </label>
@@ -177,7 +192,9 @@ export default function HomePage() {
           <select
             className="sort-select"
             value={sortBy}
-            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSortBy(e.target.value as SortOption)}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+              setSortBy(e.target.value as SortOption)
+            }
           >
             <option value="newest">Newest first</option>
             <option value="oldest">Oldest first</option>
@@ -189,6 +206,7 @@ export default function HomePage() {
         <div className="filter-chips mb-2">
           {["all", ...ALL_STATUSES].map((status) => (
             <button
+              type="button"
               key={status}
               className={`filter-chip ${statusFilter === status ? "active" : ""}`}
               onClick={() => setStatusFilter(status)}
@@ -211,7 +229,11 @@ export default function HomePage() {
             <Link
               key={project.id}
               href={`/projects/${project.id}`}
-              style={{ textDecoration: "none", color: "inherit", opacity: project.status === "archived" ? 0.6 : 1 }}
+              style={{
+                textDecoration: "none",
+                color: "inherit",
+                opacity: project.status === "archived" ? 0.6 : 1,
+              }}
             >
               <div className="card" style={{ cursor: "pointer" }}>
                 <div className="flex justify-between items-center mb-1">
@@ -248,7 +270,8 @@ export default function HomePage() {
                 </p>
                 <div className="text-sm text-muted" style={{ fontSize: "0.75rem" }}>
                   Created {timeAgo(project.createdAt)}
-                  {project.updatedAt !== project.createdAt && ` · Updated ${timeAgo(project.updatedAt)}`}
+                  {project.updatedAt !== project.createdAt &&
+                    ` · Updated ${timeAgo(project.updatedAt)}`}
                 </div>
               </div>
             </Link>

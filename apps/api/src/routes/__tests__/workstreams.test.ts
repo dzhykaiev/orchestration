@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import Fastify from "fastify";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ZodError } from "zod";
 
 const getWorkstreamById = vi.fn().mockResolvedValue(null);

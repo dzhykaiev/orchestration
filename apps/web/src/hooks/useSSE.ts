@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface UseSSEOptions {
   projectId?: string;
@@ -9,12 +9,7 @@ interface UseSSEOptions {
 }
 
 export function useSSE(options: UseSSEOptions) {
-  const {
-    projectId,
-    onEvent,
-    enabled = true,
-    reconnectInterval = 5000,
-  } = options;
+  const { projectId, onEvent, enabled = true, reconnectInterval = 5000 } = options;
 
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);

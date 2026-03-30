@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import Fastify from "fastify";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ZodError } from "zod";
 
-const createTask = vi.fn().mockImplementation((input: any) =>
+const createTask = vi.fn().mockImplementation((input: Record<string, unknown>) =>
   Promise.resolve({
     id: "task-uuid",
     ...input,
@@ -48,6 +48,7 @@ const { taskRoutes } = await import("../tasks.js");
 
 async function buildApp() {
   const app = Fastify();
+  // biome-ignore lint/suspicious/noExplicitAny: test mock doesn't need full Queue type
   app.decorate("queues", mockQueues as any);
   app.setErrorHandler((error: Error & { statusCode?: number }, _request, reply) => {
     if (error instanceof ZodError) {

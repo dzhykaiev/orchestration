@@ -1,6 +1,6 @@
+import { client, db, schema } from "@orchestration/db";
 import type { FastifyPluginAsync } from "fastify";
 import fp from "fastify-plugin";
-import { db, client, schema } from "@orchestration/db";
 
 declare module "fastify" {
   interface FastifyInstance {

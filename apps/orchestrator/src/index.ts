@@ -1,9 +1,9 @@
+import { client as dbClient } from "@orchestration/db";
 import { Worker } from "bullmq";
 import IORedis from "ioredis";
-import { handlePlanningJob } from "./workers/planning.js";
 import { handleImplementationJob } from "./workers/implementation.js";
+import { handlePlanningJob } from "./workers/planning.js";
 import { handleValidationJob } from "./workers/validation.js";
-import { client as dbClient } from "@orchestration/db";
 
 const connection = new IORedis.default(process.env.REDIS_URL || "redis://localhost:6379", {
   maxRetriesPerRequest: null,

@@ -1,4 +1,10 @@
-export type ProjectStatus = "draft" | "planning" | "in_progress" | "completed" | "failed" | "archived";
+export type ProjectStatus =
+  | "draft"
+  | "planning"
+  | "in_progress"
+  | "completed"
+  | "failed"
+  | "archived";
 export type LLMProviderType = "claude" | "opencode";
 export type ProjectMode = "greenfield" | "existing";
 

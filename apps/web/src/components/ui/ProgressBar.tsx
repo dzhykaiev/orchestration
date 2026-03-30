@@ -14,7 +14,9 @@ export function ProgressBar({ value, max, color }: { value: number; max: number;
           }}
         />
       </div>
-      <span className="text-sm text-muted">{value}/{max}</span>
+      <span className="text-sm text-muted">
+        {value}/{max}
+      </span>
     </div>
   );
 }

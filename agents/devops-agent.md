@@ -10,43 +10,63 @@ This is a TypeScript monorepo managed with pnpm workspaces:
 
 | Component | Path | Tech |
 |---|---|---|
-| API server | `apps/api` | Fastify |
-| Web dashboard | `apps/web` | Next.js |
+| API server | `apps/api` | Fastify 5, Zod validation |
+| Web dashboard | `apps/web` | Next.js 15, React 19 |
 | Orchestrator service | `apps/orchestrator` | BullMQ workers |
-| Shared package | `packages/shared` | TypeScript types, utilities |
-| Database | — | PostgreSQL |
+| Shared types | `packages/shared` | TypeScript types, enums |
+| Database | `packages/db` | PostgreSQL, Drizzle ORM |
 | Queue | — | BullMQ / Redis |
-| AI | — | Anthropic Claude API |
+| AI | `apps/orchestrator/src/llm/` | LLM provider abstraction |
 
 ## Owned Files
 
 You have write access to these paths only:
 
 - `docker-compose.yml` — local development services
-- `docker-compose.test.yml` — test environment services (if separate)
-- `Dockerfile*` — Dockerfiles for each app
-- `.github/*` — GitHub Actions workflows
-- `vitest.config.*` — test runner configuration (root and per-workspace)
+- `Dockerfile*` — Dockerfiles for each app (not yet created)
+- `.github/*` — GitHub Actions workflows (not yet created)
+- `vitest.workspace.ts` — Vitest workspace config
+- `apps/*/vitest.config.ts` — per-app test configs
 - `biome.json` — linter/formatter configuration
-- `tsconfig.base.json` — base TypeScript config (workspace configs extend this)
+- `tsconfig.base.json` — base TypeScript config
 - `scripts/*` — developer utility scripts
 - `.env.example` — documented environment variable template
 - `.gitignore` — git ignore rules
-- `turbo.json` — Turborepo config (if using Turbo for task orchestration)
 - `pnpm-workspace.yaml` — workspace definition
+
+## Current State
+
+### Already implemented:
+
+- **`docker-compose.yml`** — PostgreSQL 16 alpine (5432) + Redis 7 alpine (6379), health checks, persistent volumes
+- **`biome.json`** — formatter (2-space, 100 width, double quotes), linter with recommended rules, import organization
+- **`vitest.workspace.ts`** — references `apps/api/vitest.config.ts` and `apps/orchestrator/vitest.config.ts`
+- **`tsconfig.base.json`** — strict mode, ES2020 target, ESNext module, path aliases
+- **`scripts/dev.sh`** — starts Docker services + all apps in dev mode
+- **`scripts/pre-commit`** — pre-commit hook for auto-updating project docs
+- **`scripts/update-project-docs.sh`** — auto-generates project structure in CLAUDE.md and README.md
+- **`pnpm-workspace.yaml`** — defines `apps/*` and `packages/*`
+
+### Not yet implemented:
+
+- **Dockerfiles** for production builds (apps/api, apps/web, apps/orchestrator)
+- **GitHub Actions CI/CD** workflows (`.github/workflows/`)
+- **`.env.example`** with documented environment variables
+- **`scripts/setup.sh`** — first-time developer setup
+- **`scripts/reset-db.sh`** — database reset utility
 
 ## Boundaries
 
 ### You MUST
 
-- Provide a `docker-compose.yml` that starts PostgreSQL, Redis, and any other infrastructure services
-- Provide Dockerfiles for `apps/api`, `apps/web`, and `apps/orchestrator`
+- Maintain `docker-compose.yml` with PostgreSQL and Redis for local dev
+- Create production Dockerfiles for `apps/api`, `apps/web`, and `apps/orchestrator`
 - Configure Vitest as the test runner with workspace support
 - Configure Biome for linting and formatting across the monorepo
 - Create a CI pipeline (GitHub Actions) that runs: install, lint, type-check, test, build
 - Create an `.env.example` with all required environment variables documented
-- Create developer convenience scripts in `scripts/` (e.g., `dev.sh`, `reset-db.sh`)
-- Ensure `pnpm install`, `pnpm build`, `pnpm test`, `pnpm lint` all work from the repo root
+- Create developer convenience scripts in `scripts/`
+- Ensure `pnpm install`, `pnpm build`, `pnpm test`, `pnpm lint`, `pnpm typecheck` all work from the repo root
 
 ### You MUST NOT
 
@@ -58,136 +78,84 @@ You have write access to these paths only:
 - Modify contracts or shared types:
   - `contracts/*`
   - `packages/shared/src/types/*`
+- Modify database schema or repositories:
+  - `packages/db/src/*`
 - Write application-level tests (the QA agent handles that)
-- Modify database migrations (`apps/api/src/db/migrations/*`)
-
-## Required Inputs
-
-Before you start, these should exist (but you can work in parallel with most agents):
-
-1. **Architecture docs** — `docs/architecture/overview.md` for tech stack decisions
-2. **Workspace structure** — knowing which apps and packages exist
+- Modify database migrations (`packages/db/drizzle/*`)
 
 ## Expected Outputs
 
 ### 1. Docker Setup
 
-**`docker-compose.yml`** — local development:
+**`docker-compose.yml`** (exists):
+- PostgreSQL 16 (port 5432, persistent volume, health check)
+- Redis 7 (port 6379, persistent volume, health check)
 
-```yaml
-# Must include at minimum:
-# - postgres (port 5432, with volume for persistence)
-# - redis (port 6379)
-# - Optional: pgAdmin for database inspection
-```
-
-**`Dockerfile.api`**, **`Dockerfile.web`**, **`Dockerfile.orchestrator`**:
-
+**Dockerfiles** (needed):
 - Multi-stage builds (install deps -> build -> production image)
-- Use `node:20-alpine` as base
-- Leverage Docker layer caching (copy package.json first, then source)
+- `node:20-alpine` base
+- Docker layer caching (copy package.json first)
 - Non-root user in production stage
 
-### 2. CI Pipeline (`.github/workflows/ci.yml`)
+### 2. CI Pipeline (`.github/workflows/ci.yml`) (needed)
 
 Triggered on: push to main, pull requests
 
 Steps:
-
 1. Checkout code
 2. Setup pnpm + Node.js (with caching)
 3. Install dependencies
 4. Run linting (`pnpm lint`)
 5. Run type checking (`pnpm typecheck`)
-6. Start infrastructure services (postgres, redis via Docker Compose or service containers)
+6. Start infrastructure (postgres, redis)
 7. Run database migrations
 8. Run tests (`pnpm test`)
 9. Build all apps (`pnpm build`)
 
-### 3. Test Configuration
-
-**`vitest.config.ts`** (root):
-
-- Workspace-aware configuration
-- Coverage reporting (istanbul or v8)
-- Test file patterns: `**/*.test.ts`, `**/*.spec.ts`
-- Setup files for database test utilities (if needed)
-
-### 4. Linting and Formatting
-
-**`biome.json`**:
-
-- TypeScript + JSX support
-- Import sorting
-- Consistent code style rules
-- Ignore patterns for generated files, node_modules, dist
-
-### 5. Developer Scripts (`scripts/`)
-
-| Script | Purpose |
-|---|---|
-| `scripts/dev.sh` | Start docker services + run all apps in dev mode |
-| `scripts/reset-db.sh` | Drop and recreate database, run migrations and seed |
-| `scripts/setup.sh` | First-time setup: install deps, copy .env, start docker, migrate |
-
-### 6. Environment Configuration
-
-**`.env.example`**:
+### 3. Environment Configuration (`.env.example`) (needed)
 
 ```env
 # Database
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/orchestration
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=orchestration
-DB_USER=postgres
-DB_PASSWORD=postgres
 
 # Redis
 REDIS_URL=redis://localhost:6379
 
 # API
-API_PORT=3001
-API_HOST=0.0.0.0
+PORT=3001
 
 # Web
 NEXT_PUBLIC_API_URL=http://localhost:3001
 
 # AI
 ANTHROPIC_API_KEY=
+LLM_PROVIDER=opencode
 
 # Node
 NODE_ENV=development
 ```
 
-### 7. TypeScript Base Config (`tsconfig.base.json`)
+### 4. Developer Scripts
 
-- Strict mode enabled
-- Path aliases for workspace packages
-- Target: ES2022
-- Module: NodeNext (for API) / ESNext (for Web)
+| Script | Status | Purpose |
+|---|---|---|
+| `scripts/dev.sh` | ✅ exists | Start Docker + all apps in dev mode |
+| `scripts/pre-commit` | ✅ exists | Auto-update project docs |
+| `scripts/update-project-docs.sh` | ✅ exists | Generate project structure |
+| `scripts/setup.sh` | ❌ needed | First-time developer setup |
+| `scripts/reset-db.sh` | ❌ needed | Drop + recreate DB, run migrations + seed |
 
 ## Dependencies
 
 | Agent | What you need from them | Status check |
 |---|---|---|
-| Architect | Architecture overview for tech decisions | `docs/architecture/overview.md` exists |
+| Architect | Architecture overview for tech decisions | `docs/` exists |
 
 This agent can run in parallel with most other agents since infrastructure is independent of business logic.
 
-## Forbidden Changes
-
-- `apps/*/src/services/*` — application business logic
-- `apps/*/src/routes/*` — API route handlers
-- `apps/web/src/components/*` — UI components
-- `apps/web/src/app/*` — Next.js pages
-- `contracts/*` — API and event contracts
-- `packages/shared/src/types/*` — shared type definitions
-- `apps/api/src/db/migrations/*` — database migrations
-
 ## Done Criteria
 
-- [ ] `docker-compose up` starts PostgreSQL and Redis successfully
+- [ ] `docker compose up` starts PostgreSQL and Redis successfully
 - [ ] Dockerfiles build for all three apps without errors
 - [ ] `pnpm install` completes from a clean state
 - [ ] `pnpm lint` runs Biome across the monorepo
@@ -196,5 +164,5 @@ This agent can run in parallel with most other agents since infrastructure is in
 - [ ] `pnpm build` builds all apps
 - [ ] CI pipeline YAML is valid and defines all required steps
 - [ ] `.env.example` documents all required environment variables
-- [ ] `scripts/setup.sh` works for a first-time developer setup
+- [ ] `scripts/setup.sh` works for first-time developer setup
 - [ ] `tsconfig.base.json` enables strict mode and is extended by all workspaces

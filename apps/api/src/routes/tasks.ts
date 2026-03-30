@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from "fastify";
-import { agentService } from "../services/agent.service.js";
-import { createTaskSchema, completeTaskSchema } from "../schemas/tasks.js";
 import { idParamSchema } from "../schemas/projects.js";
+import { completeTaskSchema, createTaskSchema } from "../schemas/tasks.js";
+import { agentService } from "../services/agent.service.js";
 
 export const taskRoutes: FastifyPluginAsync = async (app) => {
   // POST / — create agent task and enqueue

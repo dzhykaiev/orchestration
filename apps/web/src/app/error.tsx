@@ -13,10 +13,7 @@ export default function ErrorPage({
         Something went wrong
       </h2>
       <p style={{ color: "var(--color-text-muted)", marginBottom: "2rem" }}>{error.message}</p>
-      <button
-        onClick={reset}
-        className="btn btn-primary"
-      >
+      <button type="button" onClick={reset} className="btn btn-primary">
         Try again
       </button>
     </div>

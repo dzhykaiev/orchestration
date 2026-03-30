@@ -1,4 +1,4 @@
-import type { Project, CreateProjectInput, UpdateProjectInput } from "../types/project.js";
+import type { CreateProjectInput, Project, UpdateProjectInput } from "../types/project.js";
 
 // GET /api/projects
 export interface ListProjectsResponse {

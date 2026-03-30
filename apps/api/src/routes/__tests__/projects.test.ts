@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import Fastify from "fastify";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ZodError } from "zod";
 
 const listProjects = vi.fn().mockResolvedValue({ projects: [], total: 0 });
@@ -21,7 +21,7 @@ const updateProject = vi.fn().mockResolvedValue(null);
 const deleteProject = vi.fn().mockResolvedValue(undefined);
 const listWorkstreamsByProject = vi.fn().mockResolvedValue([]);
 const cancelWorkstreamsByProject = vi.fn().mockResolvedValue([]);
-const createWorkstream = vi.fn().mockImplementation((input: any) =>
+const createWorkstream = vi.fn().mockImplementation((input: Record<string, unknown>) =>
   Promise.resolve({
     id: "ws-uuid",
     ...input,
@@ -68,6 +68,7 @@ const { projectRoutes } = await import("../projects.js");
 
 async function buildApp() {
   const app = Fastify();
+  // biome-ignore lint/suspicious/noExplicitAny: test mock doesn't need full Queue type
   app.decorate("queues", mockQueues as any);
   app.setErrorHandler((error: Error & { statusCode?: number }, _request, reply) => {
     if (error instanceof ZodError) {

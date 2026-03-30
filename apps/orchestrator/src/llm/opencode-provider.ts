@@ -1,8 +1,8 @@
-import type { LLMProvider, RunOptions, RunResult } from "@orchestration/shared";
 import { spawn } from "node:child_process";
-import { writeFile, mkdtemp, rm } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
+import type { LLMProvider, RunOptions, RunResult } from "@orchestration/shared";
 import { listFilesRecursive } from "./file-utils.js";
 
 /**
@@ -31,11 +31,7 @@ export class OpenCodeProvider implements LLMProvider {
       const promptFile = join(tmpDir, "prompt.txt");
       await writeFile(promptFile, combinedPrompt, "utf-8");
 
-      const args = [
-        "run",
-        "--format", "json",
-        "--dir", cwd,
-      ];
+      const args = ["run", "--format", "json", "--dir", cwd];
 
       // Resume existing session or create new one
       if (sessionId) {
@@ -44,7 +40,7 @@ export class OpenCodeProvider implements LLMProvider {
 
       // Add model flag if specified
       if (model || process.env.OPENCODE_MODEL) {
-        const modelToUse = model || process.env.OPENCODE_MODEL!;
+        const modelToUse = model ?? process.env.OPENCODE_MODEL ?? "default";
         args.push("--model", modelToUse);
       }
 
@@ -77,9 +73,7 @@ export class OpenCodeProvider implements LLMProvider {
 
         child.on("close", (code) => {
           if (code !== 0 && code !== null) {
-            reject(
-              new Error(`opencode CLI exited with code ${code}: ${stderr || stdout}`),
-            );
+            reject(new Error(`opencode CLI exited with code ${code}: ${stderr || stdout}`));
             return;
           }
 

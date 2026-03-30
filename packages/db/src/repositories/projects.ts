@@ -1,6 +1,6 @@
-import { eq, ne, sql, desc } from "drizzle-orm";
-import { db, schema } from "../client.js";
 import type { CreateProjectInput, UpdateProjectInput } from "@orchestration/shared";
+import { desc, eq, ne, sql } from "drizzle-orm";
+import { db, schema } from "../client.js";
 
 export async function updateTotalCost(projectId: string) {
   const [result] = await db
@@ -17,7 +17,11 @@ export async function updateTotalCost(projectId: string) {
   return project ?? null;
 }
 
-export async function listProjects(opts: { limit: number; offset: number; includeArchived: boolean }) {
+export async function listProjects(opts: {
+  limit: number;
+  offset: number;
+  includeArchived: boolean;
+}) {
   const base = db.select().from(schema.projects);
   const countBase = db.select({ count: sql<number>`count(*)::int` }).from(schema.projects);
 
@@ -34,10 +38,7 @@ export async function listProjects(opts: { limit: number; offset: number; includ
   }
 
   const [items, countResult] = await Promise.all([
-    base
-      .orderBy(desc(schema.projects.createdAt))
-      .limit(opts.limit)
-      .offset(opts.offset),
+    base.orderBy(desc(schema.projects.createdAt)).limit(opts.limit).offset(opts.offset),
     countBase,
   ]);
 
@@ -45,11 +46,7 @@ export async function listProjects(opts: { limit: number; offset: number; includ
 }
 
 export async function getProjectById(id: string) {
-  const result = await db
-    .select()
-    .from(schema.projects)
-    .where(eq(schema.projects.id, id))
-    .limit(1);
+  const result = await db.select().from(schema.projects).where(eq(schema.projects.id, id)).limit(1);
 
   return result[0] ?? null;
 }
@@ -67,7 +64,7 @@ export async function createProject(input: CreateProjectInput) {
     })
     .returning();
 
-  return project!;
+  return project ?? null;
 }
 
 export async function updateProject(id: string, input: UpdateProjectInput) {
