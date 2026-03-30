@@ -4,6 +4,9 @@ node_modules/
 
 # Build outputs
 dist/
+logs/
+output/
+apps/orchestrator/projects/
 build/
 *.tsbuildinfo
 

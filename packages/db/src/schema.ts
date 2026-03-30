@@ -1,7 +1,7 @@
 import { pgTable, uuid, text, timestamp, integer, jsonb, pgEnum } from "drizzle-orm/pg-core";
 
 export const projectStatusEnum = pgEnum("project_status", [
-  "draft", "planning", "in_progress", "completed", "failed",
+  "draft", "planning", "in_progress", "completed", "failed", "archived",
 ]);
 
 export const workstreamStatusEnum = pgEnum("workstream_status", [

@@ -1,5 +1,5 @@
 import type { AgentRole } from "@orchestration/shared";
-import { AGENT_BRIEFS, OUTPUT_FORMAT_INSTRUCTION } from "./briefs.js";
+import { AGENT_BRIEFS } from "./briefs.js";
 
 export function buildSystemPrompt(
   role: AgentRole,
@@ -11,9 +11,13 @@ export function buildSystemPrompt(
 
 ## Project Architecture
 
-${architecture || "No architecture document available yet."}
+${architecture || "No architecture document available yet. Check README.md or other docs in the project directory."}
 
-${OUTPUT_FORMAT_INSTRUCTION}`;
+## Important
+- Create real, working files — not placeholders
+- Use your tools to write files, run commands, install packages
+- Check existing files before creating new ones to avoid conflicts
+- Write complete implementations, not stubs`;
 }
 
 export function buildUserMessage(
@@ -32,5 +36,5 @@ export function buildUserMessage(
 
 ${prompt}
 
-Please implement all required files. Output each file using <file path="..."> tags.`;
+Implement all required files. Create them directly in the project directory using your tools.`;
 }

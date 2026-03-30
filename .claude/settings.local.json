@@ -17,7 +17,12 @@
       "Bash(pnpm:*)",
       "Bash(docker compose:*)",
       "Bash(curl -s http://localhost:3001/api/projects)",
-      "Bash(python3 -m json.tool)"
+      "Bash(python3 -m json.tool)",
+      "WebFetch(domain:github.com)",
+      "Bash(gh api:*)",
+      "Bash(ls -t /Users/yevhenii.dzhykaiev/Documents/study/orchestration/logs/orchestrator_*.log)",
+      "Bash(find /Users/yevhenii.dzhykaiev/Documents/study/orchestration -name 8a75a0d0* -o -type d -name projects)",
+      "Bash(git add:*)"
     ]
   }
 }

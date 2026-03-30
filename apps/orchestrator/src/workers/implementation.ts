@@ -1,16 +1,17 @@
 import type { Job } from "bullmq";
 import { Queue } from "bullmq";
 import IORedis from "ioredis";
-import { callClaude } from "../llm/claude.js";
+import { resolve } from "node:path";
+import { runClaude, listFilesRecursive } from "../llm/claude.js";
 import { buildSystemPrompt } from "../prompts/implementation.js";
-import { parseFileChanges } from "../output/response-parser.js";
-import { writeFiles } from "../output/file-writer.js";
 import { checkWorkstreamCompletion } from "../tracking/progress.js";
 import * as repo from "../db/repositories.js";
 import type { AgentRole } from "@orchestration/shared";
 
 const connection = new IORedis.default(process.env.REDIS_URL || "redis://localhost:6379");
 const implementationQueue = new Queue("implementation", { connection });
+
+const PROJECTS_DIR = resolve(process.env.PROJECTS_DIR || "./projects");
 
 interface ImplementationJobData {
   taskId: string;
@@ -27,6 +28,9 @@ export async function handleImplementationJob(job: Job<ImplementationJobData>) {
   // 1. Mark task as started
   await repo.markTaskStarted(taskId);
 
+  // Project directory where Claude works
+  const projectDir = resolve(PROJECTS_DIR, projectId);
+
   try {
     // 2. Load project for architecture context
     const project = await repo.getProjectById(projectId);
@@ -36,33 +40,34 @@ export async function handleImplementationJob(job: Job<ImplementationJobData>) {
       throw new Error(`Project ${projectId} or workstream ${workstreamId} not found`);
     }
 
-    // 3. Build prompts
+    // 3. Snapshot files before
+    const filesBefore = new Set(await listFilesRecursive(projectDir));
+
+    // 4. Build system prompt
     const systemPrompt = buildSystemPrompt(
       role as AgentRole,
       project.architecture || "",
     );
 
-    // 4. Call Claude
-    const response = await callClaude({
-      system: systemPrompt,
-      messages: [{ role: "user", content: prompt }],
-      maxTokens: 16384,
-      temperature: 0,
+    // 5. Run Claude with full tool access in project directory
+    const { result } = await runClaude({
+      prompt,
+      systemPrompt,
+      cwd: projectDir,
     });
 
-    // 5. Parse file changes
-    const files = parseFileChanges(response);
+    console.log(`${role} agent finished task ${taskId}`);
 
-    if (files.length === 0) {
-      // No files extracted — store output as-is (could be docs/planning)
-      await repo.markTaskCompleted(taskId, response, []);
-    } else {
-      // 6. Write files to disk
-      const writtenPaths = await writeFiles(projectId, files);
+    // 6. Diff files to find what was created/modified
+    const filesAfter = await listFilesRecursive(projectDir);
+    const newOrModified = filesAfter
+      .filter((f) => !filesBefore.has(f))
+      .map((f) => f.replace(projectDir + "/", ""));
 
-      // 7. Mark task completed
-      await repo.markTaskCompleted(taskId, response, writtenPaths);
-    }
+    console.log(`${role} agent created/modified ${newOrModified.length} files:`, newOrModified.slice(0, 10));
+
+    // 7. Mark task completed
+    await repo.markTaskCompleted(taskId, result, newOrModified);
 
     // 8. Check workstream completion and unblock dependents
     await checkWorkstreamCompletion(workstreamId, projectId);
@@ -71,25 +76,17 @@ export async function handleImplementationJob(job: Job<ImplementationJobData>) {
     console.error(`Task ${taskId} failed:`, errorMessage);
     await repo.markTaskFailed(taskId, errorMessage);
 
-    // Check if we should retry
+    // Retry if attempts left
     const task = await repo.getTaskById(taskId);
     if (task && task.attempts < task.maxAttempts) {
-      // Re-enqueue with error context
       const retryPrompt = `${prompt}\n\n---\nPrevious attempt failed with error: ${errorMessage}\nPlease fix the issue and try again.`;
 
       await implementationQueue.add(
         "implement",
-        {
-          taskId,
-          workstreamId,
-          projectId,
-          role,
-          prompt: retryPrompt,
-        },
+        { taskId, workstreamId, projectId, role, prompt: retryPrompt },
         { delay: 5000 * task.attempts },
       );
     } else {
-      // Max attempts reached
       await checkWorkstreamCompletion(workstreamId, projectId);
     }
   }
