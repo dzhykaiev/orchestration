@@ -1,18 +1,23 @@
+import { execFile } from "node:child_process";
+import { mkdir } from "node:fs/promises";
+import { resolve } from "node:path";
+import { promisify } from "node:util";
+import { projectRepo, taskRepo, workstreamRepo } from "@orchestration/db";
+import type { AgentRole } from "@orchestration/shared";
 import type { Job } from "bullmq";
 import { Queue } from "bullmq";
 import IORedis from "ioredis";
-import { mkdir } from "node:fs/promises";
-import { resolve } from "node:path";
+import { eventBus } from "../events/index.js";
 import { createLLMProvider } from "../llm/index.js";
 import {
+  ARCHITECT_EXISTING_CODEBASE_PROMPT,
   ARCHITECT_SYSTEM_PROMPT,
   parseArchitecture,
   parseWorkstreams,
 } from "../prompts/architect.js";
 import { buildUserMessage } from "../prompts/implementation.js";
-import { projectRepo, workstreamRepo, taskRepo } from "@orchestration/db";
-import type { AgentRole } from "@orchestration/shared";
-import { eventBus } from "../events/index.js";
+
+const execFileAsync = promisify(execFile);
 
 const connection = new IORedis.default(process.env.REDIS_URL || "redis://localhost:6379", {
   maxRetriesPerRequest: null,
@@ -31,9 +36,35 @@ export async function handlePlanningJob(job: Job<PlanningJobData>) {
   const { projectId, goal, provider } = job.data;
   console.log(`Planning project ${projectId} with ${provider || "default"} provider: ${goal}`);
 
-  // 1. Create isolated project directory
-  const projectDir = resolve(PROJECTS_DIR, projectId);
-  await mkdir(projectDir, { recursive: true });
+  // 1. Resolve project directory based on project mode
+  const project = await projectRepo.getProjectById(projectId);
+  const isExisting = project?.projectMode === "existing";
+  let projectDir: string;
+
+  if (isExisting && project.repoPath) {
+    // Use existing local path directly
+    projectDir = resolve(project.repoPath);
+  } else if (isExisting && project.repoUrl) {
+    // Clone remote repo
+    projectDir = resolve(PROJECTS_DIR, projectId);
+    await mkdir(projectDir, { recursive: true });
+    await execFileAsync("git", ["clone", project.repoUrl, projectDir]);
+  } else {
+    // Greenfield — create fresh directory
+    projectDir = resolve(PROJECTS_DIR, projectId);
+    await mkdir(projectDir, { recursive: true });
+  }
+
+  // Create work branch for existing repos
+  if (isExisting) {
+    const branchName = `orchestration/${projectId.slice(0, 8)}`;
+    try {
+      await execFileAsync("git", ["-C", projectDir, "checkout", "-b", branchName]);
+      await projectRepo.updateProject(projectId, { workBranch: branchName });
+    } catch (err) {
+      console.warn(`Could not create branch ${branchName}:`, err);
+    }
+  }
 
   // 2. Update project status
   await projectRepo.updateProject(projectId, { status: "planning" });
@@ -43,10 +74,13 @@ export async function handlePlanningJob(job: Job<PlanningJobData>) {
   const llmProvider = createLLMProvider("architect", provider);
 
   // 4. Run architect agent
-  const prompt = `Project goal: ${goal}\n\nScaffold the project and create the initial architecture. Then output the workstream plan.`;
+  const systemPrompt = isExisting ? ARCHITECT_EXISTING_CODEBASE_PROMPT : ARCHITECT_SYSTEM_PROMPT;
+  const prompt = isExisting
+    ? `Project goal: ${goal}\n\nAnalyze the existing codebase in this directory, then plan the changes needed to achieve this goal.`
+    : `Project goal: ${goal}\n\nScaffold the project and create the initial architecture. Then output the workstream plan.`;
   const { result } = await llmProvider.run({
     prompt,
-    systemPrompt: ARCHITECT_SYSTEM_PROMPT,
+    systemPrompt,
     cwd: projectDir,
   });
 
@@ -64,7 +98,10 @@ export async function handlePlanningJob(job: Job<PlanningJobData>) {
     const createdFiles = await llmProvider.listFiles(projectDir);
     const relativeFiles = createdFiles.map((f) => f.replace(projectDir + "/", ""));
     console.log(`Architect created ${relativeFiles.length} files:`, relativeFiles);
-    await projectRepo.updateProject(projectId, { architecture: architecture || result, status: "completed" });
+    await projectRepo.updateProject(projectId, {
+      architecture: architecture || result,
+      status: "completed",
+    });
     return { projectId, workstreamCount: 0, filesCreated: relativeFiles.length };
   }
 
@@ -108,10 +145,7 @@ export async function handlePlanningJob(job: Job<PlanningJobData>) {
         workstreamId: ws.id,
         projectId,
         role,
-        prompt: buildUserMessage(
-          `Implement the ${ws.name} workstream: ${ws.objective}`,
-          ws,
-        ),
+        prompt: buildUserMessage(`Implement the ${ws.name} workstream: ${ws.objective}`, ws),
       });
 
       await implementationQueue.add("implement", {
@@ -135,5 +169,9 @@ export async function handlePlanningJob(job: Job<PlanningJobData>) {
     workstreamIds: createdWorkstreams.map((ws) => ws.id),
   });
 
-  return { projectId, workstreamCount: createdWorkstreams.length, filesCreated: relativeFiles.length };
+  return {
+    projectId,
+    workstreamCount: createdWorkstreams.length,
+    filesCreated: relativeFiles.length,
+  };
 }

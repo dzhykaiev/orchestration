@@ -4,6 +4,9 @@ export const createProjectSchema = z.object({
   name: z.string().min(1).max(200),
   goal: z.string().min(1).max(5000),
   provider: z.enum(["claude", "opencode"]).default("opencode"),
+  repoUrl: z.string().url().optional(),
+  repoPath: z.string().optional(),
+  projectMode: z.enum(["greenfield", "existing"]).default("greenfield"),
 });
 
 export const updateProjectSchema = z.object({

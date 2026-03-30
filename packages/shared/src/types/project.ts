@@ -1,5 +1,6 @@
 export type ProjectStatus = "draft" | "planning" | "in_progress" | "completed" | "failed" | "archived";
 export type LLMProviderType = "claude" | "opencode";
+export type ProjectMode = "greenfield" | "existing";
 
 export interface Project {
   id: string;
@@ -9,6 +10,10 @@ export interface Project {
   architecture?: string;
   provider: LLMProviderType;
   totalCostUsd: string;
+  repoUrl?: string;
+  repoPath?: string;
+  projectMode: ProjectMode;
+  workBranch?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -17,6 +22,9 @@ export interface CreateProjectInput {
   name: string;
   goal: string;
   provider?: LLMProviderType;
+  repoUrl?: string;
+  repoPath?: string;
+  projectMode?: ProjectMode;
 }
 
 export interface UpdateProjectInput {
@@ -25,4 +33,5 @@ export interface UpdateProjectInput {
   status?: ProjectStatus;
   architecture?: string;
   provider?: LLMProviderType;
+  workBranch?: string;
 }

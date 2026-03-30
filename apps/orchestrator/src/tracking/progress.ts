@@ -1,9 +1,15 @@
+import { execFile } from "node:child_process";
+import { resolve } from "node:path";
+import { promisify } from "node:util";
+import { projectRepo, taskRepo, workstreamRepo } from "@orchestration/db";
+import type { AgentRole } from "@orchestration/shared";
 import { Queue } from "bullmq";
 import IORedis from "ioredis";
-import { projectRepo, workstreamRepo, taskRepo } from "@orchestration/db";
-import { buildSystemPrompt, buildUserMessage } from "../prompts/implementation.js";
-import type { AgentRole } from "@orchestration/shared";
 import { eventBus } from "../events/index.js";
+import { buildSystemPrompt, buildUserMessage } from "../prompts/implementation.js";
+
+const execFileAsync = promisify(execFile);
+const PROJECTS_DIR = resolve(process.env.PROJECTS_DIR || "./projects");
 
 const connection = new IORedis.default(process.env.REDIS_URL || "redis://localhost:6379", {
   maxRetriesPerRequest: null,
@@ -13,10 +19,7 @@ const validationQueue = new Queue("validation", { connection });
 
 const VALIDATION_ENABLED = process.env.VALIDATION_ENABLED === "true";
 
-export async function checkWorkstreamCompletion(
-  workstreamId: string,
-  projectId: string,
-) {
+export async function checkWorkstreamCompletion(workstreamId: string, projectId: string) {
   const counts = await taskRepo.countTasksByWorkstream(workstreamId);
 
   if (counts.failed > 0) {
@@ -49,13 +52,14 @@ async function unblockDependents(completedWorkstreamId: string, projectId: strin
 
   // Get project provider
   const project = await projectRepo.getProjectById(projectId);
-  const provider = (project as Record<string, unknown>)?.provider as string || process.env.LLM_PROVIDER || "opencode";
+  const provider =
+    ((project as Record<string, unknown>)?.provider as string) ||
+    process.env.LLM_PROVIDER ||
+    "opencode";
 
   // Build set of all completed workstream IDs
   const completedIds = new Set(
-    allWorkstreams
-      .filter((ws) => ws.status === "completed")
-      .map((ws) => ws.id),
+    allWorkstreams.filter((ws) => ws.status === "completed").map((ws) => ws.id),
   );
   completedIds.add(completedWorkstreamId);
 
@@ -81,10 +85,7 @@ async function unblockDependents(completedWorkstreamId: string, projectId: strin
         workstreamId: ws.id,
         projectId,
         role: (ws.assignedAgent as AgentRole) || "backend",
-        prompt: buildUserMessage(
-          `Implement the ${ws.name} workstream: ${ws.objective}`,
-          ws,
-        ),
+        prompt: buildUserMessage(`Implement the ${ws.name} workstream: ${ws.objective}`, ws),
       });
 
       eventBus.emitTyped("task.queued", { taskId: task.id, workstreamId: ws.id });
@@ -112,6 +113,31 @@ async function checkProjectCompletion(projectId: string) {
 
   if (allCompleted) {
     await projectRepo.updateProject(projectId, { status: "completed" });
+
+    // For existing-mode projects, commit changes on the work branch
+    const project = await projectRepo.getProjectById(projectId);
+    if (project?.projectMode === "existing" && project.workBranch) {
+      const projectDir = project.repoPath
+        ? resolve(project.repoPath)
+        : resolve(PROJECTS_DIR, projectId);
+
+      try {
+        await execFileAsync("git", ["-C", projectDir, "add", "-A"]);
+        await execFileAsync("git", [
+          "-C",
+          projectDir,
+          "commit",
+          "-m",
+          `feat: ${project.name}`,
+          "--allow-empty",
+        ]);
+        console.log(
+          `[Progress] Committed changes on branch ${project.workBranch} for project ${projectId}`,
+        );
+      } catch (err) {
+        console.warn(`[Progress] Failed to commit changes for project ${projectId}:`, err);
+      }
+    }
   } else if (anyFailed && !anyActive) {
     await projectRepo.updateProject(projectId, { status: "failed" });
   }

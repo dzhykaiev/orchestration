@@ -16,6 +16,14 @@ export const agentRoleEnum = pgEnum("agent_role", [
   "architect", "backend", "frontend", "data", "devops", "qa",
 ]);
 
+export const featureStatusEnum = pgEnum("feature_status", [
+  "backlog", "todo", "in_progress", "done", "rejected",
+]);
+
+export const featureTypeEnum = pgEnum("feature_type", [
+  "feature", "bug", "improvement", "refactor",
+]);
+
 export const projects = pgTable("projects", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name").notNull(),
@@ -24,6 +32,10 @@ export const projects = pgTable("projects", {
   architecture: text("architecture"),
   provider: text("provider").default("opencode").notNull(),
   totalCostUsd: numeric("total_cost_usd", { precision: 10, scale: 4 }).default("0").notNull(),
+  repoUrl: text("repo_url"),
+  repoPath: text("repo_path"),
+  projectMode: text("project_mode").default("greenfield").notNull(),
+  workBranch: text("work_branch"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -67,4 +79,19 @@ export const agentTasks = pgTable("agent_tasks", {
 }, (t) => [
   index("idx_agent_tasks_workstream_id").on(t.workstreamId),
   index("idx_agent_tasks_project_id").on(t.projectId),
+]);
+
+export const features = pgTable("features", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  title: text("title").notNull(),
+  description: text("description"),
+  status: featureStatusEnum("status").default("backlog").notNull(),
+  type: featureTypeEnum("type").default("feature").notNull(),
+  priority: integer("priority").default(0).notNull(),
+  sortOrder: integer("sort_order").default(0).notNull(),
+  orchestrationProjectId: uuid("orchestration_project_id").references(() => projects.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => [
+  index("idx_features_status").on(t.status),
 ]);

@@ -1,7 +1,7 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 async function fetchAPI<T>(path: string, opts?: RequestInit): Promise<T> {
-  const headers: Record<string, string> = { ...opts?.headers as Record<string, string> };
+  const headers: Record<string, string> = { ...(opts?.headers as Record<string, string>) };
   if (opts?.body) {
     headers["Content-Type"] = "application/json";
   }
@@ -10,7 +10,10 @@ async function fetchAPI<T>(path: string, opts?: RequestInit): Promise<T> {
     headers,
   });
   if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: res.statusText })) as Record<string, string>;
+    const body = (await res.json().catch(() => ({ error: res.statusText }))) as Record<
+      string,
+      string
+    >;
     throw new Error(body.error || `API error: ${res.status}`);
   }
   return res.json() as Promise<T>;
@@ -68,6 +71,19 @@ interface AgentTask {
   updatedAt: string;
 }
 
+interface Feature {
+  id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  type: string;
+  priority: number;
+  sortOrder: number;
+  orchestrationProjectId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // --- API Client ---
 
 export const api = {
@@ -77,7 +93,14 @@ export const api = {
         `/api/projects?limit=${limit}&offset=${offset}&includeArchived=${includeArchived}`,
       ),
     get: (id: string) => fetchAPI<{ project: Project }>(`/api/projects/${id}`),
-    create: (body: { name: string; goal: string; provider?: string }) =>
+    create: (body: {
+      name: string;
+      goal: string;
+      provider?: string;
+      projectMode?: string;
+      repoUrl?: string;
+      repoPath?: string;
+    }) =>
       fetchAPI<{ project: Project }>("/api/projects", {
         method: "POST",
         body: JSON.stringify(body),
@@ -88,10 +111,9 @@ export const api = {
         body: JSON.stringify(body),
       }),
     plan: (id: string) =>
-      fetchAPI<{ project: Project; workstreams: Workstream[] }>(
-        `/api/projects/${id}/plan`,
-        { method: "POST" },
-      ),
+      fetchAPI<{ project: Project; workstreams: Workstream[] }>(`/api/projects/${id}/plan`, {
+        method: "POST",
+      }),
     stop: (id: string) =>
       fetchAPI<{ project: Project }>(`/api/projects/${id}/stop`, {
         method: "POST",
@@ -108,15 +130,43 @@ export const api = {
       fetchAPI<{ workstreams: Workstream[] }>(`/api/projects/${id}/workstreams`),
   },
   workstreams: {
-    get: (id: string) =>
-      fetchAPI<{ workstream: Workstream }>(`/api/workstreams/${id}`),
-    tasks: (id: string) =>
-      fetchAPI<{ tasks: AgentTask[] }>(`/api/workstreams/${id}/tasks`),
+    get: (id: string) => fetchAPI<{ workstream: Workstream }>(`/api/workstreams/${id}`),
+    tasks: (id: string) => fetchAPI<{ tasks: AgentTask[] }>(`/api/workstreams/${id}/tasks`),
   },
   tasks: {
     retry: (taskId: string) =>
       fetchAPI<{ task: AgentTask }>(`/api/tasks/${taskId}/retry`, {
         method: "POST",
+      }),
+  },
+  features: {
+    list: (status?: string) => {
+      const query = status ? `?status=${status}&limit=200` : "?limit=200";
+      return fetchAPI<{ features: Feature[]; total: number }>(`/api/features${query}`);
+    },
+    get: (id: string) => fetchAPI<{ feature: Feature }>(`/api/features/${id}`),
+    create: (body: { title: string; description?: string; type?: string; priority?: number }) =>
+      fetchAPI<{ feature: Feature }>("/api/features", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    update: (id: string, body: Record<string, unknown>) =>
+      fetchAPI<{ feature: Feature }>(`/api/features/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }),
+    delete: (id: string) =>
+      fetchAPI<void>(`/api/features/${id}`, {
+        method: "DELETE",
+      }),
+    kickoff: (id: string) =>
+      fetchAPI<{ feature: Feature; project: Project }>(`/api/features/${id}/kickoff`, {
+        method: "POST",
+      }),
+    reorder: (updates: { id: string; sortOrder: number }[]) =>
+      fetchAPI<{ ok: boolean }>("/api/features/reorder", {
+        method: "PATCH",
+        body: JSON.stringify({ updates }),
       }),
   },
   files: {
@@ -131,4 +181,4 @@ export const api = {
   },
 };
 
-export type { Project, Workstream, AgentTask, FileEntry };
+export type { Project, Workstream, AgentTask, FileEntry, Feature };

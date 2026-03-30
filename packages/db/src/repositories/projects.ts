@@ -57,7 +57,14 @@ export async function getProjectById(id: string) {
 export async function createProject(input: CreateProjectInput) {
   const [project] = await db
     .insert(schema.projects)
-    .values({ name: input.name, goal: input.goal, provider: input.provider || "opencode" })
+    .values({
+      name: input.name,
+      goal: input.goal,
+      provider: input.provider || "opencode",
+      repoUrl: input.repoUrl,
+      repoPath: input.repoPath,
+      projectMode: input.projectMode || "greenfield",
+    })
     .returning();
 
   return project!;

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ToastProvider } from "../components/ui/ToastProvider";
 import { ThemeToggle } from "../components/ui/ThemeToggle";
+import { ToastProvider } from "../components/ui/ToastProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -40,21 +40,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         >
           <Link href="/" style={{ color: "inherit", textDecoration: "none" }}>
-            <h1 style={{ margin: 0, fontSize: "1.25rem", fontWeight: 700 }}>
-              Orchestration
-            </h1>
+            <h1 style={{ margin: 0, fontSize: "1.25rem", fontWeight: 700 }}>Orchestration</h1>
           </Link>
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
             <ThemeToggle />
+            <Link href="/board" className="btn btn-secondary">
+              Board
+            </Link>
             <Link href="/projects/new" className="btn btn-primary">
               New Project
             </Link>
           </div>
         </header>
         <ToastProvider>
-          <main style={{ padding: "2rem", maxWidth: 960, margin: "0 auto" }}>
-            {children}
-          </main>
+          <main style={{ padding: "2rem", maxWidth: 960, margin: "0 auto" }}>{children}</main>
         </ToastProvider>
       </body>
     </html>

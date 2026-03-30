@@ -29,6 +29,13 @@
       "when": 1774907141908,
       "tag": "0003_chemical_talon",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1774911434494,
+      "tag": "0004_tearful_bug",
+      "breakpoints": true
     }
   ]
 }
