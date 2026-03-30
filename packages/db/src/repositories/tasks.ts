@@ -1,5 +1,5 @@
 import { eq, sql, asc } from "drizzle-orm";
-import { db, schema } from "@orchestration/db";
+import { db, schema } from "../client.js";
 import type { CreateAgentTaskInput } from "@orchestration/shared";
 
 export async function listTasksByWorkstream(workstreamId: string) {
@@ -54,6 +54,7 @@ export async function markTaskCompleted(
   id: string,
   output: string,
   filesModified: string[],
+  costUsd?: number,
 ) {
   const [task] = await db
     .update(schema.agentTasks)
@@ -61,6 +62,7 @@ export async function markTaskCompleted(
       status: "completed",
       output,
       filesModified,
+      costUsd: costUsd?.toString() ?? "0",
       completedAt: new Date(),
       updatedAt: new Date(),
     })
@@ -82,6 +84,39 @@ export async function markTaskFailed(id: string, error: string) {
     .returning();
 
   return task ?? null;
+}
+
+export async function cancelTasksByProject(projectId: string) {
+  return db
+    .update(schema.agentTasks)
+    .set({
+      status: "cancelled",
+      error: "Project stopped by user",
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.agentTasks.projectId, projectId))
+    .returning();
+}
+
+export async function retryTask(id: string) {
+  const [task] = await db
+    .update(schema.agentTasks)
+    .set({
+      status: "queued",
+      error: null,
+      attempts: sql`${schema.agentTasks.attempts} + 1`,
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.agentTasks.id, id))
+    .returning();
+
+  return task ?? null;
+}
+
+export async function deleteTasksByProject(projectId: string) {
+  return db
+    .delete(schema.agentTasks)
+    .where(eq(schema.agentTasks.projectId, projectId));
 }
 
 export async function countTasksByWorkstream(workstreamId: string) {

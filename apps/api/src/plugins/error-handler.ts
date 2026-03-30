@@ -1,7 +1,8 @@
 import type { FastifyPluginAsync } from "fastify";
+import fp from "fastify-plugin";
 import { ZodError } from "zod";
 
-export const errorHandlerPlugin: FastifyPluginAsync = async (app) => {
+const errorHandlerPluginImpl: FastifyPluginAsync = async (app) => {
   app.setErrorHandler((error: Error & { statusCode?: number }, request, reply) => {
     if (error instanceof ZodError) {
       return reply.status(400).send({
@@ -23,3 +24,7 @@ export const errorHandlerPlugin: FastifyPluginAsync = async (app) => {
     reply.status(404).send({ error: "Not Found", statusCode: 404 });
   });
 };
+
+export const errorHandlerPlugin = fp(errorHandlerPluginImpl, {
+  name: "error-handler",
+});

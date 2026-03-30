@@ -1,4 +1,5 @@
-export type ProjectStatus = "draft" | "planning" | "in_progress" | "completed" | "failed";
+export type ProjectStatus = "draft" | "planning" | "in_progress" | "completed" | "failed" | "archived";
+export type LLMProviderType = "claude" | "opencode";
 
 export interface Project {
   id: string;
@@ -6,6 +7,7 @@ export interface Project {
   goal: string;
   status: ProjectStatus;
   architecture?: string;
+  provider: LLMProviderType;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -13,6 +15,7 @@ export interface Project {
 export interface CreateProjectInput {
   name: string;
   goal: string;
+  provider?: LLMProviderType;
 }
 
 export interface UpdateProjectInput {
@@ -20,4 +23,5 @@ export interface UpdateProjectInput {
   goal?: string;
   status?: ProjectStatus;
   architecture?: string;
+  provider?: LLMProviderType;
 }

@@ -1,5 +1,5 @@
 import { eq, asc } from "drizzle-orm";
-import { db, schema } from "@orchestration/db";
+import { db, schema } from "../client.js";
 import type {
   CreateWorkstreamInput,
   UpdateWorkstreamInput,
@@ -33,6 +33,7 @@ export async function createWorkstream(input: CreateWorkstreamInput) {
       dependencies: input.dependencies ?? [],
       deliverables: input.deliverables ?? [],
       ownedPaths: input.ownedPaths ?? [],
+      assignedAgent: input.assignedAgent ?? null,
       order: input.order ?? 0,
     })
     .returning();
@@ -48,4 +49,12 @@ export async function updateWorkstream(id: string, input: UpdateWorkstreamInput)
     .returning();
 
   return ws ?? null;
+}
+
+export async function cancelWorkstreamsByProject(projectId: string) {
+  return db
+    .update(schema.workstreams)
+    .set({ status: "failed", updatedAt: new Date() })
+    .where(eq(schema.workstreams.projectId, projectId))
+    .returning();
 }

@@ -5,6 +5,7 @@ export type {
   UpdateProjectInput,
   Workstream,
   WorkstreamStatus,
+  ValidationStatus,
   CreateWorkstreamInput,
   UpdateWorkstreamInput,
   AgentTask,
@@ -16,4 +17,9 @@ export type {
   EventType,
   EventPayload,
   EnvContract,
+  LLMProvider,
+  RunOptions,
+  RunResult,
 } from "./types/index.js";
+
+export { EVENTS_CHANNEL } from "./types/index.js";

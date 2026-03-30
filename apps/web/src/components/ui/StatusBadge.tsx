@@ -1,20 +1,21 @@
 "use client";
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  draft: { bg: "#f0f0f0", text: "#666" },
-  pending: { bg: "#f0f0f0", text: "#666" },
-  blocked: { bg: "#fff3cd", text: "#856404" },
-  planning: { bg: "#cce5ff", text: "#004085" },
-  queued: { bg: "#cce5ff", text: "#004085" },
-  in_progress: { bg: "#fff3cd", text: "#856404" },
-  running: { bg: "#fff3cd", text: "#856404" },
-  completed: { bg: "#d4edda", text: "#155724" },
-  failed: { bg: "#f8d7da", text: "#721c24" },
-  cancelled: { bg: "#f0f0f0", text: "#666" },
+  draft: { bg: "var(--color-status-neutral-bg)", text: "var(--color-status-neutral-text)" },
+  pending: { bg: "var(--color-status-neutral-bg)", text: "var(--color-status-neutral-text)" },
+  blocked: { bg: "var(--color-status-yellow-bg)", text: "var(--color-status-yellow-text)" },
+  planning: { bg: "var(--color-status-blue-bg)", text: "var(--color-status-blue-text)" },
+  queued: { bg: "var(--color-status-blue-bg)", text: "var(--color-status-blue-text)" },
+  in_progress: { bg: "var(--color-status-yellow-bg)", text: "var(--color-status-yellow-text)" },
+  running: { bg: "var(--color-status-yellow-bg)", text: "var(--color-status-yellow-text)" },
+  completed: { bg: "var(--color-status-green-bg)", text: "var(--color-status-green-text)" },
+  failed: { bg: "var(--color-status-red-bg)", text: "var(--color-status-red-text)" },
+  cancelled: { bg: "var(--color-status-neutral-bg)", text: "var(--color-status-neutral-text)" },
+  archived: { bg: "var(--color-status-gray-bg)", text: "var(--color-status-gray-text)" },
 };
 
 export function StatusBadge({ status }: { status: string }) {
-  const colors = STATUS_COLORS[status] ?? { bg: "#f0f0f0", text: "#666" };
+  const colors = STATUS_COLORS[status] ?? { bg: "var(--color-status-neutral-bg)", text: "var(--color-status-neutral-text)" };
 
   return (
     <span
@@ -28,7 +29,7 @@ export function StatusBadge({ status }: { status: string }) {
         color: colors.text,
       }}
     >
-      {status.replace("_", " ")}
+      {status.replaceAll("_", " ")}
     </span>
   );
 }

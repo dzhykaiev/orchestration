@@ -13,21 +13,22 @@
     "db:seed": "tsx src/db/seed.ts"
   },
   "dependencies": {
-    "fastify": "^5.2.0",
     "@fastify/cors": "^11.0.0",
     "@fastify/websocket": "^11.0.0",
     "@orchestration/db": "workspace:*",
-    "drizzle-orm": "^0.39.0",
+    "@orchestration/shared": "workspace:*",
     "bullmq": "^5.30.0",
+    "drizzle-orm": "^0.39.0",
+    "fastify": "^5.2.0",
+    "fastify-plugin": "^5.1.0",
     "ioredis": "^5.4.0",
-    "zod": "^3.24.0",
-    "@orchestration/shared": "workspace:*"
+    "zod": "^3.24.0"
   },
   "devDependencies": {
-    "typescript": "^5.7.0",
-    "tsx": "^4.19.0",
-    "vitest": "^3.0.0",
     "@types/node": "^22.0.0",
-    "drizzle-kit": "^0.30.0"
+    "drizzle-kit": "^0.30.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
   }
 }

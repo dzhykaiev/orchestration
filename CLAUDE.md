@@ -67,6 +67,7 @@ docs/
 logs/
 packages/
   db/
+    drizzle/
     src/
   shared/
     src/

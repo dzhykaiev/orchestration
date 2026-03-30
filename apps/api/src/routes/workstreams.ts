@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
-import { workstreamRepo, taskRepo } from "../db/repositories/index.js";
+import { workstreamRepo, taskRepo } from "@orchestration/db";
 import { idParamSchema } from "../schemas/projects.js";
 import { updateWorkstreamSchema } from "../schemas/workstreams.js";
 

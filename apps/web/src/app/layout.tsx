@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ToastProvider } from "../components/ui/ToastProvider";
+import { ThemeToggle } from "../components/ui/ThemeToggle";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -7,15 +9,31 @@ export const metadata: Metadata = {
   description: "Orchestrate AI agents to build software from high-level goals",
 };
 
+const themeInitScript = `
+(function(){
+  try {
+    var t = localStorage.getItem("theme");
+    if (t === "light" || t === "dark") {
+      document.documentElement.setAttribute("data-theme", t);
+    } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+      document.documentElement.setAttribute("data-theme", "dark");
+    }
+  } catch(e) {}
+})();
+`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body>
         <header
           style={{
             padding: "0.75rem 2rem",
-            borderBottom: "1px solid #e0e0e0",
-            background: "#fff",
+            borderBottom: "1px solid var(--color-border)",
+            background: "var(--color-surface)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -26,13 +44,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               Orchestration
             </h1>
           </Link>
-          <Link href="/projects/new" className="btn btn-primary">
-            New Project
-          </Link>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            <ThemeToggle />
+            <Link href="/projects/new" className="btn btn-primary">
+              New Project
+            </Link>
+          </div>
         </header>
-        <main style={{ padding: "2rem", maxWidth: 960, margin: "0 auto" }}>
-          {children}
-        </main>
+        <ToastProvider>
+          <main style={{ padding: "2rem", maxWidth: 960, margin: "0 auto" }}>
+            {children}
+          </main>
+        </ToastProvider>
       </body>
     </html>
   );

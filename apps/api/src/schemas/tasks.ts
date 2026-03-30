@@ -14,4 +14,5 @@ export const completeTaskSchema = z.object({
   output: z.string(),
   filesModified: z.array(z.string()).default([]),
   error: z.string().optional(),
+  costUsd: z.number().optional(),
 });

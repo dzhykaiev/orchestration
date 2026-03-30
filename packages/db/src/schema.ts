@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, integer, jsonb, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, integer, numeric, jsonb, pgEnum, index } from "drizzle-orm/pg-core";
 
 export const projectStatusEnum = pgEnum("project_status", [
   "draft", "planning", "in_progress", "completed", "failed", "archived",
@@ -22,6 +22,8 @@ export const projects = pgTable("projects", {
   goal: text("goal").notNull(),
   status: projectStatusEnum("status").default("draft").notNull(),
   architecture: text("architecture"),
+  provider: text("provider").default("opencode").notNull(),
+  totalCostUsd: numeric("total_cost_usd", { precision: 10, scale: 4 }).default("0").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -37,9 +39,13 @@ export const workstreams = pgTable("workstreams", {
   deliverables: jsonb("deliverables").$type<string[]>().default([]).notNull(),
   ownedPaths: jsonb("owned_paths").$type<string[]>().default([]).notNull(),
   order: integer("order").default(0).notNull(),
+  validationStatus: text("validation_status"),
+  validationOutput: text("validation_output"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (t) => [
+  index("idx_workstreams_project_id").on(t.projectId),
+]);
 
 export const agentTasks = pgTable("agent_tasks", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -51,10 +57,14 @@ export const agentTasks = pgTable("agent_tasks", {
   output: text("output"),
   filesModified: jsonb("files_modified").$type<string[]>().default([]).notNull(),
   error: text("error"),
+  costUsd: numeric("cost_usd", { precision: 10, scale: 6 }).default("0").notNull(),
   attempts: integer("attempts").default(0).notNull(),
   maxAttempts: integer("max_attempts").default(3).notNull(),
   startedAt: timestamp("started_at"),
   completedAt: timestamp("completed_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (t) => [
+  index("idx_agent_tasks_workstream_id").on(t.workstreamId),
+  index("idx_agent_tasks_project_id").on(t.projectId),
+]);

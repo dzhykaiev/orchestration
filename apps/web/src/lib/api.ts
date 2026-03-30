@@ -18,12 +18,20 @@ async function fetchAPI<T>(path: string, opts?: RequestInit): Promise<T> {
 
 // --- Types ---
 
+interface FileEntry {
+  name: string;
+  path: string;
+  type: "file" | "directory";
+  size?: number;
+}
+
 interface Project {
   id: string;
   name: string;
   goal: string;
   status: string;
   architecture?: string;
+  provider: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -55,6 +63,7 @@ interface AgentTask {
   error?: string;
   attempts: number;
   maxAttempts: number;
+  costUsd?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -63,12 +72,12 @@ interface AgentTask {
 
 export const api = {
   projects: {
-    list: (limit = 20, offset = 0) =>
+    list: (limit = 20, offset = 0, includeArchived = false) =>
       fetchAPI<{ projects: Project[]; total: number }>(
-        `/api/projects?limit=${limit}&offset=${offset}`,
+        `/api/projects?limit=${limit}&offset=${offset}&includeArchived=${includeArchived}`,
       ),
     get: (id: string) => fetchAPI<{ project: Project }>(`/api/projects/${id}`),
-    create: (body: { name: string; goal: string }) =>
+    create: (body: { name: string; goal: string; provider?: string }) =>
       fetchAPI<{ project: Project }>("/api/projects", {
         method: "POST",
         body: JSON.stringify(body),
@@ -83,6 +92,18 @@ export const api = {
         `/api/projects/${id}/plan`,
         { method: "POST" },
       ),
+    stop: (id: string) =>
+      fetchAPI<{ project: Project }>(`/api/projects/${id}/stop`, {
+        method: "POST",
+      }),
+    archive: (id: string) =>
+      fetchAPI<{ project: Project }>(`/api/projects/${id}/archive`, {
+        method: "POST",
+      }),
+    delete: (id: string) =>
+      fetchAPI<void>(`/api/projects/${id}`, {
+        method: "DELETE",
+      }),
     workstreams: (id: string) =>
       fetchAPI<{ workstreams: Workstream[] }>(`/api/projects/${id}/workstreams`),
   },
@@ -92,6 +113,22 @@ export const api = {
     tasks: (id: string) =>
       fetchAPI<{ tasks: AgentTask[] }>(`/api/workstreams/${id}/tasks`),
   },
+  tasks: {
+    retry: (taskId: string) =>
+      fetchAPI<{ task: AgentTask }>(`/api/tasks/${taskId}/retry`, {
+        method: "POST",
+      }),
+  },
+  files: {
+    list: (projectId: string, path?: string) => {
+      const query = path ? `?path=${encodeURIComponent(path)}` : "";
+      return fetchAPI<{ files: FileEntry[] }>(`/api/projects/${projectId}/files${query}`);
+    },
+    content: (projectId: string, path: string) =>
+      fetchAPI<{ content: string; path: string; size: number }>(
+        `/api/projects/${projectId}/files/content?path=${encodeURIComponent(path)}`,
+      ),
+  },
 };
 
-export type { Project, Workstream, AgentTask };
+export type { Project, Workstream, AgentTask, FileEntry };

@@ -1,33 +1,55 @@
 import { Queue } from "bullmq";
 import IORedis from "ioredis";
-import * as repo from "../db/repositories.js";
+import { projectRepo, workstreamRepo, taskRepo } from "@orchestration/db";
 import { buildSystemPrompt, buildUserMessage } from "../prompts/implementation.js";
 import type { AgentRole } from "@orchestration/shared";
+import { eventBus } from "../events/index.js";
 
-const connection = new IORedis.default(process.env.REDIS_URL || "redis://localhost:6379");
+const connection = new IORedis.default(process.env.REDIS_URL || "redis://localhost:6379", {
+  maxRetriesPerRequest: null,
+});
 const implementationQueue = new Queue("implementation", { connection });
+const validationQueue = new Queue("validation", { connection });
+
+const VALIDATION_ENABLED = process.env.VALIDATION_ENABLED === "true";
 
 export async function checkWorkstreamCompletion(
   workstreamId: string,
   projectId: string,
 ) {
-  const counts = await repo.countTasksByWorkstream(workstreamId);
+  const counts = await taskRepo.countTasksByWorkstream(workstreamId);
 
   if (counts.failed > 0) {
-    await repo.updateWorkstream(workstreamId, { status: "failed" });
+    await workstreamRepo.updateWorkstream(workstreamId, { status: "failed" });
+    eventBus.emitTyped("workstream.failed", {
+      workstreamId,
+      projectId,
+      error: "One or more tasks failed",
+    });
     await checkProjectCompletion(projectId);
     return;
   }
 
   if (counts.completed === counts.total && counts.total > 0) {
-    await repo.updateWorkstream(workstreamId, { status: "completed" });
+    await workstreamRepo.updateWorkstream(workstreamId, { status: "completed" });
+    eventBus.emitTyped("workstream.completed", { workstreamId, projectId });
+
+    if (VALIDATION_ENABLED) {
+      await validationQueue.add("validate", { workstreamId, projectId });
+      console.log(`[Progress] Enqueued validation for workstream ${workstreamId}`);
+    }
+
     await unblockDependents(workstreamId, projectId);
     await checkProjectCompletion(projectId);
   }
 }
 
 async function unblockDependents(completedWorkstreamId: string, projectId: string) {
-  const allWorkstreams = await repo.listWorkstreamsByProject(projectId);
+  const allWorkstreams = await workstreamRepo.listWorkstreamsByProject(projectId);
+
+  // Get project provider
+  const project = await projectRepo.getProjectById(projectId);
+  const provider = (project as Record<string, unknown>)?.provider as string || process.env.LLM_PROVIDER || "opencode";
 
   // Build set of all completed workstream IDs
   const completedIds = new Set(
@@ -52,12 +74,10 @@ async function unblockDependents(completedWorkstreamId: string, projectId: strin
     });
 
     if (allDepsMet) {
-      await repo.updateWorkstream(ws.id, { status: "in_progress" });
+      await workstreamRepo.updateWorkstream(ws.id, { status: "in_progress" });
+      eventBus.emitTyped("workstream.started", { workstreamId: ws.id, projectId });
 
-      // Get the project for architecture context
-      const project = await repo.getProjectById(projectId);
-
-      const task = await repo.createTask({
+      const task = await taskRepo.createTask({
         workstreamId: ws.id,
         projectId,
         role: (ws.assignedAgent as AgentRole) || "backend",
@@ -67,29 +87,32 @@ async function unblockDependents(completedWorkstreamId: string, projectId: strin
         ),
       });
 
+      eventBus.emitTyped("task.queued", { taskId: task.id, workstreamId: ws.id });
+
       await implementationQueue.add("implement", {
         taskId: task.id,
         workstreamId: ws.id,
         projectId,
         role: task.role,
         prompt: task.prompt,
+        provider,
       });
     }
   }
 }
 
 async function checkProjectCompletion(projectId: string) {
-  const workstreams = await repo.listWorkstreamsByProject(projectId);
+  const workstreams = await workstreamRepo.listWorkstreamsByProject(projectId);
 
   const allCompleted = workstreams.every((ws) => ws.status === "completed");
   const anyFailed = workstreams.some((ws) => ws.status === "failed");
   const anyActive = workstreams.some((ws) =>
-    ["in_progress", "pending", "blocked", "queued"].includes(ws.status),
+    ["in_progress", "pending", "blocked"].includes(ws.status),
   );
 
   if (allCompleted) {
-    await repo.updateProject(projectId, { status: "completed" });
+    await projectRepo.updateProject(projectId, { status: "completed" });
   } else if (anyFailed && !anyActive) {
-    await repo.updateProject(projectId, { status: "failed" });
+    await projectRepo.updateProject(projectId, { status: "failed" });
   }
 }

@@ -2,44 +2,34 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { api, type Project, type Workstream, type AgentTask } from "../../../lib/api";
 import { StatusBadge } from "../../../components/ui/StatusBadge";
+import { ProgressBar } from "../../../components/ui/ProgressBar";
+import { SkeletonProjectDetail } from "../../../components/ui/SkeletonProjectDetail";
+import { ConfirmModal } from "../../../components/ui/ConfirmModal";
 import { usePolling } from "../../../hooks/usePolling";
+import { useSSE } from "../../../hooks/useSSE";
+import { useToastContext } from "../../../components/ui/ToastProvider";
+import { timeAgo, getProviderStyle } from "../../../lib/utils";
+import { FileTree } from "../../../components/FileTree";
+import { FileViewer } from "../../../components/FileViewer";
 
-function timeAgo(dateStr: string) {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const sec = Math.floor(diff / 1000);
-  if (sec < 60) return `${sec}s ago`;
-  const min = Math.floor(sec / 60);
-  if (min < 60) return `${min}m ago`;
-  const hr = Math.floor(min / 60);
-  return `${hr}h ago`;
-}
+const DependencyGraph = dynamic(
+  () => import("../../../components/DependencyGraph").then((m) => m.DependencyGraph),
+  { ssr: false, loading: () => <div className="dependency-graph-loading">Loading graph...</div> }
+);
 
-function ProgressBar({ completed, total }: { completed: number; total: number }) {
-  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <div style={{ flex: 1, height: 6, background: "#e0e0e0", borderRadius: 3 }}>
-        <div
-          style={{
-            width: `${pct}%`,
-            height: "100%",
-            background: pct === 100 ? "#28a745" : "#0066cc",
-            borderRadius: 3,
-            transition: "width 0.3s",
-          }}
-        />
-      </div>
-      <span className="text-sm text-muted">{completed}/{total}</span>
-    </div>
-  );
-}
+const PROVIDER_LABELS: Record<string, string> = {
+  claude: "Claude Code",
+  opencode: "OpenCode",
+};
 
 export default function ProjectDetailPage() {
   const params = useParams();
   const router = useRouter();
   const projectId = params.id as string;
+  const toast = useToastContext();
 
   const [project, setProject] = useState<Project | null>(null);
   const [workstreams, setWorkstreams] = useState<Workstream[]>([]);
@@ -47,8 +37,14 @@ export default function ProjectDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [planning, setPlanning] = useState(false);
+  const [stopping, setStopping] = useState(false);
+  const [archiving, setArchiving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [retryingTaskId, setRetryingTaskId] = useState<string | null>(null);
   const [expandedWs, setExpandedWs] = useState<Set<string>>(new Set());
   const [expandedTaskOutput, setExpandedTaskOutput] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<null | "stop" | "archive" | "delete">(null);
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -59,9 +55,8 @@ export default function ProjectDetailPage() {
       setProject(projectRes.project);
       setWorkstreams(wsRes.workstreams);
 
-      // Auto-fetch tasks for active workstreams
       for (const ws of wsRes.workstreams) {
-        if (["in_progress", "completed", "failed"].includes(ws.status)) {
+        if (["in_progress", "completed", "failed", "cancelled"].includes(ws.status)) {
           const res = await api.workstreams.tasks(ws.id);
           setTasksByWorkstream((prev) => ({ ...prev, [ws.id]: res.tasks }));
         }
@@ -80,7 +75,29 @@ export default function ProjectDetailPage() {
   }, [fetchData]);
 
   const isActive = project && ["planning", "in_progress"].includes(project.status);
-  usePolling(fetchData, 3000, !!isActive);
+  usePolling(fetchData, 10000, !!isActive);
+
+  useSSE({
+    projectId,
+    onEvent: useCallback(
+      (event: { type: string; payload: unknown }) => {
+        const type = event.type;
+        if (
+          type === "task.started" ||
+          type === "task.completed" ||
+          type === "task.failed" ||
+          type === "workstream.started" ||
+          type === "workstream.completed" ||
+          type === "workstream.failed" ||
+          type === "project.planning_completed"
+        ) {
+          fetchData();
+        }
+      },
+      [fetchData],
+    ),
+    enabled: !!isActive,
+  });
 
   async function handleStartPlanning() {
     setPlanning(true);
@@ -92,6 +109,73 @@ export default function ProjectDetailPage() {
       setError(err instanceof Error ? err.message : "Failed to start planning");
     } finally {
       setPlanning(false);
+    }
+  }
+
+  async function executeStop() {
+    setStopping(true);
+    try {
+      const result = await api.projects.stop(projectId);
+      setProject(result.project);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to stop project");
+    } finally {
+      setStopping(false);
+    }
+  }
+
+  async function executeArchive() {
+    setArchiving(true);
+    try {
+      const result = await api.projects.archive(projectId);
+      setProject(result.project);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to archive project");
+    } finally {
+      setArchiving(false);
+    }
+  }
+
+  async function executeDelete() {
+    setDeleting(true);
+    try {
+      await api.projects.delete(projectId);
+      toast.success("Project deleted");
+      router.push("/");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete project");
+      setDeleting(false);
+    }
+  }
+
+  async function handleRetryTask(taskId: string) {
+    setRetryingTaskId(taskId);
+    try {
+      const result = await api.tasks.retry(taskId);
+      toast.success("Task queued for retry");
+      setTasksByWorkstream((prev) => {
+        const updated = { ...prev };
+        for (const wsId of Object.keys(updated)) {
+          const tasks = updated[wsId];
+          if (tasks) {
+            updated[wsId] = tasks.map((t) => (t.id === taskId ? result.task : t));
+          }
+        }
+        return updated;
+      });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to retry task");
+    } finally {
+      setRetryingTaskId(null);
+    }
+  }
+
+  async function handleProviderChange(newProvider: string) {
+    try {
+      const result = await api.projects.update(projectId, { provider: newProvider });
+      setProject(result.project);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to change provider");
     }
   }
 
@@ -109,11 +193,26 @@ export default function ProjectDetailPage() {
     }
   }
 
-  if (loading) return <p className="text-muted">Loading project...</p>;
-  if (error) return <p style={{ color: "#721c24" }}>Error: {error}</p>;
+  function handleGraphNodeClick(wsId: string) {
+    setExpandedWs((prev) => {
+      const next = new Set(prev);
+      next.add(wsId);
+      return next;
+    });
+    const el = document.getElementById(`ws-${wsId}`);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  if (loading) return <SkeletonProjectDetail />;
+  if (error) return <p style={{ color: "var(--color-danger)" }}>Error: {error}</p>;
   if (!project) return <p>Project not found.</p>;
 
-  // Summary stats
+  const providerLabel = PROVIDER_LABELS[project.provider] ?? project.provider;
+  const canStop = ["planning", "in_progress"].includes(project.status);
+  const canArchive = ["completed", "failed", "draft"].includes(project.status);
+  const canDelete = ["archived", "completed", "failed"].includes(project.status);
+  const canChangeProvider = ["draft", "failed"].includes(project.status);
+
   const completedWs = workstreams.filter((ws) => ws.status === "completed").length;
   const activeWs = workstreams.filter((ws) => ws.status === "in_progress").length;
   const failedWs = workstreams.filter((ws) => ws.status === "failed").length;
@@ -128,38 +227,97 @@ export default function ProjectDetailPage() {
 
       {/* Header */}
       <div className="flex justify-between items-center mb-1">
-        <h2 style={{ margin: 0 }}>{project.name}</h2>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <h2 style={{ margin: 0 }}>{project.name}</h2>
+          <span
+            className="text-sm"
+            style={{
+              ...getProviderStyle(project.provider),
+              padding: "2px 10px",
+              borderRadius: 10,
+              fontSize: "0.75rem",
+              fontWeight: 600,
+            }}
+          >
+            {providerLabel}
+          </span>
+        </div>
         <StatusBadge status={project.status} />
       </div>
       <p className="text-muted" style={{ margin: "0 0 1rem" }}>{project.goal}</p>
 
       {/* Action buttons */}
-      {project.status === "draft" && (
-        <button
-          className="btn btn-primary"
-          onClick={handleStartPlanning}
-          disabled={planning}
-          style={{ marginBottom: "1.5rem" }}
-        >
-          {planning ? "Starting planning..." : "Start Planning"}
-        </button>
-      )}
+      <div style={{ display: "flex", gap: 8, marginBottom: "1.5rem", flexWrap: "wrap" }}>
+        {project.status === "draft" && (
+          <button
+            className="btn btn-primary"
+            onClick={handleStartPlanning}
+            disabled={planning}
+          >
+            {planning ? "Starting..." : "Start Planning"}
+          </button>
+        )}
+
+        {canStop && (
+          <button
+            className="btn"
+            onClick={() => setConfirmAction("stop")}
+            disabled={stopping}
+            style={{ background: "var(--color-danger)", color: "#fff", border: "none" }}
+          >
+            {stopping ? "Stopping..." : "Stop"}
+          </button>
+        )}
+
+        {canArchive && (
+          <button
+            className="btn btn-secondary"
+            onClick={() => setConfirmAction("archive")}
+            disabled={archiving}
+          >
+            {archiving ? "Archiving..." : "Archive"}
+          </button>
+        )}
+
+        {canDelete && (
+          <button
+            className="btn"
+            onClick={() => setConfirmAction("delete")}
+            disabled={deleting}
+            style={{ background: "var(--color-danger)", color: "#fff", border: "none" }}
+          >
+            {deleting ? "Deleting..." : "Delete"}
+          </button>
+        )}
+
+        {canChangeProvider && (
+          <select
+            className="input"
+            value={project.provider}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleProviderChange(e.target.value)}
+            style={{ padding: "0.35rem 0.5rem", width: "auto" }}
+          >
+            <option value="opencode">OpenCode</option>
+            <option value="claude">Claude Code</option>
+          </select>
+        )}
+      </div>
 
       {/* Live status banner */}
       {project.status === "planning" && (
-        <div className="card" style={{ background: "#cce5ff", borderColor: "#b8daff" }}>
+        <div className="card" style={{ background: "var(--color-status-blue-bg)", borderColor: "var(--color-border)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: "1.2rem" }}>&#9881;</span>
             <strong>Architect agent is planning...</strong>
           </div>
           <p className="text-sm" style={{ margin: "4px 0 0" }}>
-            Claude is analyzing the goal, designing architecture, and creating workstreams.
+            {providerLabel} is analyzing the goal, designing architecture, and creating workstreams.
           </p>
         </div>
       )}
 
       {project.status === "in_progress" && runningTasks.length > 0 && (
-        <div className="card" style={{ background: "#fff3cd", borderColor: "#ffeeba" }}>
+        <div className="card" style={{ background: "var(--color-status-yellow-bg)", borderColor: "var(--color-border)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: "1.2rem" }}>&#9881;</span>
             <strong>{runningTasks.length} agent{runningTasks.length > 1 ? "s" : ""} working</strong>
@@ -171,8 +329,8 @@ export default function ProjectDetailPage() {
                 className="text-sm"
                 style={{
                   display: "inline-block",
-                  background: "#fff",
-                  border: "1px solid #ddd",
+                  background: "var(--color-surface)",
+                  border: "1px solid var(--color-border)",
                   borderRadius: 4,
                   padding: "2px 8px",
                   marginRight: 6,
@@ -187,20 +345,26 @@ export default function ProjectDetailPage() {
       )}
 
       {project.status === "completed" && (
-        <div className="card" style={{ background: "#d4edda", borderColor: "#c3e6cb" }}>
+        <div className="card" style={{ background: "var(--color-status-green-bg)", borderColor: "var(--color-border)" }}>
           <strong>Project completed</strong>
           <p className="text-sm" style={{ margin: "4px 0 0" }}>
-            All workstreams finished. Output files in <code>output/{project.id.slice(0, 8)}...</code>
+            All workstreams finished. Output files in <code>apps/orchestrator/projects/{project.id.slice(0, 8)}...</code>
           </p>
         </div>
       )}
 
       {project.status === "failed" && (
-        <div className="card" style={{ background: "#f8d7da", borderColor: "#f5c6cb" }}>
+        <div className="card" style={{ background: "var(--color-status-red-bg)", borderColor: "var(--color-border)" }}>
           <strong>Project failed</strong>
           <p className="text-sm" style={{ margin: "4px 0 0" }}>
-            One or more workstreams failed after max retries.
+            One or more workstreams failed after max retries, or the project was stopped.
           </p>
+        </div>
+      )}
+
+      {project.status === "archived" && (
+        <div className="card" style={{ background: "var(--color-status-gray-bg)", borderColor: "var(--color-border)" }}>
+          <strong>Project archived</strong>
         </div>
       )}
 
@@ -212,15 +376,15 @@ export default function ProjectDetailPage() {
             <div className="text-sm text-muted">Workstreams</div>
           </div>
           <div className="card" style={{ textAlign: "center", padding: "0.75rem" }}>
-            <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "#28a745" }}>{completedWs}</div>
+            <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--color-success)" }}>{completedWs}</div>
             <div className="text-sm text-muted">Completed</div>
           </div>
           <div className="card" style={{ textAlign: "center", padding: "0.75rem" }}>
-            <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "#856404" }}>{activeWs}</div>
+            <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--color-warning)" }}>{activeWs}</div>
             <div className="text-sm text-muted">In Progress</div>
           </div>
           <div className="card" style={{ textAlign: "center", padding: "0.75rem" }}>
-            <div style={{ fontSize: "1.5rem", fontWeight: 700, color: failedWs > 0 ? "#721c24" : "#666" }}>{failedWs}</div>
+            <div style={{ fontSize: "1.5rem", fontWeight: 700, color: failedWs > 0 ? "var(--color-danger)" : "var(--color-text-muted)" }}>{failedWs}</div>
             <div className="text-sm text-muted">Failed</div>
           </div>
         </div>
@@ -233,7 +397,7 @@ export default function ProjectDetailPage() {
             <span style={{ fontWeight: 500 }}>Overall Progress</span>
             <span className="text-sm text-muted">{Math.round((completedWs / workstreams.length) * 100)}%</span>
           </div>
-          <ProgressBar completed={completedWs} total={workstreams.length} />
+          <ProgressBar value={completedWs} max={workstreams.length} />
         </div>
       )}
 
@@ -243,7 +407,8 @@ export default function ProjectDetailPage() {
           <summary style={{ cursor: "pointer", fontWeight: 500 }}>Architecture Document</summary>
           <pre
             style={{
-              background: "#f5f5f5",
+              background: "var(--color-code-bg)",
+              color: "var(--color-code-text)",
               padding: "1rem",
               borderRadius: 8,
               overflow: "auto",
@@ -258,6 +423,25 @@ export default function ProjectDetailPage() {
         </details>
       )}
 
+      {/* Dependency Graph */}
+      {workstreams.some((ws) => ws.dependencies.length > 0) && (
+        <details className="mb-2" style={{ marginBottom: "1.5rem" }} open>
+          <summary style={{ cursor: "pointer", fontWeight: 500 }}>Dependency Graph</summary>
+          <DependencyGraph workstreams={workstreams} onNodeClick={handleGraphNodeClick} />
+        </details>
+      )}
+
+      {/* Files */}
+      <details style={{ marginBottom: "1.5rem" }}>
+        <summary style={{ cursor: "pointer", fontWeight: 500 }}>Project Files</summary>
+        <div style={{ marginTop: "0.5rem" }}>
+          <FileTree
+            projectId={projectId}
+            onFileClick={(path) => setSelectedFile(path)}
+          />
+        </div>
+      </details>
+
       {/* Workstreams */}
       {workstreams.length > 0 && (
         <>
@@ -270,16 +454,16 @@ export default function ProjectDetailPage() {
             return (
               <div
                 key={ws.id}
+                id={`ws-${ws.id}`}
                 className="card"
                 style={{
                   borderLeft: `4px solid ${
-                    ws.status === "completed" ? "#28a745" :
-                    ws.status === "in_progress" ? "#ffc107" :
-                    ws.status === "failed" ? "#dc3545" : "#dee2e6"
+                    ws.status === "completed" ? "var(--color-success)" :
+                    ws.status === "in_progress" ? "var(--color-warning)" :
+                    ws.status === "failed" ? "var(--color-danger)" : "var(--color-border)"
                   }`,
                 }}
               >
-                {/* Workstream header */}
                 <div
                   className="flex justify-between items-center"
                   style={{ cursor: "pointer" }}
@@ -293,8 +477,8 @@ export default function ProjectDetailPage() {
                         className="text-sm"
                         style={{
                           marginLeft: 8,
-                          background: "#e8f4fd",
-                          color: "#0066cc",
+                          background: "var(--color-agent-bg)",
+                          color: "var(--color-agent-text)",
                           padding: "1px 8px",
                           borderRadius: 10,
                           fontSize: "0.7rem",
@@ -310,26 +494,23 @@ export default function ProjectDetailPage() {
 
                 <p className="text-sm text-muted" style={{ margin: "0.5rem 0 0" }}>{ws.objective}</p>
 
-                {/* Task progress bar */}
                 {tasks.length > 0 && (
                   <div style={{ marginTop: 8 }}>
-                    <ProgressBar completed={completedTasks} total={tasks.length} />
+                    <ProgressBar value={completedTasks} max={tasks.length} />
                   </div>
                 )}
 
-                {/* Deliverables */}
                 {ws.deliverables.length > 0 && (
                   <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4 }}>
                     <span className="text-sm text-muted">Deliverables: </span>
                     {ws.deliverables.map((d, i) => (
-                      <code key={i} className="text-sm" style={{ background: "#f0f0f0", padding: "1px 4px", borderRadius: 3, fontSize: "0.75rem" }}>
+                      <code key={i} className="text-sm" style={{ background: "var(--color-status-neutral-bg)", color: "var(--color-status-neutral-text)", padding: "1px 4px", borderRadius: 3, fontSize: "0.75rem" }}>
                         {d}
                       </code>
                     ))}
                   </div>
                 )}
 
-                {/* Dependencies */}
                 {ws.dependencies.length > 0 && (
                   <div style={{ marginTop: 4 }}>
                     <span className="text-sm text-muted">
@@ -341,9 +522,8 @@ export default function ProjectDetailPage() {
                   </div>
                 )}
 
-                {/* Expanded: task details */}
                 {isExpanded && (
-                  <div style={{ marginTop: "1rem", borderTop: "1px solid #eee", paddingTop: "0.75rem" }}>
+                  <div style={{ marginTop: "1rem", borderTop: "1px solid var(--color-border)", paddingTop: "0.75rem" }}>
                     {tasks.length === 0 ? (
                       <p className="text-sm text-muted">
                         {ws.status === "pending" ? "Waiting for dependencies..." : "No tasks yet."}
@@ -355,12 +535,11 @@ export default function ProjectDetailPage() {
                           style={{
                             padding: "0.75rem",
                             marginBottom: "0.5rem",
-                            background: "#fafafa",
+                            background: "var(--color-bg-secondary)",
                             borderRadius: 6,
-                            border: "1px solid #eee",
+                            border: "1px solid var(--color-border)",
                           }}
                         >
-                          {/* Task header */}
                           <div className="flex justify-between items-center">
                             <div>
                               <strong style={{ fontSize: "0.85rem" }}>@{task.role}</strong>
@@ -368,27 +547,46 @@ export default function ProjectDetailPage() {
                                 attempt {task.attempts}/{task.maxAttempts}
                               </span>
                               {task.status === "running" && (
-                                <span style={{ marginLeft: 8, color: "#856404", fontSize: "0.8rem" }}>
+                                <span style={{ marginLeft: 8, color: "var(--color-warning)", fontSize: "0.8rem" }}>
                                   &#8987; working...
                                 </span>
                               )}
                             </div>
-                            <StatusBadge status={task.status} />
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <StatusBadge status={task.status} />
+                              {task.status === "failed" && (
+                                <button
+                                  className="btn"
+                                  onClick={(e: React.MouseEvent) => {
+                                    e.stopPropagation();
+                                    handleRetryTask(task.id);
+                                  }}
+                                  disabled={retryingTaskId === task.id}
+                                  style={{
+                                    background: "var(--color-warning)",
+                                    color: "var(--color-text)",
+                                    border: "none",
+                                    padding: "2px 10px",
+                                    fontSize: "0.75rem",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  {retryingTaskId === task.id ? "Retrying..." : "Retry"}
+                                </button>
+                              )}
+                            </div>
                           </div>
 
-                          {/* Task prompt preview */}
-                          <p className="text-sm" style={{ margin: "6px 0 0", color: "#444" }}>
+                          <p className="text-sm" style={{ margin: "6px 0 0", color: "var(--color-text-muted)" }}>
                             {task.prompt.length > 150 ? task.prompt.slice(0, 150) + "..." : task.prompt}
                           </p>
 
-                          {/* Error */}
                           {task.error && (
-                            <div style={{ marginTop: 6, padding: "6px 10px", background: "#f8d7da", borderRadius: 4, fontSize: "0.8rem", color: "#721c24" }}>
+                            <div style={{ marginTop: 6, padding: "6px 10px", background: "var(--color-status-red-bg)", borderRadius: 4, fontSize: "0.8rem", color: "var(--color-status-red-text)" }}>
                               {task.error}
                             </div>
                           )}
 
-                          {/* Files modified */}
                           {task.filesModified.length > 0 && (
                             <div style={{ marginTop: 8 }}>
                               <span className="text-sm" style={{ fontWeight: 500 }}>
@@ -396,15 +594,7 @@ export default function ProjectDetailPage() {
                               </span>
                               <div style={{ marginTop: 4 }}>
                                 {task.filesModified.map((f, i) => (
-                                  <code
-                                    key={i}
-                                    style={{
-                                      display: "block",
-                                      fontSize: "0.75rem",
-                                      color: "#28a745",
-                                      padding: "1px 0",
-                                    }}
-                                  >
+                                  <code key={i} style={{ display: "block", fontSize: "0.75rem", color: "var(--color-success)", padding: "1px 0" }}>
                                     + {f}
                                   </code>
                                 ))}
@@ -412,18 +602,17 @@ export default function ProjectDetailPage() {
                             </div>
                           )}
 
-                          {/* Output toggle */}
                           {task.output && (
                             <div style={{ marginTop: 8 }}>
                               <button
                                 className="text-sm"
                                 style={{
                                   background: "none",
-                                  border: "1px solid #ddd",
+                                  border: "1px solid var(--color-border)",
                                   borderRadius: 4,
                                   padding: "2px 10px",
                                   cursor: "pointer",
-                                  color: "#0066cc",
+                                  color: "var(--color-primary)",
                                   fontSize: "0.75rem",
                                 }}
                                 onClick={(e: React.MouseEvent) => {
@@ -446,7 +635,6 @@ export default function ProjectDetailPage() {
                                     whiteSpace: "pre-wrap",
                                     wordBreak: "break-word",
                                     maxHeight: 400,
-                                    maxWidth: "100%",
                                     overflow: "auto",
                                   }}
                                 >
@@ -456,10 +644,10 @@ export default function ProjectDetailPage() {
                             </div>
                           )}
 
-                          {/* Timestamps */}
-                          <div className="text-sm text-muted" style={{ marginTop: 6, fontSize: "0.7rem" }}>
+                            <div className="text-sm text-muted" style={{ marginTop: 6, fontSize: "0.7rem" }}>
                             Created {timeAgo(task.createdAt)}
                             {task.status === "completed" && task.updatedAt && ` · Finished ${timeAgo(task.updatedAt)}`}
+                            {task.costUsd != null && task.costUsd > 0 && ` · $${task.costUsd.toFixed(4)}`}
                           </div>
                         </div>
                       ))
@@ -470,6 +658,43 @@ export default function ProjectDetailPage() {
             );
           })}
         </>
+      )}
+
+      <ConfirmModal
+        isOpen={confirmAction === "stop"}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={executeStop}
+        title="Stop Project"
+        message="All running agents will be cancelled."
+        confirmText="Stop"
+        variant="danger"
+      />
+
+      <ConfirmModal
+        isOpen={confirmAction === "archive"}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={executeArchive}
+        title="Archive Project"
+        message="It will be hidden from the main list."
+        confirmText="Archive"
+      />
+
+      <ConfirmModal
+        isOpen={confirmAction === "delete"}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={executeDelete}
+        title="Delete Project"
+        message="This will permanently delete the project, all workstreams, and tasks. This cannot be undone."
+        confirmText="Delete"
+        variant="danger"
+      />
+
+      {selectedFile && (
+        <FileViewer
+          projectId={projectId}
+          filePath={selectedFile}
+          onClose={() => setSelectedFile(null)}
+        />
       )}
     </div>
   );

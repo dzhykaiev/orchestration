@@ -9,21 +9,13 @@ export default function ErrorPage({
 }) {
   return (
     <div style={{ textAlign: "center", padding: "4rem 2rem" }}>
-      <h2 style={{ fontSize: "2rem", marginBottom: "1rem", color: "#dc3545" }}>
+      <h2 style={{ fontSize: "2rem", marginBottom: "1rem", color: "var(--color-danger)" }}>
         Something went wrong
       </h2>
-      <p style={{ color: "#666", marginBottom: "2rem" }}>{error.message}</p>
+      <p style={{ color: "var(--color-text-muted)", marginBottom: "2rem" }}>{error.message}</p>
       <button
         onClick={reset}
         className="btn btn-primary"
-        style={{
-          padding: "0.5rem 1.5rem",
-          background: "#0070f3",
-          color: "#fff",
-          border: "none",
-          borderRadius: "4px",
-          cursor: "pointer",
-        }}
       >
         Try again
       </button>

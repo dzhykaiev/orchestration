@@ -1,12 +1,3 @@
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
-import * as schema from "./schema.js";
-
-const connectionString =
-  process.env.DATABASE_URL ||
-  "postgresql://postgres:postgres@localhost:5432/orchestration";
-
-const client = postgres(connectionString);
-export const db = drizzle(client, { schema });
-export { schema };
-export type { schema as SchemaType };
+export { db, client, schema } from "./client.js";
+export type { schema as SchemaType } from "./client.js";
+export { projectRepo, workstreamRepo, taskRepo } from "./repositories/index.js";

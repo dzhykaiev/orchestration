@@ -8,6 +8,7 @@ export default function NewProjectPage() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [goal, setGoal] = useState("");
+  const [provider, setProvider] = useState<"claude" | "opencode">("opencode");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,6 +23,7 @@ export default function NewProjectPage() {
       const { project } = await api.projects.create({
         name: name.trim(),
         goal: goal.trim(),
+        provider,
       });
       router.push(`/projects/${project.id}`);
     } catch (err) {
@@ -80,8 +82,29 @@ export default function NewProjectPage() {
           </p>
         </div>
 
+        <div className="mb-2">
+          <label
+            htmlFor="provider"
+            style={{ display: "block", fontWeight: 500, marginBottom: 4 }}
+          >
+            AI Provider
+          </label>
+          <select
+            id="provider"
+            className="input"
+            value={provider}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+              setProvider(e.target.value as "claude" | "opencode")
+            }
+            style={{ width: "100%", padding: "0.5rem" }}
+          >
+            <option value="opencode">OpenCode</option>
+            <option value="claude">Claude Code</option>
+          </select>
+        </div>
+
         {error && (
-          <p style={{ color: "#721c24", marginBottom: "1rem" }}>{error}</p>
+          <p style={{ color: "var(--color-danger)", marginBottom: "1rem" }}>{error}</p>
         )}
 
         <div className="flex gap-1">

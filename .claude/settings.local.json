@@ -22,7 +22,14 @@
       "Bash(gh api:*)",
       "Bash(ls -t /Users/yevhenii.dzhykaiev/Documents/study/orchestration/logs/orchestrator_*.log)",
       "Bash(find /Users/yevhenii.dzhykaiev/Documents/study/orchestration -name 8a75a0d0* -o -type d -name projects)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git:*)",
+      "Bash(grep -r \"#[0-9a-fA-F]\\\\{3,6\\\\}\" --include=\"*.tsx\")",
+      "Bash(curl -s http://localhost:3000)",
+      "Bash(brew --prefix postgresql@17)",
+      "Bash(brew --prefix postgresql@16)",
+      "Bash(docker ps:*)",
+      "Bash(/opt/homebrew/opt/postgresql@17/bin/psql \"postgresql://postgres:postgres@localhost:5432/orchestration\" -c \"SELECT id, name, status FROM projects ORDER BY created_at DESC;\" 2>&1)"
     ]
   }
 }

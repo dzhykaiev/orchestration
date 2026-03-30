@@ -6,14 +6,14 @@ export default function Loading() {
           display: "inline-block",
           width: "2rem",
           height: "2rem",
-          border: "3px solid #e0e0e0",
-          borderTopColor: "#0070f3",
+          border: "3px solid var(--color-border)",
+          borderTopColor: "var(--color-primary)",
           borderRadius: "50%",
           animation: "spin 0.8s linear infinite",
         }}
       />
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      <p style={{ color: "#666", marginTop: "1rem" }}>Loading...</p>
+      <p style={{ color: "var(--color-text-muted)", marginTop: "1rem" }}>Loading...</p>
     </div>
   );
 }

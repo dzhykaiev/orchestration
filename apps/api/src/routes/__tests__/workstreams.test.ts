@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import Fastify from "fastify";
 import { workstreamRoutes } from "../workstreams.js";
 
-vi.mock("../../db/repositories/index.js", () => ({
+vi.mock("@orchestration/db", () => ({
   workstreamRepo: {
     getWorkstreamById: vi.fn().mockResolvedValue(null),
     updateWorkstream: vi.fn().mockResolvedValue(null),

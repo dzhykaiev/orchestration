@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import Fastify from "fastify";
 import { taskRoutes } from "../tasks.js";
 
-vi.mock("../../db/repositories/index.js", () => ({
+vi.mock("@orchestration/db", () => ({
   taskRepo: {
     createTask: vi.fn().mockImplementation((input) =>
       Promise.resolve({
