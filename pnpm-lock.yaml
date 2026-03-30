@@ -65,9 +65,15 @@ importers:
       bullmq:
         specifier: ^5.30.0
         version: 5.71.1
+      drizzle-orm:
+        specifier: ^0.39.0
+        version: 0.39.3(postgres@3.4.8)
       ioredis:
         specifier: ^5.4.0
         version: 5.10.1
+      postgres:
+        specifier: ^3.4.0
+        version: 3.4.8
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
