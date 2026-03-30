@@ -10,9 +10,15 @@ export function timeAgo(dateStr: string) {
   return `${days}d ago`;
 }
 
-export function getProviderStyle(provider: string): { bg: string; color: string } {
+export function getProviderStyle(provider: string): { background: string; color: string } {
   if (provider === "claude") {
-    return { bg: "var(--color-provider-claude-bg)", color: "var(--color-provider-claude-text)" };
+    return {
+      background: "var(--color-provider-claude-bg)",
+      color: "var(--color-provider-claude-text)",
+    };
   }
-  return { bg: "var(--color-provider-default-bg)", color: "var(--color-provider-default-text)" };
+  return {
+    background: "var(--color-provider-default-bg)",
+    color: "var(--color-provider-default-text)",
+  };
 }

@@ -104,20 +104,61 @@ export function parseWorkstreams(response: string): Array<{
   order: number;
 }> {
   const match = response.match(/<workstreams>\s*([\s\S]*?)\s*<\/workstreams>/);
-  if (match) {
-    return JSON.parse(match[1] ?? "[]");
+  if (!match) {
+    console.warn(
+      "[Architect] No <workstreams> block found in response, creating default workstream",
+    );
+    return [
+      {
+        name: "Full Implementation",
+        objective: "Implement the complete project based on architect output",
+        dependencies: [],
+        deliverables: ["*"],
+        ownedPaths: ["./"],
+        assignedAgent: "backend",
+        order: 1,
+      },
+    ];
   }
 
-  console.warn("No <workstreams> block found in architect response, creating default workstream");
-  return [
-    {
-      name: "Full Implementation",
-      objective: "Implement the complete project based on architect output",
-      dependencies: [],
-      deliverables: ["*"],
-      ownedPaths: ["./"],
-      assignedAgent: "backend",
-      order: 1,
-    },
-  ];
+  const raw = match[1] ?? "[]";
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    // Try to extract JSON array even if there's surrounding text
+    const arrayMatch = raw.match(/\[[\s\S]*\]/);
+    if (arrayMatch) {
+      try {
+        parsed = JSON.parse(arrayMatch[0]);
+      } catch {
+        throw new Error(
+          `Malformed JSON in <workstreams> block: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    } else {
+      throw new Error(
+        `Malformed JSON in <workstreams> block: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  if (!Array.isArray(parsed)) {
+    throw new Error("<workstreams> block does not contain a JSON array");
+  }
+
+  // Validate and normalize each workstream definition
+  const VALID_AGENTS = new Set(["architect", "backend", "frontend", "data", "devops", "qa"]);
+
+  return parsed.map((ws: Record<string, unknown>, i: number) => ({
+    name: String(ws.name || `Workstream ${i + 1}`),
+    objective: String(ws.objective || ""),
+    dependencies: Array.isArray(ws.dependencies) ? ws.dependencies.map(String) : [],
+    deliverables: Array.isArray(ws.deliverables) ? ws.deliverables.map(String) : [],
+    ownedPaths: Array.isArray(ws.ownedPaths) ? ws.ownedPaths.map(String) : ["./"],
+    assignedAgent: VALID_AGENTS.has(String(ws.assignedAgent))
+      ? String(ws.assignedAgent)
+      : "backend",
+    order: typeof ws.order === "number" ? ws.order : i + 1,
+  }));
 }

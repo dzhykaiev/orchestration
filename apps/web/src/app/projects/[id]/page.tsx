@@ -187,9 +187,14 @@ export default function ProjectDetailPage() {
       return next;
     });
     if (!tasksByWorkstream[wsId]) {
-      api.workstreams.tasks(wsId).then((res) => {
-        setTasksByWorkstream((prev) => ({ ...prev, [wsId]: res.tasks }));
-      });
+      api.workstreams
+        .tasks(wsId)
+        .then((res) => {
+          setTasksByWorkstream((prev) => ({ ...prev, [wsId]: res.tasks }));
+        })
+        .catch((err) => {
+          toast.error(err instanceof Error ? err.message : "Failed to load tasks");
+        });
     }
   }
 
@@ -204,7 +209,20 @@ export default function ProjectDetailPage() {
   }
 
   if (loading) return <SkeletonProjectDetail />;
-  if (error) return <p style={{ color: "var(--color-danger)" }}>Error: {error}</p>;
+  if (error)
+    return (
+      <div style={{ textAlign: "center", padding: "3rem 1rem" }}>
+        <p style={{ color: "var(--color-danger)", marginBottom: "1rem" }}>Error: {error}</p>
+        <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+          <button type="button" className="btn btn-primary" onClick={fetchData}>
+            Retry
+          </button>
+          <button type="button" className="btn btn-secondary" onClick={() => router.push("/")}>
+            Back to Projects
+          </button>
+        </div>
+      </div>
+    );
   if (!project) return <p>Project not found.</p>;
 
   const providerLabel = PROVIDER_LABELS[project.provider] ?? project.provider;
@@ -226,8 +244,9 @@ export default function ProjectDetailPage() {
         className="btn btn-secondary"
         onClick={() => router.push("/")}
         style={{ marginBottom: "1rem" }}
+        aria-label="Back to projects list"
       >
-        Back
+        &larr; Back
       </button>
 
       {/* Header */}
@@ -308,6 +327,7 @@ export default function ProjectDetailPage() {
             onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
               handleProviderChange(e.target.value)
             }
+            aria-label="AI provider"
             style={{ padding: "0.35rem 0.5rem", width: "auto" }}
           >
             <option value="opencode">OpenCode</option>
@@ -524,10 +544,15 @@ export default function ProjectDetailPage() {
                   className="flex justify-between items-center"
                   role="button"
                   tabIndex={0}
+                  aria-expanded={isExpanded}
+                  aria-label={`Toggle workstream: ${ws.name}`}
                   style={{ cursor: "pointer" }}
                   onClick={() => toggleWs(ws.id)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") toggleWs(ws.id);
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      toggleWs(ws.id);
+                    }
                   }}
                 >
                   <div>

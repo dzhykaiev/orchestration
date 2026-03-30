@@ -3,31 +3,27 @@ import { resolve } from "node:path";
 import { promisify } from "node:util";
 import { projectRepo, taskRepo, workstreamRepo } from "@orchestration/db";
 import type { AgentRole } from "@orchestration/shared";
-import { Queue } from "bullmq";
-import IORedis from "ioredis";
 import { eventBus } from "../events/index.js";
 import { buildSystemPrompt, buildUserMessage } from "../prompts/implementation.js";
+import { implementationQueue, validationQueue } from "../shared-resources.js";
 
 const execFileAsync = promisify(execFile);
 const PROJECTS_DIR = resolve(process.env.PROJECTS_DIR || "./projects");
-
-const connection = new IORedis.default(process.env.REDIS_URL || "redis://localhost:6379", {
-  maxRetriesPerRequest: null,
-});
-const implementationQueue = new Queue("implementation", { connection });
-const validationQueue = new Queue("validation", { connection });
 
 const VALIDATION_ENABLED = process.env.VALIDATION_ENABLED === "true";
 
 export async function checkWorkstreamCompletion(workstreamId: string, projectId: string) {
   const counts = await taskRepo.countTasksByWorkstream(workstreamId);
+  console.log(
+    `[Progress] Workstream ${workstreamId}: ${counts.completed}/${counts.total} completed, ${counts.failed} failed`,
+  );
 
   if (counts.failed > 0) {
     await workstreamRepo.updateWorkstream(workstreamId, { status: "failed" });
     eventBus.emitTyped("workstream.failed", {
       workstreamId,
       projectId,
-      error: "One or more tasks failed",
+      error: `${counts.failed} of ${counts.total} tasks failed`,
     });
     await checkProjectCompletion(projectId);
     return;

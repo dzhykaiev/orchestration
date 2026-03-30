@@ -70,15 +70,13 @@ export function useSSE(options: UseSSEOptions) {
 
     es.onerror = () => {
       setConnected(false);
+      setError("Connection lost. Reconnecting...");
       es.close();
       eventSourceRef.current = null;
 
-      if (es.readyState === EventSource.CLOSED) {
-        setError("Connection lost");
-        reconnectTimerRef.current = setTimeout(() => {
-          connect();
-        }, reconnectInterval);
-      }
+      reconnectTimerRef.current = setTimeout(() => {
+        connect();
+      }, reconnectInterval);
     };
   }, [projectId, reconnectInterval, cleanup]);
 

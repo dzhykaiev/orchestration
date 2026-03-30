@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api } from "../lib/api";
 
 interface FileViewerProps {
@@ -39,21 +39,32 @@ export function FileViewer({ projectId, filePath, onClose }: FileViewerProps) {
       });
   }, [projectId, filePath]);
 
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    },
+    [onClose],
+  );
+
+  useEffect(() => {
+    document.addEventListener("keydown", handleKeyDown);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [handleKeyDown]);
+
   const fileName = filePath.split("/").pop() || filePath;
 
   return (
-    <div
-      className="file-viewer-backdrop"
-      role="button"
-      tabIndex={0}
-      onClick={onClose}
-      onKeyDown={(e) => {
-        if (e.key === "Escape") onClose();
-      }}
-    >
+    // biome-ignore lint/a11y/useKeyWithClickEvents: Escape handled via document listener
+    <div className="file-viewer-backdrop" role="presentation" onClick={onClose}>
       <div
         className="file-viewer-modal"
         role="dialog"
+        aria-modal="true"
+        aria-label={`File: ${fileName}`}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
       >
@@ -66,13 +77,26 @@ export function FileViewer({ projectId, filePath, onClose }: FileViewerProps) {
               {filePath} ({formatSize(size)})
             </div>
           </div>
-          <button type="button" className="modal-close" onClick={onClose}>
+          <button
+            type="button"
+            className="modal-close"
+            onClick={onClose}
+            aria-label="Close file viewer"
+          >
             &times;
           </button>
         </div>
         <div className="file-viewer-body">
-          {loading && <p className="text-muted">Loading...</p>}
-          {error && <p style={{ color: "var(--color-danger)" }}>{error}</p>}
+          {loading && (
+            <p className="text-muted" style={{ padding: "2rem", textAlign: "center" }}>
+              Loading file...
+            </p>
+          )}
+          {error && (
+            <p style={{ color: "var(--color-danger)", padding: "2rem", textAlign: "center" }}>
+              {error}
+            </p>
+          )}
           {content !== null && <pre className="file-viewer-content">{content}</pre>}
         </div>
       </div>

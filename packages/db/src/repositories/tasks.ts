@@ -99,12 +99,13 @@ export async function cancelTasksByProject(projectId: string) {
 }
 
 export async function retryTask(id: string) {
+  // Note: don't increment attempts here — markTaskStarted already increments
+  // when the task actually begins running
   const [task] = await db
     .update(schema.agentTasks)
     .set({
       status: "queued",
       error: null,
-      attempts: sql`${schema.agentTasks.attempts} + 1`,
       updatedAt: new Date(),
     })
     .where(eq(schema.agentTasks.id, id))

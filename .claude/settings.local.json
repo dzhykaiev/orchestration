@@ -37,7 +37,8 @@
       "Bash(grep:*)",
       "Bash(npx biome:*)",
       "Bash(find /Users/yevhenii.dzhykaiev/Documents/study/orchestration -type f -name *skill*)",
-      "Bash(find /Users/yevhenii.dzhykaiev/Documents/study/orchestration/apps/orchestrator/src/agents -type f -name *.ts)"
+      "Bash(find /Users/yevhenii.dzhykaiev/Documents/study/orchestration/apps/orchestrator/src/agents -type f -name *.ts)",
+      "Bash(npx vitest:*)"
     ]
   }
 }

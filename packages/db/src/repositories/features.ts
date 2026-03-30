@@ -66,10 +66,19 @@ export async function deleteFeature(id: string) {
 }
 
 export async function reorderFeatures(updates: { id: string; sortOrder: number }[]) {
-  for (const { id, sortOrder } of updates) {
-    await db
-      .update(schema.features)
-      .set({ sortOrder, updatedAt: new Date() })
-      .where(eq(schema.features.id, id));
-  }
+  if (updates.length === 0) return;
+
+  // Batch update using a single query with CASE expression
+  const ids = updates.map((u) => u.id);
+  const caseParts = updates.map(
+    (u) => sql`when ${schema.features.id} = ${u.id} then ${u.sortOrder}`,
+  );
+
+  await db
+    .update(schema.features)
+    .set({
+      sortOrder: sql`case ${sql.join(caseParts, sql` `)} end`,
+      updatedAt: new Date(),
+    })
+    .where(sql`${schema.features.id} = any(${ids})`);
 }

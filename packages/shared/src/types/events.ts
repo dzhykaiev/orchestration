@@ -2,6 +2,7 @@ export type OrchestratorEvent =
   | { type: "project.created"; payload: { projectId: string } }
   | { type: "project.planning_started"; payload: { projectId: string } }
   | { type: "project.planning_completed"; payload: { projectId: string; workstreamIds: string[] } }
+  | { type: "project.failed"; payload: { projectId: string; error: string } }
   | { type: "workstream.started"; payload: { workstreamId: string; projectId: string } }
   | {
       type: "workstream.completed";

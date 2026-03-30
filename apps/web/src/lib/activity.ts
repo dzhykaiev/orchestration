@@ -18,6 +18,8 @@ export function formatEventDescription(event: OrchestratorEvent): string {
       return "Planning started";
     case "project.planning_completed":
       return `Planning completed — ${event.payload.workstreamIds.length} workstreams`;
+    case "project.failed":
+      return `Project failed: ${event.payload.error}`;
     case "workstream.started":
       return "Workstream started";
     case "workstream.completed":

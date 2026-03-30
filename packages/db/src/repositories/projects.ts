@@ -78,7 +78,13 @@ export async function updateProject(id: string, input: UpdateProjectInput) {
 }
 
 export async function deleteProject(id: string) {
-  await db.delete(schema.agentTasks).where(eq(schema.agentTasks.projectId, id));
-  await db.delete(schema.workstreams).where(eq(schema.workstreams.projectId, id));
+  // Clear feature references before deleting (onDelete: set null handles this via FK,
+  // but explicit nulling avoids depending on migration state)
+  await db
+    .update(schema.features)
+    .set({ orchestrationProjectId: null, updatedAt: new Date() })
+    .where(eq(schema.features.orchestrationProjectId, id));
+
+  // Cascade deletes handle agent_tasks and workstreams via FK onDelete: cascade
   await db.delete(schema.projects).where(eq(schema.projects.id, id));
 }

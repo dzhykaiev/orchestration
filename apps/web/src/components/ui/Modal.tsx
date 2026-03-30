@@ -31,18 +31,13 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
   if (!isOpen) return null;
 
   return createPortal(
-    <div
-      className="modal-backdrop"
-      role="button"
-      tabIndex={0}
-      onClick={onClose}
-      onKeyDown={(e) => {
-        if (e.key === "Escape") onClose();
-      }}
-    >
+    // biome-ignore lint/a11y/useKeyWithClickEvents: Escape handled via document listener
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <div
         className="modal-panel"
         role="dialog"
+        aria-modal="true"
+        aria-label={title}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
       >

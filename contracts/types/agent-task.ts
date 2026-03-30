@@ -8,9 +8,10 @@ export interface AgentTask {
   role: AgentRole;
   prompt: string;
   status: AgentTaskStatus;
-  output?: string; // agent's response/output
+  output?: string;
   filesModified: string[];
   error?: string;
+  costUsd: string;
   attempts: number;
   maxAttempts: number;
   startedAt?: Date;

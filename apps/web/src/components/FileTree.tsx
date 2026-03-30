@@ -66,7 +66,10 @@ function FileTreeItem({
         style={{ paddingLeft: level * 16 }}
         onClick={handleToggle}
         onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") handleToggle();
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            handleToggle();
+          }
         }}
       >
         <span className="file-tree-icon">

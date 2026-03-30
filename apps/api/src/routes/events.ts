@@ -1,14 +1,19 @@
 import type { OrchestratorEvent } from "@orchestration/shared";
 import type { FastifyPluginAsync } from "fastify";
 import IORedis from "ioredis";
+import { z } from "zod";
 import { EVENTS_CHANNEL } from "../events/channel.js";
 
 const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 const HEARTBEAT_INTERVAL_MS = 15_000;
 
+const eventQuerySchema = z.object({
+  projectId: z.string().uuid().optional(),
+});
+
 export const eventRoutes: FastifyPluginAsync = async (app) => {
   app.get("/", async (request, reply) => {
-    const projectId = (request.query as Record<string, string>)?.projectId;
+    const { projectId } = eventQuerySchema.parse(request.query);
 
     const subscriber = new IORedis.default(REDIS_URL, {
       maxRetriesPerRequest: null,

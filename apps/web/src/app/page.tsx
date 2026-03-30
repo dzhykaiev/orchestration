@@ -184,10 +184,11 @@ export default function HomePage() {
         <div className="filter-toolbar mb-2">
           <input
             className="input search-input"
-            type="text"
+            type="search"
             placeholder="Search projects..."
             value={searchQuery}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+            aria-label="Search projects"
           />
           <select
             className="sort-select"
@@ -195,6 +196,7 @@ export default function HomePage() {
             onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
               setSortBy(e.target.value as SortOption)
             }
+            aria-label="Sort projects"
           >
             <option value="newest">Newest first</option>
             <option value="oldest">Oldest first</option>
@@ -219,10 +221,28 @@ export default function HomePage() {
 
         {filteredProjects.length === 0 ? (
           <div className="card" style={{ textAlign: "center", padding: "3rem" }}>
-            <p className="text-muted mb-2">No projects found.</p>
-            <Link href="/projects/new" className="btn btn-primary">
-              Create your first project
-            </Link>
+            {projects.length === 0 ? (
+              <>
+                <p className="text-muted mb-2">No projects yet.</p>
+                <Link href="/projects/new" className="btn btn-primary">
+                  Create your first project
+                </Link>
+              </>
+            ) : (
+              <>
+                <p className="text-muted mb-2">No projects match your filters.</p>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setStatusFilter("all");
+                  }}
+                >
+                  Clear filters
+                </button>
+              </>
+            )}
           </div>
         ) : (
           filteredProjects.map((project) => (

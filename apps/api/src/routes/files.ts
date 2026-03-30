@@ -1,11 +1,24 @@
 import { readFile, readdir, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import type { FastifyPluginAsync } from "fastify";
+import { z } from "zod";
 
 const PROJECTS_DIR = resolve(
   process.env.PROJECTS_DIR || join(process.cwd(), "..", "orchestrator", "projects"),
 );
 const MAX_FILE_SIZE = 100 * 1024; // 100KB
+
+const fileParamsSchema = z.object({
+  id: z.string().uuid(),
+});
+
+const fileListQuerySchema = z.object({
+  path: z.string().optional(),
+});
+
+const fileContentQuerySchema = z.object({
+  path: z.string().min(1, "path query param is required"),
+});
 
 function isBinary(buffer: Buffer): boolean {
   // Check first 8KB for null bytes
@@ -21,8 +34,9 @@ export const fileRoutes: FastifyPluginAsync = async (app) => {
   app.get<{ Params: { id: string }; Querystring: { path?: string } }>(
     "/:id/files",
     async (request, reply) => {
-      const { id } = request.params;
-      const subPath = request.query.path || "";
+      const { id } = fileParamsSchema.parse(request.params);
+      const { path: queryPath } = fileListQuerySchema.parse(request.query);
+      const subPath = queryPath || "";
       const projectDir = resolve(PROJECTS_DIR, id);
       const targetDir = resolve(projectDir, subPath);
 
@@ -81,12 +95,8 @@ export const fileRoutes: FastifyPluginAsync = async (app) => {
   app.get<{ Params: { id: string }; Querystring: { path: string } }>(
     "/:id/files/content",
     async (request, reply) => {
-      const { id } = request.params;
-      const filePath = request.query.path;
-
-      if (!filePath) {
-        return reply.status(400).send({ error: "path query param is required", statusCode: 400 });
-      }
+      const { id } = fileParamsSchema.parse(request.params);
+      const { path: filePath } = fileContentQuerySchema.parse(request.query);
 
       const projectDir = resolve(PROJECTS_DIR, id);
       const fullPath = resolve(projectDir, filePath);

@@ -59,28 +59,32 @@ export const featureTypeEnum = pgEnum("feature_type", [
   "refactor",
 ]);
 
-export const projects = pgTable("projects", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  name: text("name").notNull(),
-  goal: text("goal").notNull(),
-  status: projectStatusEnum("status").default("draft").notNull(),
-  architecture: text("architecture"),
-  provider: text("provider").default("opencode").notNull(),
-  totalCostUsd: numeric("total_cost_usd", { precision: 10, scale: 4 }).default("0").notNull(),
-  repoUrl: text("repo_url"),
-  repoPath: text("repo_path"),
-  projectMode: text("project_mode").default("greenfield").notNull(),
-  workBranch: text("work_branch"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+export const projects = pgTable(
+  "projects",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    name: text("name").notNull(),
+    goal: text("goal").notNull(),
+    status: projectStatusEnum("status").default("draft").notNull(),
+    architecture: text("architecture"),
+    provider: text("provider").default("opencode").notNull(),
+    totalCostUsd: numeric("total_cost_usd", { precision: 10, scale: 4 }).default("0").notNull(),
+    repoUrl: text("repo_url"),
+    repoPath: text("repo_path"),
+    projectMode: text("project_mode").default("greenfield").notNull(),
+    workBranch: text("work_branch"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => [index("idx_projects_status").on(t.status)],
+);
 
 export const workstreams = pgTable(
   "workstreams",
   {
     id: uuid("id").defaultRandom().primaryKey(),
     projectId: uuid("project_id")
-      .references(() => projects.id)
+      .references(() => projects.id, { onDelete: "cascade" })
       .notNull(),
     name: text("name").notNull(),
     objective: text("objective").notNull(),
@@ -103,10 +107,10 @@ export const agentTasks = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     workstreamId: uuid("workstream_id")
-      .references(() => workstreams.id)
+      .references(() => workstreams.id, { onDelete: "cascade" })
       .notNull(),
     projectId: uuid("project_id")
-      .references(() => projects.id)
+      .references(() => projects.id, { onDelete: "cascade" })
       .notNull(),
     role: agentRoleEnum("role").notNull(),
     prompt: text("prompt").notNull(),
@@ -125,6 +129,7 @@ export const agentTasks = pgTable(
   (t) => [
     index("idx_agent_tasks_workstream_id").on(t.workstreamId),
     index("idx_agent_tasks_project_id").on(t.projectId),
+    index("idx_agent_tasks_status").on(t.status),
   ],
 );
 
@@ -138,9 +143,14 @@ export const features = pgTable(
     type: featureTypeEnum("type").default("feature").notNull(),
     priority: integer("priority").default(0).notNull(),
     sortOrder: integer("sort_order").default(0).notNull(),
-    orchestrationProjectId: uuid("orchestration_project_id").references(() => projects.id),
+    orchestrationProjectId: uuid("orchestration_project_id").references(() => projects.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
-  (t) => [index("idx_features_status").on(t.status)],
+  (t) => [
+    index("idx_features_status").on(t.status),
+    index("idx_features_orchestration_project_id").on(t.orchestrationProjectId),
+  ],
 );

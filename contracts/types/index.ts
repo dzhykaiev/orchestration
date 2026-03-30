@@ -1,7 +1,15 @@
-export type { Project, ProjectStatus, CreateProjectInput, UpdateProjectInput } from "./project.js";
+export type {
+  Project,
+  ProjectStatus,
+  ProjectMode,
+  LLMProviderType,
+  CreateProjectInput,
+  UpdateProjectInput,
+} from "./project.js";
 export type {
   Workstream,
   WorkstreamStatus,
+  ValidationStatus,
   CreateWorkstreamInput,
   UpdateWorkstreamInput,
 } from "./workstream.js";
