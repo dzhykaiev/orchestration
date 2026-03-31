@@ -11,7 +11,8 @@ export const projectEscalationRoutes: FastifyPluginAsync = async (app) => {
   app.get<{ Params: { id: string } }>("/:id/escalations", async (request) => {
     const { id } = ProjectIdParamSchema.parse(request.params);
     const query = EscalationListQuerySchema.parse(request.query);
-    return escalationRepo.listByProject(id, query);
+    const result = await escalationRepo.listByProject(id, query);
+    return { ...result, limit: query.limit, offset: query.offset };
   });
 };
 

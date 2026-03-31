@@ -42,7 +42,7 @@ export async function listByProject(
     db.select({ count: sql<number>`count(*)::int` }).from(schema.artifacts).where(where),
   ]);
 
-  return { artifacts: items, total: countResult[0]?.count ?? 0 };
+  return { data: items, total: countResult[0]?.count ?? 0 };
 }
 
 export async function listByTask(taskId: string) {

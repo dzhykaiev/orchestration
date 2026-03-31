@@ -14,7 +14,8 @@ export const workspaceRoutes: FastifyPluginAsync = async (app) => {
   // GET / — list workspaces
   app.get("/", async (request) => {
     const query = workspaceListQuerySchema.parse(request.query);
-    return workspaceService.list(query);
+    const result = await workspaceService.list(query);
+    return { ...result, limit: query.limit, offset: query.offset };
   });
 
   // GET /:id — get workspace by ID
@@ -50,7 +51,8 @@ export const workspaceRoutes: FastifyPluginAsync = async (app) => {
   app.get<{ Params: { id: string } }>("/:id/projects", async (request) => {
     const { id } = workspaceIdParamSchema.parse(request.params);
     const query = projectListQuerySchema.parse(request.query);
-    return workspaceService.listProjects(id, query);
+    const result = await workspaceService.listProjects(id, query);
+    return { ...result, limit: query.limit, offset: query.offset };
   });
 
   // GET /:id/features — list features in workspace
@@ -58,7 +60,8 @@ export const workspaceRoutes: FastifyPluginAsync = async (app) => {
     const { id } = workspaceIdParamSchema.parse(request.params);
     await workspaceService.getById(id); // ensure workspace exists
     const query = featureListQuerySchema.parse(request.query);
-    return featureRepo.listFeaturesByWorkspace(id, query);
+    const result = await featureRepo.listFeaturesByWorkspace(id, query);
+    return { ...result, limit: query.limit, offset: query.offset };
   });
 
   // POST /:id/features — create feature in workspace

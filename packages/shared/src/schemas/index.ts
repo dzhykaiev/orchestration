@@ -1,3 +1,5 @@
+export { PaginationQuerySchema, type PaginationQuery } from "./pagination.js";
+
 export {
   WorkspaceDtoSchema,
   CreateWorkspaceSchema,

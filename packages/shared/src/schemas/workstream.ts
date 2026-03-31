@@ -40,7 +40,6 @@ export const CreateWorkstreamSchema = z.object({
 });
 
 export const UpdateWorkstreamSchema = z.object({
-  status: z.enum(workstreamStatusValues).optional(),
   assignedAgent: z.string().nullable().optional(),
   deliverables: z.array(z.string()).optional(),
   validationStatus: z.enum(validationStatusValues).nullable().optional(),

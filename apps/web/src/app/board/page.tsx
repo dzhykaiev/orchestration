@@ -25,8 +25,8 @@ export default function BoardPage() {
         api.features.list(),
         api.workspaces.list(100, 0),
       ]);
-      setFeatures(featuresData.features);
-      setWorkspaces(workspacesData.workspaces);
+      setFeatures(featuresData.data);
+      setWorkspaces(workspacesData.data);
     } catch (err) {
       toastRef.current.error(err instanceof Error ? err.message : "Failed to load features");
     } finally {

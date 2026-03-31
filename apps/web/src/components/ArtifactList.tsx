@@ -35,7 +35,7 @@ export function ArtifactList({ projectId }: { projectId: string }) {
     if (!expanded) return;
     setLoading(true);
     api.projects.artifacts(projectId, filter).then((data) => {
-      setArtifacts(data.artifacts);
+      setArtifacts(data.data);
       setLoading(false);
     });
   }, [projectId, expanded, filter]);

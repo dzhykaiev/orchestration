@@ -2,7 +2,7 @@ import Fastify from "fastify";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ZodError } from "zod";
 
-const listFeatures = vi.fn().mockResolvedValue({ features: [], total: 0 });
+const listFeatures = vi.fn().mockResolvedValue({ data: [], total: 0 });
 const getFeatureById = vi.fn().mockResolvedValue(null);
 const createFeature = vi.fn().mockImplementation((input: Record<string, unknown>) =>
   Promise.resolve({
@@ -82,7 +82,7 @@ describe("Feature Routes", () => {
     const res = await app.inject({ method: "GET", url: "/api/features" });
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.payload);
-    expect(body.features).toEqual([]);
+    expect(body.data).toEqual([]);
   });
 
   it("GET /api/features/:id returns 404 for non-existent", async () => {

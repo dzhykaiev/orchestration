@@ -115,10 +115,13 @@ export type {
   ReviewDto,
 } from "./schemas/index.js";
 
+export type { TransitionMap } from "./state-machine.js";
 export {
   PROJECT_TRANSITIONS,
+  FEATURE_TRANSITIONS,
   WORKSTREAM_TRANSITIONS,
   TASK_TRANSITIONS,
+  canTransition,
   InvalidTransitionError,
   assertTransition,
 } from "./state-machine.js";

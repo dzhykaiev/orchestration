@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PaginationQuerySchema } from "./pagination.js";
 
 export const projectStatusValues = [
   "draft",
@@ -54,8 +55,9 @@ export const ProjectIdParamSchema = z.object({
   id: z.string().uuid(),
 });
 
-export const ProjectListQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-  offset: z.coerce.number().int().min(0).default(0),
+export const ProjectListQuerySchema = PaginationQuerySchema.extend({
   includeArchived: z.coerce.boolean().default(false),
+  status: z.enum(projectStatusValues).optional(),
+  provider: z.enum(providerValues).optional(),
+  workspaceId: z.string().uuid().optional(),
 });

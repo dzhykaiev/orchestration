@@ -122,14 +122,14 @@ export function canTransition(map: TransitionMap, from: string, to: string): boo
 
 ## Чеклист
 
-- [ ] Shared: модуль state machines з transition maps для всіх сутностей
-- [ ] Shared: `canTransition()` utility function
-- [ ] Service: project status changes через transition validation
-- [ ] Service: feature status changes через transition validation
-- [ ] Service: workstream status changes через transition validation
-- [ ] Schema: прибрати `status` з UpdateProjectSchema
-- [ ] Schema: прибрати `status` з UpdateFeatureSchema
-- [ ] Schema: прибрати `status` з UpdateWorkstreamSchema
+- [x] Shared: модуль state machines з transition maps для всіх сутностей
+- [x] Shared: `canTransition()` utility function
+- [x] Service: project status changes через transition validation
+- [x] Service: feature status changes через transition validation
+- [x] Service: workstream status changes через transition validation
+- [x] Schema: прибрати `status` з UpdateProjectSchema
+- [x] Schema: прибрати `status` з UpdateFeatureSchema
+- [x] Schema: прибрати `status` з UpdateWorkstreamSchema
 - [ ] Route: dedicated status transition endpoints де потрібно
 - [ ] Audit: запис кожної зміни статусу
 - [ ] Тести: валідні переходи працюють

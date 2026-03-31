@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { agentTierValues } from "./agent-task.js";
+import { PaginationQuerySchema } from "./pagination.js";
 
 export const escalationStatusValues = ["open", "acknowledged", "resolved", "dismissed"] as const;
 
@@ -20,8 +21,6 @@ export const EscalationDtoSchema = z.object({
 
 export type EscalationDto = z.infer<typeof EscalationDtoSchema>;
 
-export const EscalationListQuerySchema = z.object({
+export const EscalationListQuerySchema = PaginationQuerySchema.extend({
   status: z.enum(escalationStatusValues).optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(50),
-  offset: z.coerce.number().int().min(0).default(0),
 });

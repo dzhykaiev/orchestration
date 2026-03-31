@@ -23,6 +23,8 @@ export async function listProjects(opts: {
   offset: number;
   includeArchived: boolean;
   workspaceId?: string;
+  status?: string;
+  provider?: string;
 }) {
   const conditions = [];
   if (!opts.includeArchived) {
@@ -30,6 +32,16 @@ export async function listProjects(opts: {
   }
   if (opts.workspaceId) {
     conditions.push(eq(schema.projects.workspaceId, opts.workspaceId));
+  }
+  if (opts.status) {
+    conditions.push(
+      eq(schema.projects.status, opts.status as typeof schema.projects.$inferSelect.status),
+    );
+  }
+  if (opts.provider) {
+    conditions.push(
+      eq(schema.projects.provider, opts.provider as typeof schema.projects.$inferSelect.provider),
+    );
   }
 
   const where = conditions.length > 0 ? and(...conditions) : undefined;
@@ -45,7 +57,7 @@ export async function listProjects(opts: {
     db.select({ count: sql<number>`count(*)::int` }).from(schema.projects).where(where),
   ]);
 
-  return { projects: items, total: countResult[0]?.count ?? 0 };
+  return { data: items, total: countResult[0]?.count ?? 0 };
 }
 
 export async function getProjectById(id: string) {
@@ -93,6 +105,48 @@ export async function transitionStatus(id: string, from: ProjectStatus, to: Proj
     .where(and(eq(schema.projects.id, id), eq(schema.projects.status, from)))
     .returning();
   return project ?? null;
+}
+
+export async function getCostBreakdown(projectId: string) {
+  const [byWorkstream, byRole, countResult, project] = await Promise.all([
+    db
+      .select({
+        workstreamId: schema.agentTasks.workstreamId,
+        name: schema.workstreams.name,
+        cost: sql<string>`coalesce(sum(${schema.agentTasks.costUsd}), 0)`,
+      })
+      .from(schema.agentTasks)
+      .innerJoin(schema.workstreams, eq(schema.agentTasks.workstreamId, schema.workstreams.id))
+      .where(eq(schema.agentTasks.projectId, projectId))
+      .groupBy(schema.agentTasks.workstreamId, schema.workstreams.name),
+    db
+      .select({
+        role: schema.agentTasks.role,
+        cost: sql<string>`coalesce(sum(${schema.agentTasks.costUsd}), 0)`,
+      })
+      .from(schema.agentTasks)
+      .where(eq(schema.agentTasks.projectId, projectId))
+      .groupBy(schema.agentTasks.role),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(schema.agentTasks)
+      .where(eq(schema.agentTasks.projectId, projectId)),
+    getProjectById(projectId),
+  ]);
+
+  return {
+    total: Number(project?.totalCostUsd ?? 0),
+    byWorkstream: byWorkstream.map((row) => ({
+      workstreamId: row.workstreamId,
+      name: row.name,
+      cost: Number(row.cost),
+    })),
+    byRole: byRole.map((row) => ({
+      role: row.role,
+      cost: Number(row.cost),
+    })),
+    taskCount: countResult[0]?.count ?? 0,
+  };
 }
 
 export async function deleteProject(id: string) {

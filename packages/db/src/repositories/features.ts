@@ -34,7 +34,7 @@ export async function listFeatures(opts: {
       .where(where),
   ]);
 
-  return { features: items, total: countResult[0]?.count ?? 0 };
+  return { data: items, total: countResult[0]?.count ?? 0 };
 }
 
 export async function listFeaturesByWorkspace(

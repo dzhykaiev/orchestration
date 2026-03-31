@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PaginationQuerySchema } from "./pagination.js";
 
 export const featureStatusValues = ["backlog", "todo", "in_progress", "done", "rejected"] as const;
 
@@ -41,9 +42,7 @@ export const FeatureIdParamSchema = z.object({
   id: z.string().uuid(),
 });
 
-export const FeatureListQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(200).default(100),
-  offset: z.coerce.number().int().min(0).default(0),
+export const FeatureListQuerySchema = PaginationQuerySchema.extend({
   status: z.enum(featureStatusValues).optional(),
   workspaceId: z.string().uuid().optional(),
 });

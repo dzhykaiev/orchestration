@@ -1,3 +1,4 @@
+import { InvalidTransitionError } from "@orchestration/shared";
 import type { FastifyPluginAsync } from "fastify";
 import fp from "fastify-plugin";
 import { ZodError } from "zod";
@@ -18,6 +19,15 @@ const errorHandlerPluginImpl: FastifyPluginAsync = async (app) => {
           statusCode: 400,
           requestId,
           details: error.flatten(),
+        });
+      }
+
+      // State machine transition errors
+      if (error instanceof InvalidTransitionError) {
+        return reply.status(409).send({
+          error: error.message,
+          statusCode: 409,
+          requestId,
         });
       }
 

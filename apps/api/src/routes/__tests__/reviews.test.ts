@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ZodError } from "zod";
 
 const listByTask = vi.fn().mockResolvedValue([]);
-const listByWorkstream = vi.fn().mockResolvedValue({ reviews: [], total: 0 });
+const listByWorkstream = vi.fn().mockResolvedValue({ data: [], total: 0 });
 
 vi.mock("@orchestration/db", () => ({
   reviewRepo: {

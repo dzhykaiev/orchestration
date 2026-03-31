@@ -16,7 +16,7 @@ export default function WorkspacesPage() {
 
   useEffect(() => {
     api.workspaces.list(100).then((data) => {
-      setWorkspaces(data.workspaces);
+      setWorkspaces(data.data);
       setLoading(false);
     });
   }, []);

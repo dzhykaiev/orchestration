@@ -13,7 +13,8 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
   // GET / — list projects (excludes archived by default)
   app.get("/", async (request) => {
     const query = listQuerySchema.parse(request.query);
-    return projectService.list(query);
+    const result = await projectService.list(query);
+    return { ...result, limit: query.limit, offset: query.offset };
   });
 
   // GET /:id — get project by ID
@@ -63,6 +64,12 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
     const { id } = idParamSchema.parse(request.params);
     await projectService.delete(id);
     return reply.status(204).send();
+  });
+
+  // GET /:id/costs — cost breakdown for a project
+  app.get<{ Params: { id: string } }>("/:id/costs", async (request) => {
+    const { id } = idParamSchema.parse(request.params);
+    return projectService.getCostBreakdown(id);
   });
 
   // GET /:id/detail — aggregated project detail (project + workstreams + tasks)

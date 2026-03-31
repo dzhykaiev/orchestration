@@ -21,7 +21,7 @@ export async function listWorkspaces(opts: { limit: number; offset: number }) {
     db.select({ count: sql<number>`count(*)::int` }).from(schema.workspaces),
   ]);
 
-  return { workspaces: items, total: countResult[0]?.count ?? 0 };
+  return { data: items, total: countResult[0]?.count ?? 0 };
 }
 
 export async function getWorkspaceById(id: string) {

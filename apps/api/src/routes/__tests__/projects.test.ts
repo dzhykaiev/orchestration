@@ -2,7 +2,7 @@ import Fastify from "fastify";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ZodError } from "zod";
 
-const listProjects = vi.fn().mockResolvedValue({ projects: [], total: 0 });
+const listProjects = vi.fn().mockResolvedValue({ data: [], total: 0 });
 const getProjectById = vi.fn().mockResolvedValue(null);
 const createProject = vi.fn().mockImplementation((input: { name: string; goal: string }) =>
   Promise.resolve({
@@ -93,7 +93,7 @@ describe("Project Routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getProjectById.mockResolvedValue(null);
-    listProjects.mockResolvedValue({ projects: [], total: 0 });
+    listProjects.mockResolvedValue({ data: [], total: 0 });
   });
 
   it("GET /api/projects returns empty list", async () => {
@@ -101,7 +101,7 @@ describe("Project Routes", () => {
     const res = await app.inject({ method: "GET", url: "/api/projects" });
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.payload);
-    expect(body.projects).toEqual([]);
+    expect(body.data).toEqual([]);
     expect(body.total).toBe(0);
   });
 
@@ -277,7 +277,7 @@ describe("Project Routes", () => {
     expect(res.statusCode).toBe(404);
   });
 
-  it("POST /api/projects/:id/stop returns 400 for completed project", async () => {
+  it("POST /api/projects/:id/stop returns 409 for completed project", async () => {
     getProjectById.mockResolvedValueOnce({
       id: "00000000-0000-0000-0000-000000000000",
       name: "Test",
@@ -292,7 +292,7 @@ describe("Project Routes", () => {
       method: "POST",
       url: "/api/projects/00000000-0000-0000-0000-000000000000/stop",
     });
-    expect(res.statusCode).toBe(400);
+    expect(res.statusCode).toBe(409);
   });
 
   it("POST /api/projects/:id/archive returns 404 for non-existent", async () => {
@@ -304,7 +304,7 @@ describe("Project Routes", () => {
     expect(res.statusCode).toBe(404);
   });
 
-  it("POST /api/projects/:id/archive returns 400 for running project", async () => {
+  it("POST /api/projects/:id/archive returns 409 for running project", async () => {
     getProjectById.mockResolvedValueOnce({
       id: "00000000-0000-0000-0000-000000000000",
       name: "Test",
@@ -319,7 +319,7 @@ describe("Project Routes", () => {
       method: "POST",
       url: "/api/projects/00000000-0000-0000-0000-000000000000/archive",
     });
-    expect(res.statusCode).toBe(400);
+    expect(res.statusCode).toBe(409);
   });
 
   it("GET /api/projects/:id/detail returns 404 for non-existent", async () => {

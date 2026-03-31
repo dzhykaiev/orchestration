@@ -54,7 +54,7 @@ type Feature = FeatureDto;
 export const api = {
   workspaces: {
     list: (limit = 20, offset = 0) =>
-      fetchAPI<{ workspaces: Workspace[]; total: number }>(
+      fetchAPI<{ data: Workspace[]; total: number; limit: number; offset: number }>(
         `/api/workspaces?limit=${limit}&offset=${offset}`,
       ),
     get: (id: string) => fetchAPI<{ workspace: Workspace }>(`/api/workspaces/${id}`),
@@ -73,7 +73,7 @@ export const api = {
         method: "DELETE",
       }),
     projects: (id: string, limit = 20, offset = 0, includeArchived = false) =>
-      fetchAPI<{ projects: Project[]; total: number }>(
+      fetchAPI<{ data: Project[]; total: number; limit: number; offset: number }>(
         `/api/workspaces/${id}/projects?limit=${limit}&offset=${offset}&includeArchived=${includeArchived}`,
       ),
     agents: (id: string) => fetchAPI<{ agents: AgentDefinition[] }>(`/api/workspaces/${id}/agents`),
@@ -94,7 +94,7 @@ export const api = {
   },
   projects: {
     list: (limit = 20, offset = 0, includeArchived = false) =>
-      fetchAPI<{ projects: Project[]; total: number }>(
+      fetchAPI<{ data: Project[]; total: number; limit: number; offset: number }>(
         `/api/projects?limit=${limit}&offset=${offset}&includeArchived=${includeArchived}`,
       ),
     get: (id: string) => fetchAPI<{ project: Project }>(`/api/projects/${id}`),
@@ -139,12 +139,12 @@ export const api = {
         `/api/projects/${id}/detail`,
       ),
     auditLog: (id: string, limit = 50, offset = 0) =>
-      fetchAPI<{ logs: AuditLog[]; total: number }>(
+      fetchAPI<{ data: AuditLog[]; total: number; limit: number; offset: number }>(
         `/api/projects/${id}/audit-log?limit=${limit}&offset=${offset}`,
       ),
     artifacts: (id: string, type?: string) => {
       const query = type ? `?type=${type}` : "";
-      return fetchAPI<{ artifacts: Artifact[]; total: number }>(
+      return fetchAPI<{ data: Artifact[]; total: number; limit: number; offset: number }>(
         `/api/projects/${id}/artifacts${query}`,
       );
     },
@@ -163,8 +163,10 @@ export const api = {
   },
   features: {
     list: (status?: string) => {
-      const query = status ? `?status=${status}&limit=200` : "?limit=200";
-      return fetchAPI<{ features: Feature[]; total: number }>(`/api/features${query}`);
+      const query = status ? `?status=${status}&limit=100` : "?limit=100";
+      return fetchAPI<{ data: Feature[]; total: number; limit: number; offset: number }>(
+        `/api/features${query}`,
+      );
     },
     get: (id: string) => fetchAPI<{ feature: Feature }>(`/api/features/${id}`),
     create: (body: {

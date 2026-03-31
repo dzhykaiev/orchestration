@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PaginationQuerySchema } from "./pagination.js";
 
 export const auditActionValues = [
   "created",
@@ -28,7 +29,4 @@ export const AuditLogDtoSchema = z.object({
 
 export type AuditLogDto = z.infer<typeof AuditLogDtoSchema>;
 
-export const AuditLogListQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(100).default(50),
-  offset: z.coerce.number().int().min(0).default(0),
-});
+export const AuditLogListQuerySchema = PaginationQuerySchema;

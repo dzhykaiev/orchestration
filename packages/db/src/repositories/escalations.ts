@@ -50,7 +50,7 @@ export async function listByProject(
     db.select({ count: sql<number>`count(*)::int` }).from(schema.escalations).where(where),
   ]);
 
-  return { escalations: items, total: countResult[0]?.count ?? 0 };
+  return { data: items, total: countResult[0]?.count ?? 0 };
 }
 
 export async function resolveEscalation(id: string, resolution: string) {

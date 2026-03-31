@@ -44,7 +44,7 @@ export async function listByWorkstream(
     db.select({ count: sql<number>`count(*)::int` }).from(schema.reviews).where(where),
   ]);
 
-  return { reviews: items, total: countResult[0]?.count ?? 0 };
+  return { data: items, total: countResult[0]?.count ?? 0 };
 }
 
 export async function getLatestReview(taskId: string) {

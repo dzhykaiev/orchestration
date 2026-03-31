@@ -11,7 +11,8 @@ export const artifactRoutes: FastifyPluginAsync = async (app) => {
   app.get<{ Params: { id: string } }>("/:id/artifacts", async (request) => {
     const { id } = ProjectIdParamSchema.parse(request.params);
     const query = ArtifactListQuerySchema.parse(request.query);
-    return artifactRepo.listByProject(id, query);
+    const result = await artifactRepo.listByProject(id, query);
+    return { ...result, limit: query.limit, offset: query.offset };
   });
 };
 

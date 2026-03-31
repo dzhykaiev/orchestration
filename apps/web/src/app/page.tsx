@@ -65,9 +65,9 @@ export default function HomePage() {
         api.projects.list(20, 0, showArchived),
         api.workspaces.list(100, 0),
       ]);
-      setProjects(data.projects);
+      setProjects(data.data);
       setTotal(data.total);
-      setWorkspaces(wsData.workspaces);
+      setWorkspaces(wsData.data);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load projects");

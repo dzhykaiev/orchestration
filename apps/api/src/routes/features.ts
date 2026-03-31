@@ -12,7 +12,8 @@ export const featureRoutes: FastifyPluginAsync = async (app) => {
   // GET / — list features
   app.get("/", async (request) => {
     const query = featureListQuerySchema.parse(request.query);
-    return featureService.list(query);
+    const result = await featureService.list(query);
+    return { ...result, limit: query.limit, offset: query.offset };
   });
 
   // GET /:id — get feature by ID

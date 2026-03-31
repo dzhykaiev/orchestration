@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PaginationQuerySchema } from "./pagination.js";
 
 export const reviewVerdictValues = ["approved", "changes_requested", "rejected"] as const;
 
@@ -17,7 +18,4 @@ export const ReviewDtoSchema = z.object({
 
 export type ReviewDto = z.infer<typeof ReviewDtoSchema>;
 
-export const ReviewListQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(100).default(50),
-  offset: z.coerce.number().int().min(0).default(0),
-});
+export const ReviewListQuerySchema = PaginationQuerySchema;

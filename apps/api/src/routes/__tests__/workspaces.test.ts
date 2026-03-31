@@ -2,7 +2,7 @@ import Fastify from "fastify";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ZodError } from "zod";
 
-const listWorkspaces = vi.fn().mockResolvedValue({ workspaces: [], total: 0 });
+const listWorkspaces = vi.fn().mockResolvedValue({ data: [], total: 0 });
 const getWorkspaceById = vi.fn().mockResolvedValue(null);
 const getWorkspaceBySlug = vi.fn().mockResolvedValue(null);
 const createWorkspace = vi.fn().mockImplementation((input: Record<string, unknown>) =>
@@ -28,7 +28,7 @@ const updateWorkspace = vi.fn().mockImplementation((_id: string, input: Record<s
   }),
 );
 const deleteWorkspace = vi.fn().mockResolvedValue(undefined);
-const listProjects = vi.fn().mockResolvedValue({ projects: [], total: 0 });
+const listProjects = vi.fn().mockResolvedValue({ data: [], total: 0 });
 
 vi.mock("@orchestration/db", () => ({
   workspaceRepo: {
@@ -76,7 +76,7 @@ describe("Workspace Routes", () => {
     const res = await app.inject({ method: "GET", url: "/api/workspaces" });
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.payload);
-    expect(body.workspaces).toEqual([]);
+    expect(body.data).toEqual([]);
     expect(body.total).toBe(0);
   });
 
@@ -166,7 +166,7 @@ describe("Workspace Routes", () => {
     const res = await app.inject({ method: "GET", url: `/api/workspaces/${UUID}/projects` });
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.payload);
-    expect(body.projects).toEqual([]);
+    expect(body.data).toEqual([]);
   });
 
   it("GET /api/workspaces/:id with invalid UUID returns 400", async () => {

@@ -20,7 +20,7 @@ export default function NewProjectPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.workspaces.list(100, 0).then(({ workspaces: ws }) => {
+    api.workspaces.list(100, 0).then(({ data: ws }) => {
       setWorkspaces(ws);
       if (ws.length === 1 && ws[0]) setWorkspaceId(ws[0].id);
     });

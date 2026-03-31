@@ -68,7 +68,7 @@ export function AuditTimeline({ projectId }: { projectId: string }) {
   useEffect(() => {
     if (!expanded) return;
     api.projects.auditLog(projectId).then((data) => {
-      setLogs(data.logs);
+      setLogs(data.data);
       setLoading(false);
     });
   }, [projectId, expanded]);

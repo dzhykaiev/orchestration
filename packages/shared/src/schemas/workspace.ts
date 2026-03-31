@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PaginationQuerySchema } from "./pagination.js";
 
 export const WorkspaceDtoSchema = z.object({
   id: z.string().uuid(),
@@ -37,7 +38,4 @@ export const WorkspaceIdParamSchema = z.object({
   id: z.string().uuid(),
 });
 
-export const WorkspaceListQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-  offset: z.coerce.number().int().min(0).default(0),
-});
+export const WorkspaceListQuerySchema = PaginationQuerySchema;

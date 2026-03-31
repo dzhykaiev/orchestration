@@ -41,7 +41,7 @@ export async function listByEntity(
     db.select({ count: sql<number>`count(*)::int` }).from(schema.auditLogs).where(where),
   ]);
 
-  return { logs: items, total: countResult[0]?.count ?? 0 };
+  return { data: items, total: countResult[0]?.count ?? 0 };
 }
 
 export async function listByProject(projectId: string, opts: { limit: number; offset: number }) {
@@ -58,5 +58,5 @@ export async function listByProject(projectId: string, opts: { limit: number; of
     db.select({ count: sql<number>`count(*)::int` }).from(schema.auditLogs).where(where),
   ]);
 
-  return { logs: items, total: countResult[0]?.count ?? 0 };
+  return { data: items, total: countResult[0]?.count ?? 0 };
 }

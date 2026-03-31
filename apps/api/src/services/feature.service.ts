@@ -1,5 +1,9 @@
 import { featureRepo, projectRepo } from "@orchestration/db";
-import type { CreateFeatureInput, UpdateFeatureInput } from "@orchestration/shared";
+import {
+  FEATURE_TRANSITIONS,
+  assertTransition,
+} from "@orchestration/shared";
+import type { CreateFeatureInput, FeatureStatus, UpdateFeatureInput } from "@orchestration/shared";
 import type { Queue } from "bullmq";
 import { BusinessError, NotFoundError } from "./project.service.js";
 
@@ -39,6 +43,14 @@ export class FeatureService {
 
   async kickoff(id: string, planningQueue: Queue) {
     const feature = await this.getById(id);
+
+    // Validate feature can transition to in_progress
+    assertTransition(
+      FEATURE_TRANSITIONS,
+      feature.status as FeatureStatus,
+      "in_progress",
+      "feature",
+    );
 
     if (feature.orchestrationProjectId) {
       throw new BusinessError("Feature already has an orchestration project");

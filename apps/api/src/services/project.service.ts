@@ -1,9 +1,20 @@
 import { featureRepo, projectRepo, taskRepo, workstreamRepo } from "@orchestration/db";
-import type { CreateProjectInput, UpdateProjectInput } from "@orchestration/shared";
+import {
+  PROJECT_TRANSITIONS,
+  assertTransition,
+} from "@orchestration/shared";
+import type { CreateProjectInput, ProjectStatus, UpdateProjectInput } from "@orchestration/shared";
 import type { Queue } from "bullmq";
 
 export class ProjectService {
-  async list(opts: { limit: number; offset: number; includeArchived: boolean }) {
+  async list(opts: {
+    limit: number;
+    offset: number;
+    includeArchived: boolean;
+    status?: string;
+    provider?: string;
+    workspaceId?: string;
+  }) {
     return projectRepo.listProjects(opts);
   }
 
@@ -55,9 +66,12 @@ export class ProjectService {
   async stop(id: string, planningQueue: Queue, implementationQueue: Queue) {
     const project = await this.getById(id);
 
-    if (!["planning", "in_progress"].includes(project.status)) {
-      throw new BusinessError(`Cannot stop project in "${project.status}" status`);
-    }
+    assertTransition(
+      PROJECT_TRANSITIONS,
+      project.status as ProjectStatus,
+      "cancelled",
+      "project",
+    );
 
     // Cancel all queued/running tasks
     await taskRepo.cancelTasksByProject(id);
@@ -91,9 +105,12 @@ export class ProjectService {
   async archive(id: string) {
     const project = await this.getById(id);
 
-    if (["planning", "in_progress"].includes(project.status)) {
-      throw new BusinessError("Cannot archive a running project. Stop it first.");
-    }
+    assertTransition(
+      PROJECT_TRANSITIONS,
+      project.status as ProjectStatus,
+      "archived",
+      "project",
+    );
 
     const updated = await projectRepo.updateProject(id, { status: "archived" });
     if (!updated) throw new NotFoundError("Project not found");
@@ -120,6 +137,11 @@ export class ProjectService {
       featureRepo.getFeatureByProjectId(id),
     ]);
     return { project, workstreams, tasks, feature };
+  }
+
+  async getCostBreakdown(id: string) {
+    await this.getById(id); // ensure project exists
+    return projectRepo.getCostBreakdown(id);
   }
 
   async listWorkstreams(id: string) {

@@ -104,11 +104,11 @@ WorkstreamListQuerySchema = PaginationQuerySchema.extend({
 
 ## Чеклист
 
-- [ ] Shared: `PaginationQuerySchema` в packages/shared
-- [ ] Shared: `PaginatedResponse<T>` type
-- [ ] Schema: уніфікувати всі list query schemas (extend PaginationQuerySchema)
-- [ ] Schema: Features max limit 100→100, default 100→20
-- [ ] Routes: всі list endpoints повертають `{ data, total, limit, offset }`
-- [ ] Schema: ProjectListQuerySchema — додати status, provider, workspaceId фільтри
-- [ ] Repository: projectRepo.listProjects — підтримка нових фільтрів
+- [x] Shared: `PaginationQuerySchema` в packages/shared
+- [x] Shared: `PaginatedResponse<T>` type
+- [x] Schema: уніфікувати всі list query schemas (extend PaginationQuerySchema)
+- [x] Schema: Features max limit 100→100, default 100→20
+- [x] Routes: всі list endpoints повертають `{ data, total, limit, offset }`
+- [x] Schema: ProjectListQuerySchema — додати status, provider, workspaceId фільтри
+- [x] Repository: projectRepo.listProjects — підтримка нових фільтрів
 - [ ] Тести: перевірити пагінацію і фільтри

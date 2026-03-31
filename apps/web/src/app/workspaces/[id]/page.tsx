@@ -22,7 +22,7 @@ export default function WorkspaceDetailPage() {
     Promise.all([api.workspaces.get(id), api.workspaces.projects(id, 50)]).then(
       ([wsRes, projRes]) => {
         setWorkspace(wsRes.workspace);
-        setProjects(projRes.projects);
+        setProjects(projRes.data);
         setTotal(projRes.total);
         setEditName(wsRes.workspace.name);
         setEditDesc(wsRes.workspace.description || "");

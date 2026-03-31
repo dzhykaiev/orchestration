@@ -60,10 +60,10 @@
 
 ## Чеклист
 
-- [ ] Repository: виправити ініціалізацію totalCostUsd
-- [ ] Repository: COALESCE в SUM агрегації
-- [ ] Repository: метод getCostBreakdown(projectId)
-- [ ] Route: `GET /api/projects/:id/costs`
+- [x] Repository: виправити ініціалізацію totalCostUsd
+- [x] Repository: COALESCE в SUM агрегації
+- [x] Repository: метод getCostBreakdown(projectId)
+- [x] Route: `GET /api/projects/:id/costs`
 - [ ] Frontend: cost в project header
 - [ ] Frontend: cost в workstream cards
 - [ ] Тести: cost aggregation з null values

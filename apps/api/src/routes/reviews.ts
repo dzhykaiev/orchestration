@@ -19,6 +19,7 @@ export const workstreamReviewRoutes: FastifyPluginAsync = async (app) => {
   app.get<{ Params: { id: string } }>("/:id/reviews", async (request) => {
     const { id } = idParam.parse(request.params);
     const query = ReviewListQuerySchema.parse(request.query);
-    return reviewRepo.listByWorkstream(id, query);
+    const result = await reviewRepo.listByWorkstream(id, query);
+    return { ...result, limit: query.limit, offset: query.offset };
   });
 };
