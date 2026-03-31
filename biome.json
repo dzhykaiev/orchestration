@@ -27,6 +27,15 @@
     }
   },
   "files": {
-    "ignore": ["node_modules", "dist", ".next", "coverage", ".turbo", "*.tsbuildinfo"]
+    "ignore": [
+      "node_modules",
+      "dist",
+      ".next",
+      "coverage",
+      ".turbo",
+      "*.tsbuildinfo",
+      "docs/.vitepress/cache",
+      "docs/.vitepress/dist"
+    ]
   }
 }

@@ -83,8 +83,10 @@ for (const ws of createdWorkstreams) {
 
 - [x] Planning worker: нормалізація dependencies name→UUID після створення workstreams
 - [x] Circular dependency detection: працює з нормалізованими UUID
-- [ ] API validation: dependencies при створенні — тільки UUID існуючих workstreams
+- [x] API validation: dependencies при створенні — тільки UUID існуючих workstreams
 - [x] Progress tracking: прибрати nameToId fallback, тільки UUID
 - [x] Frontend: DependencyGraph працює тільки з UUID edges
-- [ ] Тести: нормалізація залежностей в planning worker
-- [ ] Тести: невалідні dependencies → помилка
+- [x] Тести: нормалізація залежностей в planning worker
+- [x] Тести: невалідні dependencies → помилка
+
+<!-- DONE by Codex at 2026-03-31 -->

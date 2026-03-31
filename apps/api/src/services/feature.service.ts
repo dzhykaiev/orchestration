@@ -1,6 +1,7 @@
 import { auditLogRepo, featureRepo, projectRepo } from "@orchestration/db";
 import { FEATURE_TRANSITIONS, assertTransition } from "@orchestration/shared";
-import type { CreateFeatureInput, FeatureStatus, UpdateFeatureInput } from "@orchestration/shared";
+import type { CreateFeatureInput, UpdateFeatureInput } from "@orchestration/shared";
+import { resolveProvider } from "@orchestration/shared";
 import type { Queue } from "bullmq";
 import { BusinessError, NotFoundError } from "./project.service.js";
 
@@ -42,12 +43,7 @@ export class FeatureService {
     const feature = await this.getById(id);
 
     // Validate feature can transition to in_progress
-    assertTransition(
-      FEATURE_TRANSITIONS,
-      feature.status as FeatureStatus,
-      "in_progress",
-      "feature",
-    );
+    assertTransition(FEATURE_TRANSITIONS, feature.status, "in_progress", "feature");
 
     if (feature.orchestrationProjectId) {
       throw new BusinessError("Feature already has an orchestration project");
@@ -73,16 +69,35 @@ export class FeatureService {
       throw new Error("Failed to create project for feature");
     }
 
-    await featureRepo.updateFeature(id, {
-      status: "in_progress",
-      orchestrationProjectId: project.id,
-    });
+    let featureUpdated = false;
+    try {
+      await featureRepo.updateFeature(id, {
+        status: "in_progress",
+        orchestrationProjectId: project.id,
+      });
+      featureUpdated = true;
 
-    await planningQueue.add("plan", {
-      projectId: project.id,
-      goal: project.goal,
-      provider: project.provider || process.env.LLM_PROVIDER || "opencode",
-    });
+      await planningQueue.add("plan", {
+        projectId: project.id,
+        goal: project.goal,
+        provider: resolveProvider(project.provider),
+      });
+    } catch (err) {
+      // Compensation: revert feature link/status and remove project if queue enqueue failed.
+      try {
+        if (featureUpdated) {
+          await featureRepo.updateFeature(id, {
+            status: feature.status,
+          });
+        }
+        await projectRepo.deleteProject(project.id);
+      } catch (rollbackErr) {
+        console.error("[FeatureService] Kickoff rollback failed:", rollbackErr);
+      }
+      throw new BusinessError(
+        `Failed to kickoff feature orchestration: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
 
     try {
       await auditLogRepo.createAuditLog({

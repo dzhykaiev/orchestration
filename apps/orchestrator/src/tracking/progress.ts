@@ -9,18 +9,13 @@ import {
   taskRepo,
   workstreamRepo,
 } from "@orchestration/db";
-import type {
-  AgentRole,
-  FeatureStatus,
-  ProjectStatus,
-  ReviewVerdict,
-  WorkstreamStatus,
-} from "@orchestration/shared";
+import type { AgentRole, ReviewVerdict } from "@orchestration/shared";
 import {
   FEATURE_TRANSITIONS,
   PROJECT_TRANSITIONS,
   WORKSTREAM_TRANSITIONS,
   canTransition,
+  resolveProvider,
 } from "@orchestration/shared";
 import { eventBus } from "../events/index.js";
 import { buildSystemPrompt, buildUserMessage } from "../prompts/implementation.js";
@@ -39,7 +34,7 @@ export async function checkWorkstreamCompletion(workstreamId: string, projectId:
 
   if (counts.failed > 0) {
     const ws = await workstreamRepo.getWorkstreamById(workstreamId);
-    if (ws && !canTransition(WORKSTREAM_TRANSITIONS, ws.status as WorkstreamStatus, "failed")) {
+    if (ws && !canTransition(WORKSTREAM_TRANSITIONS, ws.status, "failed")) {
       console.warn(
         `[Progress] Invalid workstream transition: ${ws.status} -> failed for ${workstreamId}, skipping`,
       );
@@ -75,7 +70,7 @@ export async function checkWorkstreamCompletion(workstreamId: string, projectId:
 
   if (counts.completed === counts.total && counts.total > 0) {
     const ws = await workstreamRepo.getWorkstreamById(workstreamId);
-    if (ws && !canTransition(WORKSTREAM_TRANSITIONS, ws.status as WorkstreamStatus, "completed")) {
+    if (ws && !canTransition(WORKSTREAM_TRANSITIONS, ws.status, "completed")) {
       console.warn(
         `[Progress] Invalid workstream transition: ${ws.status} -> completed for ${workstreamId}, skipping`,
       );
@@ -126,10 +121,7 @@ export async function unblockDependents(completedWorkstreamId: string, projectId
 
   // Get project provider
   const project = await projectRepo.getProjectById(projectId);
-  const provider =
-    ((project as Record<string, unknown>)?.provider as string) ||
-    process.env.LLM_PROVIDER ||
-    "opencode";
+  const provider = resolveProvider(project?.provider);
 
   // Build set of all completed workstream IDs
   const completedIds = new Set(
@@ -153,7 +145,7 @@ export async function unblockDependents(completedWorkstreamId: string, projectId
     });
 
     if (allDepsMet) {
-      if (!canTransition(WORKSTREAM_TRANSITIONS, ws.status as WorkstreamStatus, "in_progress")) {
+      if (!canTransition(WORKSTREAM_TRANSITIONS, ws.status, "in_progress")) {
         console.warn(
           `[Progress] Invalid workstream transition: ${ws.status} -> in_progress for ${ws.id}, skipping`,
         );
@@ -204,6 +196,10 @@ export async function unblockDependents(completedWorkstreamId: string, projectId
 
 export async function checkProjectCompletion(projectId: string) {
   const workstreams = await workstreamRepo.listWorkstreamsByProject(projectId);
+  if (workstreams.length === 0) {
+    console.log(`[Progress] Project ${projectId}: no workstreams yet, skipping completion check`);
+    return;
+  }
 
   const allCompleted = workstreams.every((ws) => ws.status === "completed");
   const anyFailed = workstreams.some((ws) => ws.status === "failed");
@@ -213,10 +209,7 @@ export async function checkProjectCompletion(projectId: string) {
 
   if (allCompleted) {
     let project = await projectRepo.getProjectById(projectId);
-    if (
-      project &&
-      !canTransition(PROJECT_TRANSITIONS, project.status as ProjectStatus, "completed")
-    ) {
+    if (project && !canTransition(PROJECT_TRANSITIONS, project.status, "completed")) {
       console.warn(
         `[Progress] Invalid project transition: ${project.status} -> completed for ${projectId}, skipping`,
       );
@@ -267,7 +260,7 @@ export async function checkProjectCompletion(projectId: string) {
     }
   } else if (anyFailed && !anyActive) {
     const project = await projectRepo.getProjectById(projectId);
-    if (project && !canTransition(PROJECT_TRANSITIONS, project.status as ProjectStatus, "failed")) {
+    if (project && !canTransition(PROJECT_TRANSITIONS, project.status, "failed")) {
       console.warn(
         `[Progress] Invalid project transition: ${project.status} -> failed for ${projectId}, skipping`,
       );
@@ -336,10 +329,7 @@ async function createReviewerTask(workstreamId: string, projectId: string) {
 
   // Get project provider
   const project = await projectRepo.getProjectById(projectId);
-  const provider =
-    ((project as Record<string, unknown>)?.provider as string) ||
-    process.env.LLM_PROVIDER ||
-    "opencode";
+  const provider = resolveProvider(project?.provider);
 
   const reviewerTask = await taskRepo.createTask({
     workstreamId,
@@ -420,7 +410,7 @@ async function syncLinkedFeatureStatus(projectId: string, status: "done" | "todo
   try {
     const feature = await featureRepo.getFeatureByProjectId(projectId);
     if (feature) {
-      if (!canTransition(FEATURE_TRANSITIONS, feature.status as FeatureStatus, status)) {
+      if (!canTransition(FEATURE_TRANSITIONS, feature.status, status)) {
         console.warn(
           `[Progress] Invalid feature transition: ${feature.status} -> ${status} for feature ${feature.id}, skipping`,
         );
