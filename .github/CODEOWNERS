@@ -1,0 +1,31 @@
+# Architecture / Contracts (Agent A)
+/docs/architecture/ @architecture-team
+/docs/contracts/ @architecture-team
+/docs/decisions/ @architecture-team
+/contracts/ @architecture-team
+
+# API (Agent B)
+/apps/api/src/application/ @api-team
+/apps/api/src/infrastructure/ @api-team
+/apps/api/src/services/ @api-team
+/apps/api/src/routes/ @api-team
+
+# Orchestrator (Agent C)
+/apps/orchestrator/src/application/ @orchestrator-team
+/apps/orchestrator/src/infrastructure/ @orchestrator-team
+/apps/orchestrator/src/workers/ @orchestrator-team
+/apps/orchestrator/src/events/ @orchestrator-team
+/apps/orchestrator/src/tracking/ @orchestrator-team
+/apps/orchestrator/src/delegation/ @orchestrator-team
+/apps/orchestrator/src/escalation/ @orchestrator-team
+/apps/orchestrator/src/hierarchy/ @orchestrator-team
+
+# Shared / Reliability (Agent D)
+/packages/shared/src/ @shared-team
+/apps/orchestrator/src/**/*.test.ts @shared-team
+
+# CI / Validation (Agent E)
+/scripts/ @qa-platform-team
+/.github/workflows/ @qa-platform-team
+/vitest.config.ts @qa-platform-team
+/apps/**/__tests__/ @qa-platform-team

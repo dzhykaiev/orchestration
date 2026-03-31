@@ -14,6 +14,11 @@ Current authoritative contract locations are:
 
 `contracts/api` and `contracts/events` folders currently exist as placeholders and are not the active contract source.
 
+Contract index and operational specs:
+- `docs/contracts/contract-registry.md`
+- `docs/contracts/events.md`
+- `docs/contracts/queues.md`
+
 ## Practical Contract Boundaries
 
 1. API boundary

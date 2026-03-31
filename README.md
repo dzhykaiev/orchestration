@@ -46,7 +46,10 @@ AI-driven software development orchestration platform. Provide a high-level soft
     adr-writer/
     execution-plan/
     frontend-design/
+    frontend-ux-review/
+    product-design-review/
     project-architect-review/
+    ux-improvement-plan/
 .opencode/
   plans/
 .pnpm-store/
@@ -68,11 +71,15 @@ docs/
   agent-briefs/
   agents/
   api/
+  architecture/
   contracts/
   decisions/
   design/
   guide/
   improvements/
+  ownership/
+  parallel-execution/
+    agent-playbooks/
   plans/
   runbooks/
 logs/
