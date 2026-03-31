@@ -10,9 +10,15 @@ interface ReviewItem {
 }
 
 const VERDICT_COLORS: Record<string, { bg: string; text: string }> = {
-  approved: { bg: "var(--color-status-green-bg, #dcfce7)", text: "#16a34a" },
-  changes_requested: { bg: "var(--color-status-yellow-bg, #fef9c3)", text: "#ca8a04" },
-  rejected: { bg: "var(--color-status-red-bg, #fee2e2)", text: "#dc2626" },
+  approved: {
+    bg: "var(--color-status-green-bg, #dcfce7)",
+    text: "var(--color-status-green-text, #166534)",
+  },
+  changes_requested: {
+    bg: "var(--color-status-yellow-bg, #fef9c3)",
+    text: "var(--color-status-yellow-text, #92400e)",
+  },
+  rejected: { bg: "var(--color-status-red-bg, #fee2e2)", text: "var(--color-status-red-text, #991b1b)" },
 };
 
 export function ReviewHistory({ reviews }: { reviews: ReviewItem[] }) {
@@ -25,7 +31,10 @@ export function ReviewHistory({ reviews }: { reviews: ReviewItem[] }) {
       </div>
       <div className="flex flex-col gap-2">
         {reviews.map((review) => {
-          const colors = VERDICT_COLORS[review.verdict] ?? { bg: "#fef9c3", text: "#ca8a04" };
+          const colors = VERDICT_COLORS[review.verdict] ?? {
+            bg: "var(--color-status-yellow-bg, #fef9c3)",
+            text: "var(--color-status-yellow-text, #92400e)",
+          };
           return (
             <div
               key={review.id}

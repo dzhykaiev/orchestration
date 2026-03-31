@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Breadcrumbs } from "../../components/Breadcrumbs";
 import { FeatureModal } from "../../components/board/FeatureModal";
 import { KanbanColumn } from "../../components/board/KanbanColumn";
-import { useToast } from "../../hooks/useToast";
-import { api } from "../../lib/api";
-import type { Feature, Workspace } from "../../lib/api";
+import { useToastContext } from "../../components/ui/ToastProvider";
+import { api, getErrorDetails, getErrorMessage } from "../../lib/api";
+import type { Feature, Project, Workspace } from "../../lib/api";
 
 const STATUSES = ["backlog", "todo", "in_progress", "done", "rejected"] as const;
 
@@ -23,13 +24,18 @@ function storeWorkspaceId(id: string) {
 }
 
 export default function BoardPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [features, setFeatures] = useState<Feature[]>([]);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string>("");
+  const [projectsById, setProjectsById] = useState<
+    Record<string, Pick<Project, "id" | "name" | "status">>
+  >({});
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingFeature, setEditingFeature] = useState<Feature | null>(null);
-  const toast = useToast();
+  const toast = useToastContext();
   const toastRef = useRef(toast);
   toastRef.current = toast;
 
@@ -45,21 +51,55 @@ export default function BoardPage() {
     }
   }, []);
 
-  const fetchFeatures = useCallback(async (workspaceId: string) => {
+  const fetchBoardData = useCallback(async (workspaceId: string) => {
     if (!workspaceId) {
       setFeatures([]);
+      setProjectsById({});
       setLoading(false);
       return;
     }
     try {
-      const featuresData = await api.workspaces.features(workspaceId);
+      const [featuresData, projectsData] = await Promise.all([
+        api.workspaces.features(workspaceId),
+        api.workspaces.projects(workspaceId, 100, 0, true),
+      ]);
       setFeatures(featuresData.data);
+      setProjectsById(
+        Object.fromEntries(
+          projectsData.data.map((project) => [
+            project.id,
+            { id: project.id, name: project.name, status: project.status },
+          ]),
+        ),
+      );
     } catch (err) {
-      toastRef.current.error(err instanceof Error ? err.message : "Failed to load features");
+      toastRef.current.error({
+        title: "Couldn't load the board",
+        message: getErrorMessage(err, "Failed to load features"),
+        details: getErrorDetails(err),
+      });
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const syncWorkspaceContext = useCallback(
+    (workspaceId: string) => {
+      const currentWorkspaceId = searchParams.get("workspaceId") || "";
+      if (currentWorkspaceId === workspaceId) {
+        return;
+      }
+      const params = new URLSearchParams(searchParams.toString());
+      if (workspaceId) {
+        params.set("workspaceId", workspaceId);
+      } else {
+        params.delete("workspaceId");
+      }
+      const nextQuery = params.toString();
+      router.replace(nextQuery ? `/board?${nextQuery}` : "/board", { scroll: false });
+    },
+    [router, searchParams],
+  );
 
   useEffect(() => {
     fetchWorkspaces().then((ws) => {
@@ -67,27 +107,31 @@ export default function BoardPage() {
         setLoading(false);
         return;
       }
+      const requestedWorkspaceId = searchParams.get("workspaceId") || "";
+      const requestedMatch = ws.find((w) => w.id === requestedWorkspaceId);
       const stored = getStoredWorkspaceId();
       const match = ws.find((w) => w.id === stored);
-      const initial = match ? match.id : ws[0]?.id || "";
+      const initial = requestedMatch?.id || match?.id || ws[0]?.id || "";
       setSelectedWorkspaceId(initial);
       storeWorkspaceId(initial);
-      fetchFeatures(initial);
+      syncWorkspaceContext(initial);
+      fetchBoardData(initial);
     });
-  }, [fetchWorkspaces, fetchFeatures]);
+  }, [fetchWorkspaces, fetchBoardData, searchParams, syncWorkspaceContext]);
 
   function handleWorkspaceChange(wsId: string) {
     setSelectedWorkspaceId(wsId);
     storeWorkspaceId(wsId);
+    syncWorkspaceContext(wsId);
     setLoading(true);
-    fetchFeatures(wsId);
+    fetchBoardData(wsId);
   }
 
   const refreshFeatures = useCallback(async () => {
     if (selectedWorkspaceId) {
-      await fetchFeatures(selectedWorkspaceId);
+      await fetchBoardData(selectedWorkspaceId);
     }
-  }, [selectedWorkspaceId, fetchFeatures]);
+  }, [selectedWorkspaceId, fetchBoardData]);
 
   const featuresByStatus = STATUSES.reduce(
     (acc, status) => {
@@ -111,7 +155,11 @@ export default function BoardPage() {
       setFeatures((prev) =>
         prev.map((f) => (f.id === featureId ? { ...f, status: feature.status } : f)),
       );
-      toast.error("Failed to update status");
+      toast.error({
+        title: "Couldn't move feature",
+        message: getErrorMessage(err, "Failed to update status"),
+        details: getErrorDetails(err),
+      });
     }
   }
 
@@ -156,7 +204,12 @@ export default function BoardPage() {
       setEditingFeature(null);
       await refreshFeatures();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save feature");
+      toast.error({
+        title: editingFeature ? "Couldn't update feature" : "Couldn't create feature",
+        message: getErrorMessage(err, "Failed to save feature"),
+        details: getErrorDetails(err),
+      });
+      throw err;
     }
   }
 
@@ -171,10 +224,18 @@ export default function BoardPage() {
 
     try {
       const { project } = await api.features.kickoff(feature.id);
-      toast.success(`Project created: ${project.name}`);
+      toast.success({
+        title: "Kickoff started",
+        message: `Project created: ${project.name}`,
+        details: "The linked project is now ready for planning.",
+      });
       await refreshFeatures();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to kickoff");
+      toast.error({
+        title: "Couldn't kick off feature",
+        message: getErrorMessage(err, "Failed to kickoff"),
+        details: getErrorDetails(err),
+      });
     }
   }
 
@@ -186,11 +247,28 @@ export default function BoardPage() {
       setFeatures((prev) => prev.filter((f) => f.id !== feature.id));
       toast.success("Feature deleted");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to delete");
+      toast.error({
+        title: "Couldn't delete feature",
+        message: getErrorMessage(err, "Failed to delete"),
+        details: getErrorDetails(err),
+      });
     }
   }
 
   const selectedWorkspace = workspaces.find((w) => w.id === selectedWorkspaceId);
+  const readyToKickoff = features.filter(
+    (feature) => feature.status === "todo" && !feature.orchestrationProjectId,
+  ).length;
+  const linkedProjectCount = features.filter((feature) => feature.orchestrationProjectId).length;
+  const activeProjectCount = Object.values(projectsById).filter((project) =>
+    ["planning", "in_progress"].includes(project.status),
+  ).length;
+  const boardTip =
+    readyToKickoff > 0
+      ? `${readyToKickoff} feature${readyToKickoff > 1 ? "s are" : " is"} ready to kick off.`
+      : activeProjectCount > 0
+        ? `${activeProjectCount} linked project${activeProjectCount > 1 ? "s are" : " is"} currently running.`
+        : "Move backlog items into Todo when they are ready for orchestration.";
 
   if (loading) {
     return (
@@ -224,6 +302,7 @@ export default function BoardPage() {
         <div className="workspace-empty">
           <div className="workspace-empty-icon" aria-hidden="true">
             <svg
+              aria-hidden="true"
               width="24"
               height="24"
               viewBox="0 0 24 24"
@@ -260,18 +339,19 @@ export default function BoardPage() {
           <div>
             <h2 className="ws-page-title">Feature Board</h2>
             <p className="ws-page-subtitle">
-              Drag features between columns. Kickoff from Todo to start self-improvement.
+              {selectedWorkspace
+                ? `Plan work inside ${selectedWorkspace.name}. Move items to Todo, then kick off orchestration when they are ready.`
+                : "Drag features between columns. Kickoff from Todo to start self-improvement."}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="board-header-actions">
             <select
-              className="input"
+              className="input board-workspace-select"
               value={selectedWorkspaceId}
               onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
                 handleWorkspaceChange(e.target.value)
               }
               aria-label="Select workspace"
-              style={{ padding: "0.375rem 0.625rem", width: "auto", minWidth: 160 }}
             >
               {workspaces.map((ws) => (
                 <option key={ws.id} value={ws.id}>
@@ -286,10 +366,33 @@ export default function BoardPage() {
         </div>
       </div>
 
+      <div className="board-overview">
+        <div className="board-stats">
+          <div className="board-stat">
+            <span className="board-stat-value">{features.length}</span>
+            <span className="board-stat-label">Features</span>
+          </div>
+          <div className="board-stat">
+            <span className="board-stat-value">{readyToKickoff}</span>
+            <span className="board-stat-label">Ready to kickoff</span>
+          </div>
+          <div className="board-stat">
+            <span className="board-stat-value">{linkedProjectCount}</span>
+            <span className="board-stat-label">Linked projects</span>
+          </div>
+          <div className="board-stat">
+            <span className="board-stat-value">{activeProjectCount}</span>
+            <span className="board-stat-label">Active now</span>
+          </div>
+        </div>
+        <p className="board-tip">{boardTip}</p>
+      </div>
+
       {features.length === 0 ? (
         <div className="workspace-empty">
           <div className="workspace-empty-icon" aria-hidden="true">
             <svg
+              aria-hidden="true"
               width="24"
               height="24"
               viewBox="0 0 24 24"
@@ -316,18 +419,21 @@ export default function BoardPage() {
           </button>
         </div>
       ) : (
-        <div className="kanban-board">
-          {STATUSES.map((status) => (
-            <KanbanColumn
-              key={status}
-              status={status}
-              features={featuresByStatus[status] || []}
-              onDrop={handleDrop}
-              onEdit={handleEdit}
-              onKickoff={handleKickoff}
-              onDelete={handleDelete}
-            />
-          ))}
+        <div className="board-shell">
+          <div className="kanban-board">
+            {STATUSES.map((status) => (
+              <KanbanColumn
+                key={status}
+                status={status}
+                features={featuresByStatus[status] || []}
+                linkedProjects={projectsById}
+                onDrop={handleDrop}
+                onEdit={handleEdit}
+                onKickoff={handleKickoff}
+                onDelete={handleDelete}
+              />
+            ))}
+          </div>
         </div>
       )}
 
@@ -340,6 +446,7 @@ export default function BoardPage() {
         onSave={handleSave}
         feature={editingFeature}
         workspaces={workspaces}
+        defaultWorkspaceId={selectedWorkspaceId}
       />
     </div>
   );

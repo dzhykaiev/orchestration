@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
+import { buildApiUrl } from "../lib/api-base";
 
 interface Escalation {
   id: string;
@@ -20,7 +21,7 @@ export function EscalationBanner({ projectId }: { projectId: string }) {
 
   useEffect(() => {
     fetch(
-      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/projects/${projectId}/escalations?status=open&limit=10`,
+      buildApiUrl(`/api/projects/${projectId}/escalations?status=open&limit=10`),
     )
       .then((r) => r.json())
       .then((data: { escalations: Escalation[] }) => {
@@ -36,7 +37,7 @@ export function EscalationBanner({ projectId }: { projectId: string }) {
     const resolution = prompt("Resolution note:");
     if (!resolution) return;
     await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/escalations/${id}/resolve`,
+      buildApiUrl(`/api/escalations/${id}/resolve`),
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -48,7 +49,7 @@ export function EscalationBanner({ projectId }: { projectId: string }) {
 
   const handleDismiss = async (id: string) => {
     await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/escalations/${id}/dismiss`,
+      buildApiUrl(`/api/escalations/${id}/dismiss`),
       { method: "POST" },
     );
     setEscalations((prev) => prev.filter((e) => e.id !== id));

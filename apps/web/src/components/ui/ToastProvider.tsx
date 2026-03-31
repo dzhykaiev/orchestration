@@ -4,11 +4,20 @@ import { createContext, useContext } from "react";
 import { useToast } from "../../hooks/useToast";
 import { ToastContainer } from "./ToastContainer";
 
+type ToastInput =
+  | string
+  | {
+      message: string;
+      title?: string;
+      details?: string;
+      durationMs?: number;
+    };
+
 interface ToastContextValue {
-  success: (message: string) => void;
-  error: (message: string) => void;
-  info: (message: string) => void;
-  warning: (message: string) => void;
+  success: (input: ToastInput) => void;
+  error: (input: ToastInput) => void;
+  info: (input: ToastInput) => void;
+  warning: (input: ToastInput) => void;
   dismiss: (id: string) => void;
 }
 

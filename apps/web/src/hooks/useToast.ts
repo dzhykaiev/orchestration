@@ -3,13 +3,23 @@
 import { useCallback, useRef, useState } from "react";
 import type { ToastData } from "../components/ui/Toast";
 
+type ToastInput =
+  | string
+  | {
+      message: string;
+      title?: string;
+      details?: string;
+      durationMs?: number;
+    };
+
 export function useToast() {
   const [toasts, setToasts] = useState<ToastData[]>([]);
   const counter = useRef(0);
 
-  const add = useCallback((message: string, type: ToastData["type"]) => {
+  const add = useCallback((input: ToastInput, type: ToastData["type"]) => {
     const id = `toast-${++counter.current}-${Date.now()}`;
-    setToasts((prev) => [...prev, { id, message, type }]);
+    const payload = typeof input === "string" ? { message: input } : input;
+    setToasts((prev) => [...prev, { id, type, ...payload }]);
   }, []);
 
   const dismiss = useCallback((id: string) => {
@@ -19,9 +29,9 @@ export function useToast() {
   return {
     toasts,
     dismiss,
-    success: useCallback((msg: string) => add(msg, "success"), [add]),
-    error: useCallback((msg: string) => add(msg, "error"), [add]),
-    info: useCallback((msg: string) => add(msg, "info"), [add]),
-    warning: useCallback((msg: string) => add(msg, "warning"), [add]),
+    success: useCallback((input: ToastInput) => add(input, "success"), [add]),
+    error: useCallback((input: ToastInput) => add(input, "error"), [add]),
+    info: useCallback((input: ToastInput) => add(input, "info"), [add]),
+    warning: useCallback((input: ToastInput) => add(input, "warning"), [add]),
   };
 }

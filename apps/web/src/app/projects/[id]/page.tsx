@@ -24,6 +24,8 @@ import {
   type Workspace,
   type Workstream,
   api,
+  getErrorDetails,
+  getErrorMessage,
 } from "../../../lib/api";
 import { getProviderStyle, timeAgo } from "../../../lib/utils";
 
@@ -36,6 +38,94 @@ const PROVIDER_LABELS: Record<string, string> = {
   claude: "Claude Code",
   opencode: "OpenCode",
 };
+
+function getBoardHref(workspaceId?: string | null) {
+  return workspaceId ? `/board?workspaceId=${workspaceId}` : "/board";
+}
+
+function summarizeTaskPrompt(prompt: string) {
+  return prompt.length > 180 ? `${prompt.slice(0, 180)}...` : prompt;
+}
+
+function summarizeTaskOutput(output: string) {
+  const normalized = output.trim();
+  if (!normalized) return "No output captured.";
+  return normalized.length > 240 ? `${normalized.slice(0, 240)}...` : normalized;
+}
+
+function getTaskStateCopy(task: AgentTask) {
+  switch (task.status) {
+    case "completed":
+      return task.output
+        ? "Output captured and ready for review."
+        : "Completed without a stored output payload.";
+    case "failed":
+      return "This task needs review before the workstream can move forward cleanly.";
+    case "running":
+      return "The assigned agent is currently working on this task.";
+    case "queued":
+      return "Queued and waiting for the workstream to reach this step.";
+    default:
+      return "Task state updated.";
+  }
+}
+
+function getStageSummary(project: Project, runningTaskCount: number) {
+  switch (project.status) {
+    case "draft":
+      return {
+        title: "Ready to plan",
+        description:
+          "The brief is saved. Architecture and workstreams have not been generated yet.",
+        nextStep: "Review provider and repo context, then start planning.",
+      };
+    case "planning":
+      return {
+        title: "Architecture in progress",
+        description:
+          "The architect agent is turning the goal into workstreams, dependencies, and execution structure.",
+        nextStep: "Stay on this page. It updates automatically when planning finishes.",
+      };
+    case "in_progress":
+      return {
+        title: "Execution running",
+        description:
+          runningTaskCount > 0
+            ? `${runningTaskCount} task${runningTaskCount === 1 ? "" : "s"} currently executing across active workstreams.`
+            : "Workstreams are active and the page will refresh as tasks move forward.",
+        nextStep: "Watch failed tasks and escalations so you can unblock the run quickly.",
+      };
+    case "completed":
+      return {
+        title: "Execution complete",
+        description:
+          "All workstreams finished successfully and the generated output is ready for review.",
+        nextStep: "Review artifacts, files, and audit history before archiving.",
+      };
+    case "failed":
+      return {
+        title: "Execution failed",
+        description:
+          "One or more tasks exhausted retries or hit a blocking condition. Review the failed workstream before retrying related work.",
+        nextStep: "Inspect the failed tasks, output, and escalations to identify the real blocker.",
+      };
+    case "cancelled":
+      return {
+        title: "Execution stopped",
+        description:
+          "The run was cancelled before completion. Existing outputs remain available for inspection.",
+        nextStep:
+          "Archive the project if it is finished, or create a new project brief for another run.",
+      };
+    case "archived":
+      return {
+        title: "Archived record",
+        description:
+          "This project is no longer part of the active queue, but its execution history and output remain accessible.",
+        nextStep: "Keep it for reference or delete it if the record is no longer needed.",
+      };
+  }
+}
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -55,7 +145,11 @@ export default function ProjectDetailPage() {
     taskCount: number;
   } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadErrorDetails, setLoadErrorDetails] = useState<string | undefined>();
+  const [actionError, setActionError] = useState<{ message: string; details?: string } | null>(
+    null,
+  );
   const [planning, setPlanning] = useState(false);
   const [stopping, setStopping] = useState(false);
   const [archiving, setArchiving] = useState(false);
@@ -101,9 +195,11 @@ export default function ProjectDetailPage() {
         .then((data) => setCostBreakdown(data))
         .catch(() => {});
 
-      setError(null);
+      setLoadError(null);
+      setLoadErrorDetails(undefined);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load project");
+      setLoadError(getErrorMessage(err, "Failed to load project"));
+      setLoadErrorDetails(getErrorDetails(err));
     } finally {
       setLoading(false);
     }
@@ -140,12 +236,20 @@ export default function ProjectDetailPage() {
 
   async function handleStartPlanning() {
     setPlanning(true);
+    setActionError(null);
     try {
       const result = await api.projects.plan(projectId);
       setProject(result.project);
       setWorkstreams(result.workstreams);
+      toast.success({
+        title: "Planning started",
+        message: "Architecture analysis and workstream generation are now running.",
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to start planning");
+      setActionError({
+        message: getErrorMessage(err, "Failed to start planning"),
+        details: getErrorDetails(err),
+      });
     } finally {
       setPlanning(false);
     }
@@ -153,11 +257,17 @@ export default function ProjectDetailPage() {
 
   async function executeStop() {
     setStopping(true);
+    setActionError(null);
     try {
       const result = await api.projects.stop(projectId);
       setProject(result.project);
+      setConfirmAction(null);
+      toast.success("Project stopped");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to stop project");
+      setActionError({
+        message: getErrorMessage(err, "Failed to stop project"),
+        details: getErrorDetails(err),
+      });
     } finally {
       setStopping(false);
     }
@@ -165,11 +275,17 @@ export default function ProjectDetailPage() {
 
   async function executeArchive() {
     setArchiving(true);
+    setActionError(null);
     try {
       const result = await api.projects.archive(projectId);
       setProject(result.project);
+      setConfirmAction(null);
+      toast.success("Project archived");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to archive project");
+      setActionError({
+        message: getErrorMessage(err, "Failed to archive project"),
+        details: getErrorDetails(err),
+      });
     } finally {
       setArchiving(false);
     }
@@ -177,12 +293,16 @@ export default function ProjectDetailPage() {
 
   async function executeDelete() {
     setDeleting(true);
+    setActionError(null);
     try {
       await api.projects.delete(projectId);
       toast.success("Project deleted");
       router.push("/");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to delete project");
+      const message = getErrorMessage(err, "Failed to delete project");
+      const details = getErrorDetails(err);
+      setActionError({ message, details });
+      toast.error({ title: "Delete failed", message, details });
       setDeleting(false);
     }
   }
@@ -203,18 +323,27 @@ export default function ProjectDetailPage() {
         return updated;
       });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to retry task");
+      toast.error({
+        title: "Retry failed",
+        message: getErrorMessage(err, "Failed to retry task"),
+        details: getErrorDetails(err),
+      });
     } finally {
       setRetryingTaskId(null);
     }
   }
 
   async function handleProviderChange(newProvider: string) {
+    setActionError(null);
     try {
       const result = await api.projects.update(projectId, { provider: newProvider });
       setProject(result.project);
+      toast.success(`Provider changed to ${PROVIDER_LABELS[newProvider] ?? newProvider}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to change provider");
+      setActionError({
+        message: getErrorMessage(err, "Failed to change provider"),
+        details: getErrorDetails(err),
+      });
     }
   }
 
@@ -232,7 +361,11 @@ export default function ProjectDetailPage() {
           setTasksByWorkstream((prev) => ({ ...prev, [wsId]: res.tasks }));
         })
         .catch((err) => {
-          toast.error(err instanceof Error ? err.message : "Failed to load tasks");
+          toast.error({
+            title: "Task load failed",
+            message: getErrorMessage(err, "Failed to load tasks"),
+            details: getErrorDetails(err),
+          });
         });
     }
   }
@@ -248,10 +381,14 @@ export default function ProjectDetailPage() {
   }
 
   if (loading) return <SkeletonProjectDetail />;
-  if (error)
+  if (loadError)
     return (
-      <div style={{ textAlign: "center", padding: "3rem 1rem" }}>
-        <p style={{ color: "var(--color-danger)", marginBottom: "1rem" }}>Error: {error}</p>
+      <div className="project-load-error">
+        <div className="error-banner" role="alert">
+          <strong>Project page failed to load</strong>
+          <div>{loadError}</div>
+          {loadErrorDetails && <pre className="error-banner-details">{loadErrorDetails}</pre>}
+        </div>
         <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
           <button type="button" className="btn btn-primary" onClick={fetchData}>
             Retry
@@ -275,6 +412,9 @@ export default function ProjectDetailPage() {
   const failedWs = workstreams.filter((ws) => ws.status === "failed").length;
   const allTasks = Object.values(tasksByWorkstream).flat();
   const runningTasks = allTasks.filter((t) => t.status === "running");
+  const totalTaskCount = allTasks.length;
+  const deliverableCount = workstreams.reduce((count, ws) => count + ws.deliverables.length, 0);
+  const stageSummary = getStageSummary(project, runningTasks.length);
 
   // Build cost lookup by workstream
   const costByWorkstream: Record<string, number> = {};
@@ -285,7 +425,7 @@ export default function ProjectDetailPage() {
   }
 
   return (
-    <div>
+    <div className="project-shell">
       {/* Breadcrumbs */}
       <Breadcrumbs
         items={[
@@ -295,118 +435,201 @@ export default function ProjectDetailPage() {
         ]}
       />
 
-      {/* Header */}
-      <div className="flex justify-between items-center mb-1">
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <h2 style={{ margin: 0 }}>{project.name}</h2>
-          <span
-            className="text-sm"
-            style={{
-              ...getProviderStyle(project.provider),
-              padding: "2px 10px",
-              borderRadius: 10,
-              fontSize: "0.75rem",
-              fontWeight: 600,
-            }}
-          >
-            {providerLabel}
-          </span>
-          {costBreakdown && costBreakdown.total > 0 && (
+      <div className="project-hero">
+        <div className="project-hero-copy">
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <h2 style={{ margin: 0 }}>{project.name}</h2>
+            <StatusBadge status={project.status} />
+          </div>
+          <p className="text-muted project-hero-goal">{project.goal}</p>
+          <div className="project-hero-meta">
             <span
               className="text-sm"
               style={{
+                ...getProviderStyle(project.provider),
                 padding: "2px 10px",
                 borderRadius: 10,
                 fontSize: "0.75rem",
                 fontWeight: 600,
-                background: "var(--color-status-neutral-bg)",
-                color: "var(--color-status-neutral-text)",
               }}
             >
-              ${costBreakdown.total.toFixed(4)}
+              {providerLabel}
             </span>
+            <span className="project-meta-pill">
+              {project.projectMode === "existing" ? "Existing repo" : "Greenfield"}
+            </span>
+            {costBreakdown && costBreakdown.total > 0 && (
+              <span className="project-meta-pill">${costBreakdown.total.toFixed(4)} spent</span>
+            )}
+            <span className="project-meta-pill">Created {timeAgo(project.createdAt)}</span>
+            {project.updatedAt !== project.createdAt && (
+              <span className="project-meta-pill">Updated {timeAgo(project.updatedAt)}</span>
+            )}
+          </div>
+        </div>
+
+        <div className="project-hero-actions">
+          {project.status === "draft" && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleStartPlanning}
+              disabled={planning}
+            >
+              {planning ? "Starting..." : "Start Planning"}
+            </button>
+          )}
+
+          {canStop && (
+            <button
+              type="button"
+              className="btn btn-danger"
+              onClick={() => setConfirmAction("stop")}
+              disabled={stopping}
+            >
+              {stopping ? "Stopping..." : "Stop"}
+            </button>
+          )}
+
+          {canArchive && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setConfirmAction("archive")}
+              disabled={archiving}
+            >
+              {archiving ? "Archiving..." : "Archive"}
+            </button>
+          )}
+
+          {canDelete && (
+            <button
+              type="button"
+              className="btn btn-danger"
+              onClick={() => setConfirmAction("delete")}
+              disabled={deleting}
+            >
+              {deleting ? "Deleting..." : "Delete"}
+            </button>
+          )}
+
+          {canChangeProvider && (
+            <select
+              className="input"
+              value={project.provider}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                handleProviderChange(e.target.value)
+              }
+              aria-label="AI provider"
+              style={{ padding: "0.35rem 0.5rem", width: "auto" }}
+            >
+              <option value="opencode">OpenCode</option>
+              <option value="claude">Claude Code</option>
+            </select>
           )}
         </div>
-        <StatusBadge status={project.status} />
       </div>
-      <p className="text-muted" style={{ margin: "0 0 0.5rem" }}>
-        {project.goal}
-      </p>
 
-      {/* Link to source feature */}
       {linkedFeature && (
-        <p className="text-sm" style={{ margin: "0 0 1rem", color: "var(--color-text-muted)" }}>
+        <p className="text-sm project-source-link">
           Created from feature:{" "}
-          <Link href="/board" style={{ color: "var(--color-primary)" }}>
+          <Link href={getBoardHref(project.workspaceId)} style={{ color: "var(--color-primary)" }}>
             {linkedFeature.title}
           </Link>
         </p>
       )}
-      {!linkedFeature && <div style={{ marginBottom: "0.5rem" }} />}
 
-      {/* Action buttons */}
-      <div style={{ display: "flex", gap: 8, marginBottom: "1.5rem", flexWrap: "wrap" }}>
-        {project.status === "draft" && (
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={handleStartPlanning}
-            disabled={planning}
-          >
-            {planning ? "Starting..." : "Start Planning"}
-          </button>
-        )}
+      {actionError && (
+        <div className="error-banner" role="alert">
+          <strong>Project action failed</strong>
+          <div>{actionError.message}</div>
+          {actionError.details && <pre className="error-banner-details">{actionError.details}</pre>}
+        </div>
+      )}
 
-        {canStop && (
-          <button
-            type="button"
-            className="btn"
-            onClick={() => setConfirmAction("stop")}
-            disabled={stopping}
-            style={{ background: "var(--color-danger)", color: "#fff", border: "none" }}
-          >
-            {stopping ? "Stopping..." : "Stop"}
-          </button>
-        )}
+      <section className="project-meta-grid">
+        <div className="card project-stage-card">
+          <p className="project-card-eyebrow">Current stage</p>
+          <h3>{stageSummary.title}</h3>
+          <p>{stageSummary.description}</p>
+          <div className="project-stage-next">
+            <strong>Next step</strong>
+            <span>{stageSummary.nextStep}</span>
+          </div>
+        </div>
 
-        {canArchive && (
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => setConfirmAction("archive")}
-            disabled={archiving}
-          >
-            {archiving ? "Archiving..." : "Archive"}
-          </button>
-        )}
+        <div className="card project-meta-card">
+          <p className="project-card-eyebrow">Source and context</p>
+          <ul className="project-meta-list">
+            <li>
+              <span>Workspace</span>
+              <strong>{workspace?.name ?? "Loading workspace..."}</strong>
+            </li>
+            <li>
+              <span>Mode</span>
+              <strong>
+                {project.projectMode === "existing" ? "Existing repository" : "Greenfield"}
+              </strong>
+            </li>
+            <li>
+              <span>Repository</span>
+              <strong>
+                {project.repoUrl ? (
+                  <a href={project.repoUrl} target="_blank" rel="noreferrer">
+                    {project.repoUrl}
+                  </a>
+                ) : (
+                  "Not attached"
+                )}
+              </strong>
+            </li>
+            {project.repoPath && (
+              <li>
+                <span>Repo path</span>
+                <code>{project.repoPath}</code>
+              </li>
+            )}
+            {project.workBranch && (
+              <li>
+                <span>Working branch</span>
+                <code>{project.workBranch}</code>
+              </li>
+            )}
+          </ul>
+        </div>
 
-        {canDelete && (
-          <button
-            type="button"
-            className="btn"
-            onClick={() => setConfirmAction("delete")}
-            disabled={deleting}
-            style={{ background: "var(--color-danger)", color: "#fff", border: "none" }}
-          >
-            {deleting ? "Deleting..." : "Delete"}
-          </button>
-        )}
+        <div className="card project-meta-card">
+          <p className="project-card-eyebrow">Execution overview</p>
+          <div className="project-kpi-grid">
+            <div>
+              <strong>{workstreams.length}</strong>
+              <span>Workstreams</span>
+            </div>
+            <div>
+              <strong>{totalTaskCount}</strong>
+              <span>Tasks loaded</span>
+            </div>
+            <div>
+              <strong>{runningTasks.length}</strong>
+              <span>Running tasks</span>
+            </div>
+            <div>
+              <strong>{deliverableCount}</strong>
+              <span>Deliverables</span>
+            </div>
+          </div>
+        </div>
+      </section>
 
-        {canChangeProvider && (
-          <select
-            className="input"
-            value={project.provider}
-            onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-              handleProviderChange(e.target.value)
-            }
-            aria-label="AI provider"
-            style={{ padding: "0.35rem 0.5rem", width: "auto" }}
-          >
-            <option value="opencode">OpenCode</option>
-            <option value="claude">Claude Code</option>
-          </select>
-        )}
-      </div>
+      {workstreams.length === 0 && project.status === "draft" && (
+        <div className="card project-empty-state">
+          <strong>No workstreams yet</strong>
+          <p className="text-sm text-muted">
+            This is still a saved brief. Start planning to generate architecture, workstreams,
+            dependencies, and the first execution tasks.
+          </p>
+        </div>
+      )}
 
       {/* Live status banner */}
       {project.status === "planning" && (
@@ -757,53 +980,31 @@ export default function ProjectDetailPage() {
                       </p>
                     ) : (
                       tasks.map((task) => (
-                        <div
-                          key={task.id}
-                          style={{
-                            padding: "0.75rem",
-                            marginBottom: "0.5rem",
-                            background: "var(--color-bg-secondary)",
-                            borderRadius: 6,
-                            border: "1px solid var(--color-border)",
-                          }}
-                        >
-                          <div className="flex justify-between items-center">
+                        <div key={task.id} className="project-task-card">
+                          <div className="project-task-header">
                             <div>
-                              <strong style={{ fontSize: "0.85rem" }}>@{task.role}</strong>
-                              <span className="text-sm text-muted" style={{ marginLeft: 8 }}>
-                                attempt {task.attempts}/{task.maxAttempts}
-                              </span>
-                              {task.status === "running" && (
-                                <span
-                                  style={{
-                                    marginLeft: 8,
-                                    color: "var(--color-warning)",
-                                    fontSize: "0.8rem",
-                                  }}
-                                >
-                                  &#8987; working...
+                              <div className="project-task-role-row">
+                                <strong className="project-task-role">@{task.role}</strong>
+                                <span className="project-task-attempt">
+                                  attempt {task.attempts}/{task.maxAttempts}
                                 </span>
-                              )}
+                                {task.status === "running" && (
+                                  <span className="project-task-running">&#8987; working now</span>
+                                )}
+                              </div>
+                              <p className="project-task-state">{getTaskStateCopy(task)}</p>
                             </div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <div className="project-task-actions">
                               <StatusBadge status={task.status} />
                               {task.status === "failed" && (
                                 <button
                                   type="button"
-                                  className="btn"
+                                  className="btn project-task-retry"
                                   onClick={(e: React.MouseEvent) => {
                                     e.stopPropagation();
                                     handleRetryTask(task.id);
                                   }}
                                   disabled={retryingTaskId === task.id}
-                                  style={{
-                                    background: "var(--color-warning)",
-                                    color: "var(--color-text)",
-                                    border: "none",
-                                    padding: "2px 10px",
-                                    fontSize: "0.75rem",
-                                    fontWeight: 600,
-                                  }}
                                 >
                                   {retryingTaskId === task.id ? "Retrying..." : "Retry"}
                                 </button>
@@ -811,47 +1012,29 @@ export default function ProjectDetailPage() {
                             </div>
                           </div>
 
-                          <p
-                            className="text-sm"
-                            style={{ margin: "6px 0 0", color: "var(--color-text-muted)" }}
-                          >
-                            {task.prompt.length > 150
-                              ? `${task.prompt.slice(0, 150)}...`
-                              : task.prompt}
-                          </p>
+                          <div className="project-task-section">
+                            <span className="project-task-section-label">Task brief</span>
+                            <p className="project-task-prompt">
+                              {summarizeTaskPrompt(task.prompt)}
+                            </p>
+                          </div>
 
                           {task.error && (
-                            <div
-                              style={{
-                                marginTop: 6,
-                                padding: "6px 10px",
-                                background: "var(--color-status-red-bg)",
-                                borderRadius: 4,
-                                fontSize: "0.8rem",
-                                color: "var(--color-status-red-text)",
-                              }}
-                            >
-                              {task.error}
+                            <div className="project-task-error" role="alert">
+                              <strong>Failure detail</strong>
+                              <div>{task.error}</div>
                             </div>
                           )}
 
                           {task.filesModified.length > 0 && (
-                            <div style={{ marginTop: 8 }}>
-                              <span className="text-sm" style={{ fontWeight: 500 }}>
-                                Files ({task.filesModified.length}):
+                            <div className="project-task-section">
+                              <span className="project-task-section-label">
+                                Files touched ({task.filesModified.length})
                               </span>
-                              <div style={{ marginTop: 4 }}>
-                                {task.filesModified.map((f) => (
-                                  <code
-                                    key={f}
-                                    style={{
-                                      display: "block",
-                                      fontSize: "0.75rem",
-                                      color: "var(--color-success)",
-                                      padding: "1px 0",
-                                    }}
-                                  >
-                                    + {f}
+                              <div className="project-task-files">
+                                {task.filesModified.map((file) => (
+                                  <code key={file} className="project-task-file">
+                                    {file}
                                   </code>
                                 ))}
                               </div>
@@ -859,61 +1042,43 @@ export default function ProjectDetailPage() {
                           )}
 
                           {task.output && (
-                            <div style={{ marginTop: 8 }}>
-                              <button
-                                type="button"
-                                className="text-sm"
-                                style={{
-                                  background: "none",
-                                  border: "1px solid var(--color-border)",
-                                  borderRadius: 4,
-                                  padding: "2px 10px",
-                                  cursor: "pointer",
-                                  color: "var(--color-primary)",
-                                  fontSize: "0.75rem",
-                                }}
-                                onClick={(e: React.MouseEvent) => {
-                                  e.stopPropagation();
-                                  setExpandedTaskOutput(
-                                    expandedTaskOutput === task.id ? null : task.id,
-                                  );
-                                }}
-                              >
-                                {expandedTaskOutput === task.id ? "Hide output" : "Show output"}
-                              </button>
-                              {expandedTaskOutput === task.id && (
-                                <pre
-                                  style={{
-                                    marginTop: 6,
-                                    padding: "0.75rem",
-                                    background: "#1e1e1e",
-                                    color: "#d4d4d4",
-                                    borderRadius: 6,
-                                    fontSize: "0.7rem",
-                                    lineHeight: 1.5,
-                                    whiteSpace: "pre-wrap",
-                                    wordBreak: "break-word",
-                                    maxHeight: 400,
-                                    overflow: "auto",
+                            <div className="project-task-section">
+                              <div className="project-task-output-summary">
+                                <div>
+                                  <span className="project-task-section-label">Agent output</span>
+                                  <p className="project-task-output-preview">
+                                    {summarizeTaskOutput(task.output)}
+                                  </p>
+                                </div>
+                                <button
+                                  type="button"
+                                  className="project-task-output-toggle"
+                                  onClick={(e: React.MouseEvent) => {
+                                    e.stopPropagation();
+                                    setExpandedTaskOutput(
+                                      expandedTaskOutput === task.id ? null : task.id,
+                                    );
                                   }}
                                 >
-                                  {task.output}
-                                </pre>
+                                  {expandedTaskOutput === task.id
+                                    ? "Hide full output"
+                                    : "Review full output"}
+                                </button>
+                              </div>
+                              {expandedTaskOutput === task.id && (
+                                <pre className="project-task-output">{task.output}</pre>
                               )}
                             </div>
                           )}
 
-                          <div
-                            className="text-sm text-muted"
-                            style={{ marginTop: 6, fontSize: "0.7rem" }}
-                          >
-                            Created {timeAgo(task.createdAt)}
-                            {task.status === "completed" &&
-                              task.updatedAt &&
-                              ` · Finished ${timeAgo(task.updatedAt)}`}
-                            {task.costUsd != null &&
-                              Number(task.costUsd) > 0 &&
-                              ` · $${Number(task.costUsd).toFixed(4)}`}
+                          <div className="project-task-meta">
+                            <span>Created {timeAgo(task.createdAt)}</span>
+                            {task.status === "completed" && task.updatedAt && (
+                              <span>Finished {timeAgo(task.updatedAt)}</span>
+                            )}
+                            {task.costUsd != null && Number(task.costUsd) > 0 && (
+                              <span>${Number(task.costUsd).toFixed(4)}</span>
+                            )}
                           </div>
                         </div>
                       ))

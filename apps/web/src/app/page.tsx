@@ -12,6 +12,8 @@ import { type ActivityItem, eventToActivity } from "../lib/activity";
 import { type Project, type Workspace, api } from "../lib/api";
 import { getProviderStyle, timeAgo } from "../lib/utils";
 
+const PROJECT_PAGE_LIMIT = 100;
+
 const STATUS_ICONS: Record<string, string> = {
   draft: "\u{1F4DD}",
   planning: "\u{2699}\u{FE0F}",
@@ -46,6 +48,138 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 type SortOption = "newest" | "oldest" | "name_asc" | "name_desc";
+type GuidanceAction =
+  | { kind: "link"; href: string; label: string; variant: "primary" | "secondary" }
+  | { kind: "filter"; status: string; label: string; variant: "primary" | "secondary" };
+
+function getHomeGuidance({
+  workspaceCount,
+  projectCount,
+  activeCount,
+  draftCount,
+  failedCount,
+}: {
+  workspaceCount: number;
+  projectCount: number;
+  activeCount: number;
+  draftCount: number;
+  failedCount: number;
+}): {
+  eyebrow: string;
+  title: string;
+  description: string;
+  actions: GuidanceAction[];
+} {
+  if (workspaceCount === 0) {
+    return {
+      eyebrow: "Set up the system",
+      title: "Create the first workspace",
+      description:
+        "Workspaces hold your features, projects, and agent configuration. Nothing else is useful until this exists.",
+      actions: [
+        {
+          kind: "link",
+          href: "/workspaces/new",
+          label: "Create Workspace",
+          variant: "primary" as const,
+        },
+      ],
+    };
+  }
+
+  if (projectCount === 0) {
+    return {
+      eyebrow: "No execution yet",
+      title: "Turn ideas into the first project",
+      description:
+        "Add features on the board if you want prioritization, or create a project directly if the goal is already clear.",
+      actions: [
+        { kind: "link", href: "/board", label: "Open Feature Board", variant: "primary" as const },
+        {
+          kind: "link",
+          href: "/projects/new",
+          label: "Create Project",
+          variant: "secondary" as const,
+        },
+      ],
+    };
+  }
+
+  if (failedCount > 0) {
+    return {
+      eyebrow: "Attention needed",
+      title: "Resolve failed execution before starting more work",
+      description:
+        "Failed projects usually mean the brief, repo context, or downstream tasks need correction. Review the failures first.",
+      actions: [
+        {
+          kind: "filter",
+          status: "failed",
+          label: "Show Failed Projects",
+          variant: "primary" as const,
+        },
+        {
+          kind: "link",
+          href: "/board",
+          label: "Check Feature Board",
+          variant: "secondary" as const,
+        },
+      ],
+    };
+  }
+
+  if (activeCount > 0) {
+    return {
+      eyebrow: "Execution in motion",
+      title: "Monitor active projects and unblock agents quickly",
+      description:
+        "Use the project detail pages to inspect workstreams, failed tasks, escalations, and generated artifacts while execution is live.",
+      actions: [
+        { kind: "link", href: "/board", label: "Open Feature Board", variant: "primary" as const },
+        {
+          kind: "link",
+          href: "/projects/new",
+          label: "Create Another Project",
+          variant: "secondary" as const,
+        },
+      ],
+    };
+  }
+
+  if (draftCount > 0) {
+    return {
+      eyebrow: "Drafts waiting",
+      title: "Start planning on saved project briefs",
+      description:
+        "Draft projects are defined but not executing. Review provider and repo settings, then start planning to generate architecture and workstreams.",
+      actions: [
+        {
+          kind: "link",
+          href: "/projects/new",
+          label: "Create Project",
+          variant: "secondary" as const,
+        },
+        { kind: "link", href: "/board", label: "Prioritize Features", variant: "primary" as const },
+      ],
+    };
+  }
+
+  return {
+    eyebrow: "Pipeline healthy",
+    title: "Pick the next outcome to ship",
+    description:
+      "Your current queue is stable. Use the board to prioritize upcoming work or create a new project brief for the next execution cycle.",
+    actions: [
+      { kind: "link", href: "/board", label: "Prioritize Features", variant: "primary" as const },
+      {
+        kind: "link",
+        href: "/projects/new",
+        label: "Create Project",
+        variant: "secondary" as const,
+      },
+    ],
+  };
+}
 
 export default function HomePage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -62,7 +196,7 @@ export default function HomePage() {
   const fetchProjects = useCallback(async () => {
     try {
       const [data, wsData] = await Promise.all([
-        api.projects.list(20, 0, showArchived),
+        api.projects.list(PROJECT_PAGE_LIMIT, 0, showArchived),
         api.workspaces.list(100, 0),
       ]);
       setProjects(data.data);
@@ -137,6 +271,18 @@ export default function HomePage() {
   }, [projects, statusFilter, searchQuery, sortBy]);
 
   const archivedCount = statusCounts.archived ?? 0;
+  const activeCount = projects.filter((p) => ["planning", "in_progress"].includes(p.status)).length;
+  const draftCount = projects.filter((p) => p.status === "draft").length;
+  const failedCount = projects.filter((p) => p.status === "failed").length;
+  const completedCount = projects.filter((p) => p.status === "completed").length;
+  const homeGuidance = getHomeGuidance({
+    workspaceCount: workspaces.length,
+    projectCount: projects.length,
+    activeCount,
+    draftCount,
+    failedCount,
+  });
+  const isSubset = total > projects.length;
 
   if (loading) {
     return (
@@ -162,18 +308,66 @@ export default function HomePage() {
   return (
     <div className="home-layout">
       <div className="home-projects">
-        <div className="flex justify-between items-center mb-2">
-          <h2 style={{ margin: 0 }}>Projects ({total})</h2>
+        <section className="home-overview card">
+          <div className="home-overview-copy">
+            <p className="home-overview-eyebrow">{homeGuidance.eyebrow}</p>
+            <h1 className="home-overview-title">{homeGuidance.title}</h1>
+            <p className="home-overview-description">{homeGuidance.description}</p>
+            <div className="home-overview-actions">
+              {homeGuidance.actions.map((action) =>
+                action.kind === "link" ? (
+                  <Link
+                    key={`${action.kind}:${action.href}:${action.label}`}
+                    href={action.href}
+                    className={`btn ${action.variant === "primary" ? "btn-primary" : "btn-secondary"}`}
+                  >
+                    {action.label}
+                  </Link>
+                ) : (
+                  <button
+                    key={`${action.kind}:${action.status}:${action.label}`}
+                    type="button"
+                    className={`btn ${action.variant === "primary" ? "btn-primary" : "btn-secondary"}`}
+                    onClick={() => setStatusFilter(action.status)}
+                  >
+                    {action.label}
+                  </button>
+                ),
+              )}
+            </div>
+          </div>
+
+          <div className="home-overview-stats" aria-label="Workspace and project summary">
+            <div className="home-stat-card">
+              <span className="home-stat-value">{workspaces.length}</span>
+              <span className="home-stat-label">Workspaces</span>
+            </div>
+            <div className="home-stat-card">
+              <span className="home-stat-value">{activeCount}</span>
+              <span className="home-stat-label">Active Projects</span>
+            </div>
+            <div className="home-stat-card">
+              <span className="home-stat-value">{draftCount}</span>
+              <span className="home-stat-label">Drafts</span>
+            </div>
+            <div className="home-stat-card">
+              <span className="home-stat-value">{completedCount}</span>
+              <span className="home-stat-label">Completed</span>
+            </div>
+          </div>
+        </section>
+
+        <div className="home-section-head">
+          <div>
+            <h2 style={{ margin: 0 }}>Projects</h2>
+            <p className="home-section-subtitle">
+              {isSubset
+                ? `Showing ${projects.length} recent projects out of ${total}.`
+                : `${total} project${total === 1 ? "" : "s"} in the current view.`}
+            </p>
+          </div>
           {archivedCount > 0 && (
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                cursor: "pointer",
-                fontSize: "0.85rem",
-              }}
-            >
+            <label className="home-archive-toggle">
               <input
                 type="checkbox"
                 checked={showArchived}
@@ -225,24 +419,27 @@ export default function HomePage() {
         </div>
 
         {filteredProjects.length === 0 ? (
-          <div className="card" style={{ textAlign: "center", padding: "3rem" }}>
+          <div className="card home-empty-state">
             {projects.length === 0 ? (
               workspaces.length === 0 ? (
                 <>
+                  <p className="home-empty-title">No workspaces yet</p>
                   <p className="text-muted mb-2">
-                    No projects yet. Create a workspace and add features to get started.
+                    Create a workspace first. After that you can add features on the board or open a
+                    project directly.
                   </p>
-                  <Link href="/workspaces" className="btn btn-primary">
+                  <Link href="/workspaces/new" className="btn btn-primary">
                     Create Workspace
                   </Link>
                 </>
               ) : (
                 <>
+                  <p className="home-empty-title">No projects yet</p>
                   <p className="text-muted mb-2">
-                    No projects yet. Create features and kick them off, or create a project
-                    directly.
+                    Start from the feature board if you want prioritization, or create a project now
+                    if the brief is ready.
                   </p>
-                  <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                  <div className="home-empty-actions">
                     <Link href="/board" className="btn btn-secondary">
                       Feature Board
                     </Link>
@@ -254,7 +451,10 @@ export default function HomePage() {
               )
             ) : (
               <>
-                <p className="text-muted mb-2">No projects match your filters.</p>
+                <p className="home-empty-title">No projects match the current filters</p>
+                <p className="text-muted mb-2">
+                  Clear the search or status filters to return to the full project queue.
+                </p>
                 <button
                   type="button"
                   className="btn btn-secondary"

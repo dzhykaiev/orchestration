@@ -8,26 +8,203 @@ import type {
   WorkspaceDto,
   WorkstreamDto,
 } from "@orchestration/shared";
+import { buildApiUrl } from "./api-base";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+type ApiFieldErrors = Record<string, string[]>;
+
+interface ApiErrorBody {
+  error?: string;
+  message?: string;
+  statusCode?: number;
+  requestId?: string;
+  details?: unknown;
+}
+
+function normalizeFieldErrors(details: unknown): ApiFieldErrors {
+  if (!details || typeof details !== "object" || Array.isArray(details)) {
+    return {};
+  }
+
+  const fieldErrors = (details as { fieldErrors?: unknown }).fieldErrors;
+  if (!fieldErrors || typeof fieldErrors !== "object" || Array.isArray(fieldErrors)) {
+    return {};
+  }
+
+  const normalized: ApiFieldErrors = {};
+  for (const [field, value] of Object.entries(fieldErrors as Record<string, unknown>)) {
+    if (!Array.isArray(value)) continue;
+    const messages = value.filter(
+      (item): item is string => typeof item === "string" && item.length > 0,
+    );
+    if (messages.length > 0) {
+      normalized[field] = messages;
+    }
+  }
+
+  return normalized;
+}
+
+function normalizeFormErrors(details: unknown): string[] {
+  if (!details || typeof details !== "object" || Array.isArray(details)) {
+    return [];
+  }
+
+  const formErrors = (details as { formErrors?: unknown }).formErrors;
+  if (!Array.isArray(formErrors)) {
+    return [];
+  }
+
+  return formErrors.filter((item): item is string => typeof item === "string" && item.length > 0);
+}
+
+function stringifyErrorDetails(details: unknown): string | undefined {
+  const fieldErrors = normalizeFieldErrors(details);
+  const formErrors = normalizeFormErrors(details);
+  const lines: string[] = [];
+
+  for (const formError of formErrors) {
+    lines.push(formError);
+  }
+
+  for (const [field, messages] of Object.entries(fieldErrors)) {
+    lines.push(`${field}: ${messages.join(", ")}`);
+  }
+
+  if (lines.length > 0) {
+    return lines.join("\n");
+  }
+
+  if (typeof details === "string" && details.trim()) {
+    return details;
+  }
+
+  return undefined;
+}
+
+function humanizeApiErrorMessage(message: string, statusCode: number, details: unknown): string {
+  if (statusCode === 409) {
+    return message || "This item was updated by another process. Refresh and try again.";
+  }
+
+  if (message === "Validation Error") {
+    const fieldErrors = normalizeFieldErrors(details);
+    const firstFieldError = Object.values(fieldErrors)[0]?.[0];
+    return firstFieldError || "Please review the highlighted fields and try again.";
+  }
+
+  return message || `API error: ${statusCode}`;
+}
+
+export class ApiError extends Error {
+  statusCode: number;
+  requestId?: string;
+  details?: unknown;
+  detailsText?: string;
+  fieldErrors: ApiFieldErrors;
+  formErrors: string[];
+
+  constructor({
+    message,
+    statusCode,
+    requestId,
+    details,
+  }: {
+    message: string;
+    statusCode: number;
+    requestId?: string;
+    details?: unknown;
+  }) {
+    super(message);
+    this.name = "ApiError";
+    this.statusCode = statusCode;
+    this.requestId = requestId;
+    this.details = details;
+    this.detailsText = stringifyErrorDetails(details);
+    this.fieldErrors = normalizeFieldErrors(details);
+    this.formErrors = normalizeFormErrors(details);
+  }
+}
+
+export function getErrorMessage(error: unknown, fallback = "Something went wrong"): string {
+  if (error instanceof ApiError) return error.message;
+  if (error instanceof Error) return error.message;
+  return fallback;
+}
+
+export function getErrorFieldErrors(error: unknown): ApiFieldErrors {
+  if (error instanceof ApiError) return error.fieldErrors;
+  return {};
+}
+
+export function getErrorDetails(error: unknown): string | undefined {
+  if (error instanceof ApiError) {
+    return error.detailsText;
+  }
+  return undefined;
+}
 
 async function fetchAPI<T>(path: string, opts?: RequestInit): Promise<T> {
   const headers: Record<string, string> = { ...(opts?.headers as Record<string, string>) };
   if (opts?.body) {
     headers["Content-Type"] = "application/json";
   }
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...opts,
-    headers,
-  });
-  if (!res.ok) {
-    const body = (await res.json().catch(() => ({ error: res.statusText }))) as Record<
-      string,
-      string
-    >;
-    throw new Error(body.error || `API error: ${res.status}`);
+  let res: Response;
+  try {
+    res = await fetch(buildApiUrl(path), {
+      ...opts,
+      headers,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown network error";
+    throw new Error(`Network error while requesting ${path}: ${message}`);
   }
-  return res.json() as Promise<T>;
+  if (!res.ok) {
+    const contentType = res.headers.get("content-type") || "";
+    let body: ApiErrorBody = {};
+
+    if (contentType.includes("application/json")) {
+      body = (await res.json().catch(() => ({}))) as ApiErrorBody;
+    } else {
+      const text = await res.text().catch(() => "");
+      body = text.trim() ? { error: text } : {};
+    }
+
+    const statusCode = body.statusCode ?? res.status;
+    const message = humanizeApiErrorMessage(
+      body.error || body.message || res.statusText,
+      statusCode,
+      body.details,
+    );
+
+    throw new ApiError({
+      message,
+      statusCode,
+      requestId: body.requestId,
+      details: body.details,
+    });
+  }
+  if (res.status === 204 || res.status === 205 || opts?.method?.toUpperCase() === "HEAD") {
+    return undefined as T;
+  }
+
+  const contentLength = res.headers.get("content-length");
+  if (contentLength === "0") {
+    return undefined as T;
+  }
+
+  const contentType = res.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    const text = await res.text();
+    if (!text.trim()) return undefined as T;
+    throw new Error("API error: expected JSON response");
+  }
+
+  const text = await res.text();
+  if (!text.trim()) {
+    return undefined as T;
+  }
+
+  return JSON.parse(text) as T;
 }
 
 // --- Types ---
@@ -235,4 +412,5 @@ export type {
   AuditLog,
   Artifact,
   AgentDefinition,
+  ApiFieldErrors,
 };

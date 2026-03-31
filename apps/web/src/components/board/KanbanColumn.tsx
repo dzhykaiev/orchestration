@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Feature } from "../../lib/api";
+import type { Feature, Project } from "../../lib/api";
 import { FeatureCard } from "./FeatureCard";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -23,6 +23,7 @@ const STATUS_COLORS: Record<string, string> = {
 interface KanbanColumnProps {
   status: Feature["status"];
   features: Feature[];
+  linkedProjects: Record<string, Pick<Project, "id" | "name" | "status">>;
   onDrop: (featureId: string, newStatus: Feature["status"]) => void;
   onEdit: (feature: Feature) => void;
   onKickoff?: (feature: Feature) => void;
@@ -32,6 +33,7 @@ interface KanbanColumnProps {
 export function KanbanColumn({
   status,
   features,
+  linkedProjects,
   onDrop,
   onEdit,
   onKickoff,
@@ -76,6 +78,11 @@ export function KanbanColumn({
             <FeatureCard
               key={feature.id}
               feature={feature}
+              linkedProject={
+                feature.orchestrationProjectId
+                  ? linkedProjects[feature.orchestrationProjectId]
+                  : undefined
+              }
               onEdit={onEdit}
               onKickoff={onKickoff}
               onDelete={onDelete}

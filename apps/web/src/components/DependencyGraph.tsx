@@ -23,13 +23,41 @@ const dagreGraph = new dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
 const NODE_WIDTH = 200;
 const NODE_HEIGHT = 80;
 
-const STATUS_COLORS: Record<string, string> = {
-  pending: "#dee2e6",
-  blocked: "#adb5bd",
-  in_progress: "#ffc107",
-  completed: "#28a745",
-  failed: "#dc3545",
+const DEFAULT_STATUS_THEME = {
+  solid: "var(--color-status-neutral-text)",
+  bg: "var(--color-status-neutral-bg)",
+  text: "var(--color-status-neutral-text)",
+} as const;
+
+const STATUS_THEME: Record<string, { solid: string; bg: string; text: string }> = {
+  pending: {
+    ...DEFAULT_STATUS_THEME,
+  },
+  blocked: {
+    solid: "var(--color-status-red-text)",
+    bg: "var(--color-status-red-bg)",
+    text: "var(--color-status-red-text)",
+  },
+  in_progress: {
+    solid: "var(--color-status-yellow-text)",
+    bg: "var(--color-status-yellow-bg)",
+    text: "var(--color-status-yellow-text)",
+  },
+  completed: {
+    solid: "var(--color-status-green-text)",
+    bg: "var(--color-status-green-bg)",
+    text: "var(--color-status-green-text)",
+  },
+  failed: {
+    solid: "var(--color-status-red-text)",
+    bg: "var(--color-status-red-bg)",
+    text: "var(--color-status-red-text)",
+  },
 };
+
+function getStatusTheme(status: string) {
+  return STATUS_THEME[status] ?? DEFAULT_STATUS_THEME;
+}
 
 const STATUS_ICONS: Record<string, string> = {
   pending: "\u23F3",
@@ -83,7 +111,7 @@ function getLayoutedElements(nodes: Node[], edges: Edge[], direction = "LR") {
 
 function WorkstreamNode({ data }: { data: Record<string, unknown> }) {
   const status = (data.status as string) || "pending";
-  const color = STATUS_COLORS[status] || "#dee2e6";
+  const theme = getStatusTheme(status);
   const icon = STATUS_ICONS[status] || "";
   const isActive = status === "in_progress";
 
@@ -91,16 +119,18 @@ function WorkstreamNode({ data }: { data: Record<string, unknown> }) {
     <div
       style={{
         background: "var(--color-surface)",
-        border: `2px solid ${color}`,
+        border: `2px solid ${theme.solid}`,
         borderWidth: isActive ? 3 : 2,
         borderRadius: "var(--radius)",
         padding: "10px 14px",
         minWidth: 160,
         maxWidth: NODE_WIDTH,
-        boxShadow: isActive ? `0 0 12px ${color}44` : "var(--shadow)",
+        boxShadow: isActive
+          ? `0 0 12px color-mix(in srgb, ${theme.solid} 35%, transparent)`
+          : "var(--shadow)",
       }}
     >
-      <Handle type="target" position={Position.Left} style={{ background: color }} />
+      <Handle type="target" position={Position.Left} style={{ background: theme.solid }} />
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
         <span style={{ fontSize: "0.85rem" }}>{icon}</span>
         <strong
@@ -123,8 +153,8 @@ function WorkstreamNode({ data }: { data: Record<string, unknown> }) {
             fontWeight: 600,
             padding: "1px 8px",
             borderRadius: 10,
-            background: `${color}22`,
-            color: color === "#ffc107" ? "#856404" : color,
+            background: theme.bg,
+            color: theme.text,
           }}
         >
           {status.replace("_", " ")}
@@ -144,7 +174,7 @@ function WorkstreamNode({ data }: { data: Record<string, unknown> }) {
           </span>
         )}
       </div>
-      <Handle type="source" position={Position.Right} style={{ background: color }} />
+      <Handle type="source" position={Position.Right} style={{ background: theme.solid }} />
     </div>
   );
 }
@@ -174,18 +204,23 @@ export function DependencyGraph({ workstreams, onNodeClick }: DependencyGraphPro
         if (depWs) {
           const depCompleted = depWs.status === "completed";
           const depActive = depWs.status === "in_progress";
+          const edgeColor = depCompleted
+            ? "var(--color-status-green-text)"
+            : depActive
+              ? "var(--color-status-yellow-text)"
+              : "var(--color-status-neutral-text)";
           edges.push({
             id: `${depWs.id}-${ws.id}`,
             source: depWs.id,
             target: ws.id,
             animated: depActive,
             style: {
-              stroke: depCompleted ? "#28a745" : depActive ? "#ffc107" : "#adb5bd",
+              stroke: edgeColor,
               strokeWidth: 2,
             },
             markerEnd: {
               type: "arrowclosed" as const,
-              color: depCompleted ? "#28a745" : depActive ? "#ffc107" : "#adb5bd",
+              color: edgeColor,
             },
           });
         }
@@ -236,7 +271,7 @@ export function DependencyGraph({ workstreams, onNodeClick }: DependencyGraphPro
         <MiniMap
           nodeColor={(node) => {
             const status = (node.data?.status as string) || "pending";
-            return STATUS_COLORS[status] || "#dee2e6";
+            return getStatusTheme(status).solid;
           }}
           maskColor="rgba(0,0,0,0.1)"
           style={{

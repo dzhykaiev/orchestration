@@ -3,12 +3,12 @@
 import type { AgentDefinition } from "../lib/api";
 
 const TIER_COLORS: Record<string, string> = {
-  ceo: "#ef4444",
-  planner: "#f59e0b",
-  architect: "#3b82f6",
-  lead: "#8b5cf6",
-  specialist: "#22c55e",
-  reviewer: "#ec4899",
+  ceo: "var(--color-tier-ceo)",
+  planner: "var(--color-tier-planner)",
+  architect: "var(--color-tier-architect)",
+  lead: "var(--color-tier-lead)",
+  specialist: "var(--color-tier-specialist)",
+  reviewer: "var(--color-tier-reviewer)",
 };
 
 export function AgentHierarchy({ agents }: { agents: AgentDefinition[] }) {
@@ -31,60 +31,66 @@ export function AgentHierarchy({ agents }: { agents: AgentDefinition[] }) {
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="agent-hierarchy">
       {tiers.map((tier) => {
         const tierAgents = byTier.get(tier);
         if (!tierAgents || tierAgents.length === 0) return null;
+
         return (
-          <div key={tier}>
-            <div className="flex items-center gap-2" style={{ marginBottom: "0.5rem" }}>
-              <span
-                style={{
-                  display: "inline-block",
-                  width: 10,
-                  height: 10,
-                  borderRadius: "50%",
-                  background: TIER_COLORS[tier] || "#6b7280",
-                }}
-              />
-              <strong style={{ fontSize: "0.85rem", textTransform: "capitalize" }}>{tier}</strong>
+          <section key={tier} className="agent-tier-section card">
+            <div className="agent-tier-header">
+              <div className="agent-tier-label">
+                <span
+                  className="agent-tier-dot"
+                  style={{ background: TIER_COLORS[tier] || "var(--color-text-muted)" }}
+                />
+                <strong>{tier}</strong>
+              </div>
+              <span className="agent-tier-count">
+                {tierAgents.length} agent{tierAgents.length === 1 ? "" : "s"}
+              </span>
             </div>
-            <div
-              className="grid gap-2"
-              style={{
-                gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-                paddingLeft: "1.25rem",
-              }}
-            >
+
+            <div className="agent-card-grid">
               {tierAgents.map((agent) => (
-                <div
+                <article
                   key={agent.id}
-                  className="card"
+                  className="agent-card"
                   style={{
-                    padding: "0.75rem",
-                    borderLeft: `3px solid ${TIER_COLORS[tier] || "#6b7280"}`,
+                    borderLeftColor: TIER_COLORS[tier] || "var(--color-text-muted)",
                   }}
                 >
-                  <div style={{ fontWeight: 600, fontSize: "0.85rem" }}>{agent.name}</div>
-                  <div style={{ fontSize: "0.75rem", color: "var(--color-text-secondary)" }}>
-                    {agent.role}
-                    {agent.parentRole && ` → reports to ${agent.parentRole}`}
-                  </div>
-                  {agent.provider && (
-                    <div
-                      style={{
-                        fontSize: "0.7rem",
-                        color: "var(--color-text-secondary)",
-                        marginTop: 2,
-                      }}
-                    >
-                      Provider: {agent.provider}
+                  <div className="agent-card-top">
+                    <div>
+                      <h3 className="agent-card-name">{agent.name}</h3>
+                      <p className="agent-card-role">
+                        {agent.role}
+                        {agent.parentRole && ` -> reports to ${agent.parentRole}`}
+                      </p>
                     </div>
-                  )}
-                </div>
+                    <span className="agent-card-tier">{agent.tier}</span>
+                  </div>
+
+                  <div className="agent-card-meta">
+                    <span>
+                      {agent.provider ? `Provider: ${agent.provider}` : "Provider not set"}
+                    </span>
+                    <span>
+                      {agent.systemPrompt
+                        ? "Custom prompt defined"
+                        : "Using default prompt behavior"}
+                    </span>
+                    <span>
+                      {agent.capabilities.length > 0
+                        ? `${agent.capabilities.length} capabilities`
+                        : "No custom capabilities"}
+                    </span>
+                    <span>Max concurrent tasks: {agent.maxConcurrentTasks}</span>
+                  </div>
+                </article>
               ))}
             </div>
-          </div>
+          </section>
         );
       })}
     </div>

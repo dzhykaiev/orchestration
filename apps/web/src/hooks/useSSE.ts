@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { buildApiUrl } from "../lib/api-base";
 
 interface UseSSEOptions {
   projectId?: string;
@@ -34,10 +35,9 @@ export function useSSE(options: UseSSEOptions) {
   const connect = useCallback(() => {
     cleanup();
 
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
     const url = projectId
-      ? `${baseUrl}/api/events?projectId=${encodeURIComponent(projectId)}`
-      : `${baseUrl}/api/events`;
+      ? buildApiUrl(`/api/events?projectId=${encodeURIComponent(projectId)}`)
+      : buildApiUrl("/api/events");
 
     const es = new EventSource(url);
     eventSourceRef.current = es;

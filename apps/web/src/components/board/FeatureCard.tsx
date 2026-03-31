@@ -1,6 +1,8 @@
 "use client";
 
-import type { Feature } from "../../lib/api";
+import Link from "next/link";
+import type { Feature, Project } from "../../lib/api";
+import { StatusBadge } from "../ui/StatusBadge";
 
 const TYPE_LABELS: Record<string, string> = {
   feature: "Feature",
@@ -18,12 +20,19 @@ const PRIORITY_LABELS: Record<number, string> = {
 
 interface FeatureCardProps {
   feature: Feature;
+  linkedProject?: Pick<Project, "id" | "name" | "status">;
   onEdit: (feature: Feature) => void;
   onKickoff?: (feature: Feature) => void;
   onDelete: (feature: Feature) => void;
 }
 
-export function FeatureCard({ feature, onEdit, onKickoff, onDelete }: FeatureCardProps) {
+export function FeatureCard({
+  feature,
+  linkedProject,
+  onEdit,
+  onKickoff,
+  onDelete,
+}: FeatureCardProps) {
   function handleDragStart(e: React.DragEvent) {
     e.dataTransfer.setData("text/plain", feature.id);
     e.dataTransfer.effectAllowed = "move";
@@ -54,26 +63,29 @@ export function FeatureCard({ feature, onEdit, onKickoff, onDelete }: FeatureCar
         </p>
       )}
       {feature.orchestrationProjectId && (
-        <div style={{ marginTop: 6, marginBottom: 2 }}>
-          <a
+        <div className="feature-project-meta">
+          <div className="feature-project-meta-top">
+            <span className="feature-project-label">Linked project</span>
+            {linkedProject && <StatusBadge status={linkedProject.status} />}
+          </div>
+          <Link
             href={`/projects/${feature.orchestrationProjectId}`}
             onClick={(e) => e.stopPropagation()}
             className="feature-project-link"
-            style={{ fontSize: "0.7rem", padding: "1px 8px", borderRadius: 10, fontWeight: 600 }}
           >
-            Linked to project
-          </a>
+            {linkedProject?.name || "Open project"}
+          </Link>
         </div>
       )}
       <div className="feature-card-footer">
         {feature.orchestrationProjectId ? (
-          <a
+          <Link
             href={`/projects/${feature.orchestrationProjectId}`}
             className="feature-project-link"
             onClick={(e) => e.stopPropagation()}
           >
             View Project
-          </a>
+          </Link>
         ) : (
           onKickoff &&
           feature.status === "todo" && (

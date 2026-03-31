@@ -4,7 +4,17 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Breadcrumbs } from "../../../components/Breadcrumbs";
-import { api } from "../../../lib/api";
+import {
+  type ApiFieldErrors,
+  api,
+  getErrorDetails,
+  getErrorFieldErrors,
+  getErrorMessage,
+} from "../../../lib/api";
+
+function getFieldError(fieldErrors: ApiFieldErrors, field: string): string | undefined {
+  return fieldErrors[field]?.[0];
+}
 
 export default function NewWorkspacePage() {
   const router = useRouter();
@@ -12,6 +22,9 @@ export default function NewWorkspacePage() {
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
   const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<string | undefined>();
+  const [fieldErrors, setFieldErrors] = useState<ApiFieldErrors>({});
 
   const autoSlug = (val: string) =>
     val
@@ -22,6 +35,9 @@ export default function NewWorkspacePage() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreating(true);
+    setError(null);
+    setErrorDetails(undefined);
+    setFieldErrors({});
     try {
       const { workspace } = await api.workspaces.create({
         name,
@@ -29,6 +45,10 @@ export default function NewWorkspacePage() {
         description: description || undefined,
       });
       router.push(`/workspaces/${workspace.id}`);
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to create workspace"));
+      setErrorDetails(getErrorDetails(err));
+      setFieldErrors(getErrorFieldErrors(err));
     } finally {
       setCreating(false);
     }
@@ -63,14 +83,20 @@ export default function NewWorkspacePage() {
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
+                setFieldErrors((prev) => ({ ...prev, name: [] }));
                 if (!slug || slug === autoSlug(name)) {
                   setSlug(autoSlug(e.target.value));
                 }
               }}
               placeholder="My Company"
               required
-              autoFocus
             />
+            <p className="field-hint">
+              Name the team, product area, or company this workspace belongs to.
+            </p>
+            {getFieldError(fieldErrors, "name") && (
+              <p className="field-error">{getFieldError(fieldErrors, "name")}</p>
+            )}
           </div>
 
           <div>
@@ -81,9 +107,18 @@ export default function NewWorkspacePage() {
               id="ws-slug"
               className="input"
               value={slug}
-              onChange={(e) => setSlug(e.target.value)}
+              onChange={(e) => {
+                setSlug(e.target.value);
+                setFieldErrors((prev) => ({ ...prev, slug: [] }));
+              }}
               placeholder="my-company"
             />
+            <p className="field-hint">
+              Used in URLs and identifiers. Letters, numbers, and hyphens work best.
+            </p>
+            {getFieldError(fieldErrors, "slug") && (
+              <p className="field-error">{getFieldError(fieldErrors, "slug")}</p>
+            )}
           </div>
 
           <div>
@@ -94,11 +129,27 @@ export default function NewWorkspacePage() {
               id="ws-desc"
               className="textarea"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => {
+                setDescription(e.target.value);
+                setFieldErrors((prev) => ({ ...prev, description: [] }));
+              }}
               rows={3}
               placeholder="What is this workspace for?"
             />
+            <p className="field-hint">
+              Optional, but useful when multiple teams share the same dashboard.
+            </p>
+            {getFieldError(fieldErrors, "description") && (
+              <p className="field-error">{getFieldError(fieldErrors, "description")}</p>
+            )}
           </div>
+
+          {error && (
+            <div className="error-banner" role="alert">
+              <strong>{error}</strong>
+              {errorDetails && <pre className="error-banner-details">{errorDetails}</pre>}
+            </div>
+          )}
 
           <div className="flex gap-2" style={{ marginTop: "0.5rem" }}>
             <button type="submit" className="btn btn-primary" disabled={creating || !name.trim()}>
