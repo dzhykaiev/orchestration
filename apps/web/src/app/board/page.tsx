@@ -194,22 +194,56 @@ export default function BoardPage() {
 
   if (loading) {
     return (
-      <div>
+      <div className="kanban-page">
         <Breadcrumbs items={[{ label: "Board" }]} />
-        <h2>Feature Board</h2>
-        <p className="text-muted">Loading...</p>
+        <div className="ws-page-header">
+          <div className="ws-page-header-row">
+            <div>
+              <h2 className="ws-page-title">Feature Board</h2>
+              <p className="ws-page-subtitle">Loading...</p>
+            </div>
+          </div>
+        </div>
+        <div className="skeleton" style={{ height: 300 }} />
       </div>
     );
   }
 
   if (workspaces.length === 0) {
     return (
-      <div>
+      <div className="kanban-page">
         <Breadcrumbs items={[{ label: "Board" }]} />
-        <h2>Feature Board</h2>
-        <div className="card" style={{ textAlign: "center", padding: "3rem" }}>
-          <p className="text-muted mb-2">Create a workspace to manage features.</p>
-          <Link href="/workspaces" className="btn btn-primary">
+        <div className="ws-page-header">
+          <div className="ws-page-header-row">
+            <div>
+              <h2 className="ws-page-title">Feature Board</h2>
+              <p className="ws-page-subtitle">Manage features across your workspace</p>
+            </div>
+          </div>
+        </div>
+        <div className="workspace-empty">
+          <div className="workspace-empty-icon" aria-hidden="true">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect x="3" y="3" width="7" height="7" />
+              <rect x="14" y="3" width="7" height="7" />
+              <rect x="14" y="14" width="7" height="7" />
+              <rect x="3" y="14" width="7" height="7" />
+            </svg>
+          </div>
+          <h3 className="workspace-empty-title">No workspaces found</h3>
+          <p className="workspace-empty-desc">
+            Create a workspace first to manage features on a Kanban board.
+          </p>
+          <Link href="/workspaces/new" className="btn btn-primary">
             Create Workspace
           </Link>
         </div>
@@ -221,49 +255,64 @@ export default function BoardPage() {
     <div className="kanban-page">
       <Breadcrumbs items={[{ label: "Board" }]} />
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "1.5rem",
-        }}
-      >
-        <div>
-          <h2 style={{ margin: 0 }}>Feature Board</h2>
-          <p className="text-muted" style={{ margin: "0.25rem 0 0" }}>
-            Drag features between columns. Kickoff from Todo to start self-improvement.
-          </p>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <select
-            className="input"
-            value={selectedWorkspaceId}
-            onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-              handleWorkspaceChange(e.target.value)
-            }
-            aria-label="Select workspace"
-            style={{ padding: "0.35rem 0.5rem", width: "auto", minWidth: 180 }}
-          >
-            {workspaces.map((ws) => (
-              <option key={ws.id} value={ws.id}>
-                {ws.name}
-              </option>
-            ))}
-          </select>
-          <button type="button" className="btn btn-primary" onClick={handleNewFeature}>
-            + New Feature
-          </button>
+      <div className="ws-page-header">
+        <div className="ws-page-header-row">
+          <div>
+            <h2 className="ws-page-title">Feature Board</h2>
+            <p className="ws-page-subtitle">
+              Drag features between columns. Kickoff from Todo to start self-improvement.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <select
+              className="input"
+              value={selectedWorkspaceId}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                handleWorkspaceChange(e.target.value)
+              }
+              aria-label="Select workspace"
+              style={{ padding: "0.375rem 0.625rem", width: "auto", minWidth: 160 }}
+            >
+              {workspaces.map((ws) => (
+                <option key={ws.id} value={ws.id}>
+                  {ws.name}
+                </option>
+              ))}
+            </select>
+            <button type="button" className="btn btn-primary" onClick={handleNewFeature}>
+              New Feature
+            </button>
+          </div>
         </div>
       </div>
 
       {features.length === 0 ? (
-        <div className="card" style={{ textAlign: "center", padding: "3rem" }}>
-          <p className="text-muted mb-2">
-            No features in this workspace. Add your first feature to the backlog.
+        <div className="workspace-empty">
+          <div className="workspace-empty-icon" aria-hidden="true">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="8" y1="6" x2="21" y2="6" />
+              <line x1="8" y1="12" x2="21" y2="12" />
+              <line x1="8" y1="18" x2="21" y2="18" />
+              <line x1="3" y1="6" x2="3.01" y2="6" />
+              <line x1="3" y1="12" x2="3.01" y2="12" />
+              <line x1="3" y1="18" x2="3.01" y2="18" />
+            </svg>
+          </div>
+          <h3 className="workspace-empty-title">No features yet</h3>
+          <p className="workspace-empty-desc">
+            Add your first feature to the backlog and start organizing.
           </p>
           <button type="button" className="btn btn-primary" onClick={handleNewFeature}>
-            + New Feature
+            New Feature
           </button>
         </div>
       ) : (

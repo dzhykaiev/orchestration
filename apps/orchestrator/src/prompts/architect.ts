@@ -148,7 +148,18 @@ export function parseWorkstreams(response: string): Array<{
   }
 
   // Validate and normalize each workstream definition
-  const VALID_AGENTS = new Set(["architect", "backend", "frontend", "data", "devops", "qa"]);
+  const VALID_AGENTS = new Set([
+    "ceo",
+    "planner",
+    "architect",
+    "lead",
+    "backend",
+    "frontend",
+    "data",
+    "devops",
+    "qa",
+    "reviewer",
+  ]);
 
   return parsed.map((ws: Record<string, unknown>, i: number) => ({
     name: String(ws.name || `Workstream ${i + 1}`),

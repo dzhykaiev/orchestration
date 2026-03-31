@@ -5,6 +5,7 @@ import {
   type OrchestratorEvent,
 } from "@orchestration/shared";
 import IORedis from "ioredis";
+import { persistEvent } from "./event-log.js";
 
 const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 const CHANNEL = EVENTS_CHANNEL;
@@ -29,6 +30,11 @@ class EventBus {
 
   emit(event: OrchestratorEvent): void {
     const message = JSON.stringify(event);
+
+    // Persist to DB for historical replay (fire-and-forget)
+    persistEvent(event).catch((err) => {
+      console.warn("[EventBus] Failed to persist event:", err);
+    });
 
     if (this.publisher.status !== "ready") {
       if (this.buffer.length < MAX_BUFFER_SIZE) {

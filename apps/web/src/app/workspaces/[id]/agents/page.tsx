@@ -70,16 +70,22 @@ export default function WorkspaceAgentsPage() {
         ]}
       />
 
-      <div className="flex items-center justify-between" style={{ marginBottom: "1.5rem" }}>
-        <h2 style={{ margin: 0 }}>Agent Hierarchy</h2>
-        <button type="button" className="btn btn-primary" onClick={() => setShowForm(true)}>
-          Add Agent
-        </button>
+      <div className="ws-page-header">
+        <div className="ws-page-header-row">
+          <div>
+            <h2 className="ws-page-title">Agent Hierarchy</h2>
+            <p className="ws-page-subtitle">Manage AI agents and their reporting structure</p>
+          </div>
+          <button type="button" className="btn btn-primary" onClick={() => setShowForm(true)}>
+            Add Agent
+          </button>
+        </div>
       </div>
 
       {showForm && (
-        <div className="card" style={{ padding: "1.25rem", marginBottom: "1.5rem" }}>
-          <form onSubmit={handleCreate} className="flex flex-col gap-3">
+        <div className="workspace-create-card">
+          <h3>Add New Agent</h3>
+          <form onSubmit={handleCreate} className="flex flex-col gap-4">
             <div>
               <label className="label" htmlFor="agent-name">
                 Name
@@ -93,7 +99,7 @@ export default function WorkspaceAgentsPage() {
                 required
               />
             </div>
-            <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
+            <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
               <div>
                 <label className="label" htmlFor="agent-role">
                   Role
@@ -147,7 +153,7 @@ export default function WorkspaceAgentsPage() {
                 </select>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2" style={{ marginTop: "0.25rem" }}>
               <button type="submit" className="btn btn-primary" disabled={!form.name.trim()}>
                 Create
               </button>
@@ -163,7 +169,33 @@ export default function WorkspaceAgentsPage() {
         </div>
       )}
 
-      <AgentHierarchy agents={agents} />
+      {agents.length === 0 ? (
+        <div className="agents-empty">
+          <div className="agents-empty-icon" aria-hidden="true">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+          </div>
+          <h3 className="agents-empty-title">No agents configured</h3>
+          <p className="agents-empty-desc">
+            Add your first agent to start building the team hierarchy.
+          </p>
+        </div>
+      ) : (
+        <AgentHierarchy agents={agents} />
+      )}
     </div>
   );
 }

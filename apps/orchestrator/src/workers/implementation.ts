@@ -282,6 +282,9 @@ export async function handleImplementationJob(job: Job<ImplementationJobData>) {
     try {
       const task = await taskRepo.getTaskById(taskId);
       if (task && task.attempts < task.maxAttempts) {
+        // Reset task to queued state and clear error
+        await taskRepo.retryTask(taskId);
+
         // Exponential backoff: 5s, 20s, 45s, 80s... capped at MAX_RETRY_DELAY_MS
         const delay = Math.min(5000 * task.attempts * task.attempts, MAX_RETRY_DELAY_MS);
         console.log(
@@ -302,7 +305,7 @@ export async function handleImplementationJob(job: Job<ImplementationJobData>) {
             provider,
             sessionId: resumeSessionId,
           },
-          { delay },
+          { delay, jobId: `retry-${taskId}-${task.attempts + 1}` },
         );
         retried = true;
       }

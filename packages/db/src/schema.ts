@@ -23,6 +23,11 @@ export const projectStatusEnum = pgEnum("project_status", [
 export const providerEnum = pgEnum("provider", ["claude", "opencode"]);
 export const projectModeEnum = pgEnum("project_mode", ["greenfield", "existing"]);
 export const validationStatusEnum = pgEnum("validation_status", ["pass", "fail", "error"]);
+export const reviewVerdictEnum = pgEnum("review_verdict", [
+  "approved",
+  "changes_requested",
+  "rejected",
+]);
 
 export const workstreamStatusEnum = pgEnum("workstream_status", [
   "pending",
@@ -329,7 +334,7 @@ export const reviews = pgTable(
     projectId: uuid("project_id")
       .references(() => projects.id, { onDelete: "cascade" })
       .notNull(),
-    verdict: text("verdict").notNull(),
+    verdict: reviewVerdictEnum("verdict").notNull(),
     feedback: text("feedback").notNull(),
     requestedChanges: jsonb("requested_changes").$type<string[]>().default([]).notNull(),
     iteration: integer("iteration").default(1).notNull(),

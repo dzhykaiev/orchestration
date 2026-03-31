@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { type Workspace, api } from "../../lib/api";
@@ -8,11 +9,6 @@ export default function WorkspacesPage() {
   const router = useRouter();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showCreate, setShowCreate] = useState(false);
-  const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [description, setDescription] = useState("");
-  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     api.workspaces.list(100).then((data) => {
@@ -21,162 +17,84 @@ export default function WorkspacesPage() {
     });
   }, []);
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setCreating(true);
-    try {
-      const { workspace } = await api.workspaces.create({
-        name,
-        slug: slug || undefined,
-        description: description || undefined,
-      });
-      setWorkspaces((prev) => [workspace, ...prev]);
-      setShowCreate(false);
-      setName("");
-      setSlug("");
-      setDescription("");
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const autoSlug = (val: string) =>
-    val
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "");
-
   if (loading) {
     return (
-      <div>
-        <h2 style={{ marginBottom: "1.5rem" }}>Workspaces</h2>
-        <div className="skeleton" style={{ height: 200 }} />
+      <div className="ws-page-header">
+        <h2 className="ws-page-title">Workspaces</h2>
+        <div className="skeleton" style={{ height: 200, marginTop: "1.5rem" }} />
       </div>
     );
   }
 
   return (
     <div>
-      <div className="flex items-center justify-between" style={{ marginBottom: "1.5rem" }}>
-        <h2 style={{ margin: 0 }}>Workspaces</h2>
-        <button type="button" className="btn btn-primary" onClick={() => setShowCreate(true)}>
-          New Workspace
-        </button>
+      <div className="ws-page-header">
+        <div className="ws-page-header-row">
+          <div>
+            <h2 className="ws-page-title">Workspaces</h2>
+            <p className="ws-page-subtitle">Organize your projects and AI agents</p>
+          </div>
+          <Link href="/workspaces/new" className="btn btn-primary">
+            New Workspace
+          </Link>
+        </div>
       </div>
 
-      {showCreate && (
-        <div className="card" style={{ marginBottom: "1.5rem", padding: "1.5rem" }}>
-          <h3 style={{ margin: "0 0 1rem 0" }}>Create Workspace</h3>
-          <form onSubmit={handleCreate} className="flex flex-col gap-3">
-            <div>
-              <label className="label" htmlFor="ws-name">
-                Name
-              </label>
-              <input
-                id="ws-name"
-                className="input"
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  if (!slug || slug === autoSlug(name)) {
-                    setSlug(autoSlug(e.target.value));
-                  }
-                }}
-                placeholder="My Company"
-                required
-              />
-            </div>
-            <div>
-              <label className="label" htmlFor="ws-slug">
-                Slug
-              </label>
-              <input
-                id="ws-slug"
-                className="input"
-                value={slug}
-                onChange={(e) => setSlug(e.target.value)}
-                placeholder="my-company"
-              />
-            </div>
-            <div>
-              <label className="label" htmlFor="ws-desc">
-                Description
-              </label>
-              <textarea
-                id="ws-desc"
-                className="textarea"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={2}
-                placeholder="Optional description"
-              />
-            </div>
-            <div className="flex gap-2">
-              <button type="submit" className="btn btn-primary" disabled={creating || !name.trim()}>
-                {creating ? "Creating..." : "Create"}
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setShowCreate(false)}
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
       {workspaces.length === 0 ? (
-        <div className="card" style={{ padding: "3rem", textAlign: "center" }}>
-          <p style={{ color: "var(--color-text-secondary)", marginBottom: "1rem" }}>
+        <div className="workspace-empty">
+          <div className="workspace-empty-icon">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+            </svg>
+          </div>
+          <h3 className="workspace-empty-title">No workspaces yet</h3>
+          <p className="workspace-empty-desc">
             Create your first workspace to organize projects and features.
           </p>
-          <button type="button" className="btn btn-primary" onClick={() => setShowCreate(true)}>
+          <Link href="/workspaces/new" className="btn btn-primary">
             Create Workspace
-          </button>
+          </Link>
         </div>
       ) : (
-        <div
-          className="grid gap-3"
-          style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}
-        >
+        <div className="workspace-grid">
           {workspaces.map((ws) => (
             <button
               key={ws.id}
               type="button"
-              className="card"
-              style={{
-                padding: "1.25rem",
-                cursor: "pointer",
-                textAlign: "left",
-                border: "1px solid var(--color-border)",
-                background: "var(--color-surface)",
-                width: "100%",
-              }}
+              className="workspace-card"
               onClick={() => router.push(`/workspaces/${ws.id}`)}
             >
-              <h3 style={{ margin: "0 0 0.25rem 0", fontSize: "1.1rem" }}>{ws.name}</h3>
-              <span
-                style={{
-                  fontSize: "0.8rem",
-                  color: "var(--color-text-secondary)",
-                  fontFamily: "monospace",
-                }}
-              >
-                {ws.slug}
-              </span>
-              {ws.description && (
-                <p
-                  style={{
-                    margin: "0.5rem 0 0 0",
-                    fontSize: "0.85rem",
-                    color: "var(--color-text-secondary)",
-                  }}
+              <div className="workspace-card-top">
+                <div className="workspace-card-icon">{ws.name.charAt(0).toUpperCase()}</div>
+                <div className="workspace-card-body">
+                  <h3 className="workspace-card-title">{ws.name}</h3>
+                  <span className="workspace-card-slug">{ws.slug}</span>
+                </div>
+              </div>
+              {ws.description && <p className="workspace-card-desc">{ws.description}</p>}
+              <div className="workspace-card-arrow">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 >
-                  {ws.description}
-                </p>
-              )}
+                  <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+              </div>
             </button>
           ))}
         </div>

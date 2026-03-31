@@ -6,7 +6,6 @@ import { implementationQueue } from "../shared-resources.js";
 
 const ESCALATE_RE = /ESCALATE:\s*(.+?)(?:\n|$)/;
 
-/** Map a parent tier to a concrete role for escalation */
 const TIER_TO_ESCALATION_ROLE: Record<string, AgentRole> = {
   ceo: "ceo",
   planner: "planner",
@@ -35,7 +34,10 @@ export async function handleEscalation(
 
   const fromTier: AgentTier = (task.tier as AgentTier) ?? roleToTier(task.role);
   const toTier = getParentTier(fromTier);
-  if (!toTier) return false;
+  if (!toTier) {
+    console.warn(`[Escalation] No parent tier for ${fromTier}, cannot escalate task ${taskId}`);
+    return false;
+  }
 
   await escalationRepo.createEscalation({
     taskId,
@@ -46,46 +48,45 @@ export async function handleEscalation(
     context: { output: output.slice(0, 2000) },
   });
 
-  // Create a new task for the parent tier to handle the escalation
-  try {
-    const parentRole = TIER_TO_ESCALATION_ROLE[toTier] ?? "architect";
-    const escalationPrompt = [
-      `Escalation from ${task.role}: ${signal.reason}`,
-      "",
-      `Original task: ${task.prompt}`,
-      "",
-      `Agent output so far: ${output.slice(0, 3000)}`,
-    ].join("\n");
+  const parentRole = TIER_TO_ESCALATION_ROLE[toTier] ?? "architect";
+  const escalationPrompt = [
+    `Escalation from ${task.role}: ${signal.reason}`,
+    "",
+    `Original task: ${task.prompt}`,
+    "",
+    `Agent output so far: ${output.slice(0, 3000)}`,
+  ].join("\n");
 
-    const parentTask = await taskRepo.createTask({
+  const parentTask = await taskRepo.createTask({
+    workstreamId: task.workstreamId,
+    projectId,
+    role: parentRole,
+    tier: toTier,
+    parentTaskId: taskId,
+    prompt: escalationPrompt,
+  });
+
+  if (!parentTask) {
+    console.error(`[Escalation] Failed to create parent-tier task for task ${taskId}`);
+    return false;
+  }
+
+  await implementationQueue.add(
+    "implement",
+    {
+      taskId: parentTask.id,
       workstreamId: task.workstreamId,
       projectId,
       role: parentRole,
-      tier: toTier,
-      parentTaskId: taskId,
       prompt: escalationPrompt,
-    });
+    },
+    { jobId: `escalation-${parentTask.id}` },
+  );
 
-    if (parentTask) {
-      await implementationQueue.add("implement", {
-        taskId: parentTask.id,
-        workstreamId: task.workstreamId,
-        projectId,
-        role: parentRole,
-        prompt: escalationPrompt,
-      });
-
-      eventBus.emitTyped("task.queued", { taskId: parentTask.id, workstreamId: task.workstreamId });
-      console.log(
-        `[Escalation] Created parent-tier task ${parentTask.id} (${parentRole}) for escalation from ${task.role}`,
-      );
-    }
-  } catch (err) {
-    console.error(
-      `[Escalation] Failed to create parent-tier task for escalation from task ${taskId}:`,
-      err,
-    );
-  }
+  eventBus.emitTyped("task.queued", { taskId: parentTask.id, workstreamId: task.workstreamId });
+  console.log(
+    `[Escalation] Created parent-tier task ${parentTask.id} (${parentRole}) for escalation from ${task.role}`,
+  );
 
   return true;
 }

@@ -1,36 +1,62 @@
 import { client as dbClient } from "@orchestration/db";
-import { Worker } from "bullmq";
-import IORedis from "ioredis";
+import { Queue, Worker } from "bullmq";
 import { eventBus } from "./events/emitter.js";
-import { closeSharedResources } from "./shared-resources.js";
+import { closeLockClient } from "./locking/index.js";
+import { closeSharedResources, sharedConnection } from "./shared-resources.js";
 import { handleImplementationJob } from "./workers/implementation.js";
 import { handlePlanningJob } from "./workers/planning.js";
 import { handleRecoveryJob } from "./workers/recovery.js";
 import { handleValidationJob } from "./workers/validation.js";
 
-const connection = new IORedis.default(process.env.REDIS_URL || "redis://localhost:6379", {
-  maxRetriesPerRequest: null,
-});
+const JOB_REMOVE_AGE_MS = 24 * 60 * 60 * 1000;
 
 async function main() {
   console.log("[Orchestrator] Starting workers...");
 
+  const planningQ = new Queue("planning", {
+    connection: sharedConnection,
+    defaultJobOptions: {
+      removeOnComplete: { age: JOB_REMOVE_AGE_MS },
+      removeOnFail: { age: JOB_REMOVE_AGE_MS },
+      attempts: 3,
+      backoff: { type: "exponential" as const, delay: 5000 },
+    },
+  });
+
+  const implQ = new Queue("implementation", {
+    connection: sharedConnection,
+    defaultJobOptions: {
+      removeOnComplete: { age: JOB_REMOVE_AGE_MS },
+      removeOnFail: { age: JOB_REMOVE_AGE_MS },
+      attempts: 1,
+    },
+  });
+
+  const validationQ = new Queue("validation", {
+    connection: sharedConnection,
+    defaultJobOptions: {
+      removeOnComplete: { age: JOB_REMOVE_AGE_MS },
+      removeOnFail: { age: JOB_REMOVE_AGE_MS },
+      attempts: 3,
+      backoff: { type: "exponential" as const, delay: 5000 },
+    },
+  });
+
   const planningWorker = new Worker("planning", handlePlanningJob, {
-    connection,
-    concurrency: 1, // Plan one project at a time
+    connection: sharedConnection,
+    concurrency: 1,
   });
 
   const implementationWorker = new Worker("implementation", handleImplementationJob, {
-    connection,
-    concurrency: 3, // Run up to 3 agent tasks in parallel
+    connection: sharedConnection,
+    concurrency: 3,
   });
 
   const validationWorker = new Worker("validation", handleValidationJob, {
-    connection,
-    concurrency: 2, // Validate up to 2 workstreams in parallel
+    connection: sharedConnection,
+    concurrency: 2,
   });
 
-  // Log completed jobs
   planningWorker.on("completed", (job) => {
     console.log(`[Planning] Job ${job.id} completed`);
   });
@@ -43,7 +69,6 @@ async function main() {
     console.log(`[Validation] Job ${job.id} completed`);
   });
 
-  // Log failed jobs
   planningWorker.on("failed", (job, err) => {
     console.error(`[Planning] Job ${job?.id} failed:`, err.message);
   });
@@ -56,8 +81,6 @@ async function main() {
     console.error(`[Validation] Job ${job?.id} failed:`, err.message);
   });
 
-  // IMPORTANT: Listen to worker error events to prevent unhandled exceptions
-  // BullMQ workers emit 'error' for connection issues, stalled jobs, etc.
   planningWorker.on("error", (err) => {
     console.error("[Planning] Worker error:", err.message);
   });
@@ -70,7 +93,6 @@ async function main() {
     console.error("[Validation] Worker error:", err.message);
   });
 
-  // Recovery: check for stale jobs every 2 minutes
   const RECOVERY_INTERVAL_MS = 2 * 60 * 1000;
   const recoveryInterval = setInterval(() => {
     handleRecoveryJob().catch((err) => {
@@ -91,21 +113,15 @@ async function main() {
     }, 10_000);
 
     try {
-      console.log("[Orchestrator] Stopping recovery interval...");
       clearInterval(recoveryInterval);
-      console.log("[Orchestrator] Closing workers...");
       await Promise.allSettled([
         planningWorker.close(),
         implementationWorker.close(),
         validationWorker.close(),
       ]);
-      console.log("[Orchestrator] Closing shared queues and connections...");
-      await closeSharedResources();
-      console.log("[Orchestrator] Closing event bus...");
+      await Promise.allSettled([planningQ.close(), implQ.close(), validationQ.close()]);
       await eventBus.close();
-      console.log("[Orchestrator] Closing main Redis connection...");
-      await connection.quit();
-      console.log("[Orchestrator] Closing database connection...");
+      await closeLockClient();
       await dbClient.end();
       clearTimeout(forceTimeout);
       console.log("[Orchestrator] Shutdown complete");
@@ -120,7 +136,6 @@ async function main() {
   process.on("SIGTERM", shutdown);
   process.on("SIGINT", shutdown);
 
-  // Catch unhandled promise rejections to prevent silent crashes
   process.on("unhandledRejection", (reason) => {
     console.error("[Orchestrator] Unhandled rejection:", reason);
   });

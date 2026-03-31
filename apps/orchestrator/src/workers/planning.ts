@@ -9,7 +9,8 @@ import {
   taskRepo,
   workstreamRepo,
 } from "@orchestration/db";
-import type { AgentRole } from "@orchestration/shared";
+import type { AgentRole, ProjectStatus, WorkstreamStatus } from "@orchestration/shared";
+import { PROJECT_TRANSITIONS, WORKSTREAM_TRANSITIONS, canTransition } from "@orchestration/shared";
 import type { Job } from "bullmq";
 import { eventBus } from "../events/index.js";
 import { createLLMProvider } from "../llm/index.js";
@@ -23,6 +24,7 @@ import { buildUserMessage } from "../prompts/implementation.js";
 import { implementationQueue } from "../shared-resources.js";
 
 const execFileAsync = promisify(execFile);
+const GIT_TIMEOUT_MS = 60_000;
 
 const PROJECTS_DIR = resolve(process.env.PROJECTS_DIR || "./projects");
 
@@ -102,8 +104,14 @@ export async function handlePlanningJob(job: Job<PlanningJobData>) {
       }
     }
 
-    // 2. Update project status
-    await projectRepo.updateProject(projectId, { status: "planning" });
+    // 2. Update project status with guarded transition
+    const currentProject = await projectRepo.getProjectById(projectId);
+    if (
+      currentProject &&
+      canTransition(PROJECT_TRANSITIONS, currentProject.status as ProjectStatus, "planning")
+    ) {
+      await projectRepo.updateProject(projectId, { status: "planning" });
+    }
     eventBus.emitTyped("project.planning_started", { projectId });
 
     // 3. Create LLM provider for architect role
@@ -277,7 +285,22 @@ export async function handlePlanningJob(job: Job<PlanningJobData>) {
       const hasDeps = deps.length > 0;
 
       if (!hasDeps) {
-        await workstreamRepo.updateWorkstream(ws.id, { status: "in_progress" });
+        const wsForTransition = await workstreamRepo.getWorkstreamById(ws.id);
+        if (
+          wsForTransition &&
+          canTransition(
+            WORKSTREAM_TRANSITIONS,
+            wsForTransition.status as WorkstreamStatus,
+            "in_progress",
+          )
+        ) {
+          await workstreamRepo.updateWorkstream(ws.id, { status: "in_progress" });
+        } else {
+          console.warn(
+            `[Planning] Cannot transition workstream ${ws.id} to in_progress, skipping dispatch`,
+          );
+          continue;
+        }
 
         const role = (ws.assignedAgent as AgentRole) || "backend";
         const task = await taskRepo.createTask({
@@ -292,14 +315,18 @@ export async function handlePlanningJob(job: Job<PlanningJobData>) {
           continue;
         }
 
-        await implementationQueue.add("implement", {
-          taskId: task.id,
-          workstreamId: ws.id,
-          projectId,
-          role: task.role,
-          prompt: task.prompt,
-          provider,
-        });
+        await implementationQueue.add(
+          "implement",
+          {
+            taskId: task.id,
+            workstreamId: ws.id,
+            projectId,
+            role: task.role,
+            prompt: task.prompt,
+            provider,
+          },
+          { jobId: `plan-${ws.id}` },
+        );
 
         eventBus.emitTyped("workstream.started", { workstreamId: ws.id, projectId });
         eventBus.emitTyped("task.queued", { taskId: task.id, workstreamId: ws.id });

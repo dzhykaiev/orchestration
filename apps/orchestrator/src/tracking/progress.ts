@@ -18,6 +18,7 @@ import {
   resolveProvider,
 } from "@orchestration/shared";
 import { eventBus } from "../events/index.js";
+import { withLock } from "../locking/index.js";
 import { buildSystemPrompt, buildUserMessage } from "../prompts/implementation.js";
 import { implementationQueue, validationQueue } from "../shared-resources.js";
 
@@ -27,268 +28,309 @@ const PROJECTS_DIR = resolve(process.env.PROJECTS_DIR || "./projects");
 const VALIDATION_ENABLED = process.env.VALIDATION_ENABLED === "true";
 
 export async function checkWorkstreamCompletion(workstreamId: string, projectId: string) {
-  const counts = await taskRepo.countTasksByWorkstream(workstreamId);
-  console.log(
-    `[Progress] Workstream ${workstreamId}: ${counts.completed}/${counts.total} completed, ${counts.failed} failed`,
-  );
+  // Use distributed lock to prevent duplicate completion processing
+  const result = await withLock(`workstream-completion:${workstreamId}`, async () => {
+    const counts = await taskRepo.countTasksByWorkstream(workstreamId);
+    console.log(
+      `[Progress] Workstream ${workstreamId}: ${counts.completed}/${counts.total} completed, ${counts.failed} failed`,
+    );
 
-  if (counts.failed > 0) {
-    const ws = await workstreamRepo.getWorkstreamById(workstreamId);
-    if (ws && !canTransition(WORKSTREAM_TRANSITIONS, ws.status, "failed")) {
-      console.warn(
-        `[Progress] Invalid workstream transition: ${ws.status} -> failed for ${workstreamId}, skipping`,
-      );
-    } else {
-      await workstreamRepo.updateWorkstream(workstreamId, { status: "failed" });
-      eventBus.emitTyped("workstream.failed", {
-        workstreamId,
-        projectId,
-        error: `${counts.failed} of ${counts.total} tasks failed`,
-      });
-
-      try {
-        await auditLogRepo.createAuditLog({
+    if (counts.failed > 0) {
+      const ws = await workstreamRepo.getWorkstreamById(workstreamId);
+      if (ws && !canTransition(WORKSTREAM_TRANSITIONS, ws.status, "failed")) {
+        console.warn(
+          `[Progress] Invalid workstream transition: ${ws.status} -> failed for ${workstreamId}, skipping`,
+        );
+      } else {
+        await workstreamRepo.updateWorkstream(workstreamId, { status: "failed" });
+        eventBus.emitTyped("workstream.failed", {
+          workstreamId,
           projectId,
-          entityType: "workstream",
-          entityId: workstreamId,
-          action: "status_changed",
-          actorType: "system",
-          metadata: {
-            from: ws?.status,
-            to: "failed",
-            failedTasks: counts.failed,
-            totalTasks: counts.total,
-          },
+          error: `${counts.failed} of ${counts.total} tasks failed`,
         });
-      } catch (err) {
-        console.warn("[Progress] Failed to create audit log for workstream failure:", err);
+
+        try {
+          await auditLogRepo.createAuditLog({
+            projectId,
+            entityType: "workstream",
+            entityId: workstreamId,
+            action: "status_changed",
+            actorType: "system",
+            metadata: {
+              from: ws?.status,
+              to: "failed",
+              failedTasks: counts.failed,
+              totalTasks: counts.total,
+            },
+          });
+        } catch (err) {
+          console.warn("[Progress] Failed to create audit log for workstream failure:", err);
+        }
       }
-    }
-    await checkProjectCompletion(projectId);
-    return;
-  }
-
-  if (counts.completed === counts.total && counts.total > 0) {
-    const ws = await workstreamRepo.getWorkstreamById(workstreamId);
-    if (ws && !canTransition(WORKSTREAM_TRANSITIONS, ws.status, "completed")) {
-      console.warn(
-        `[Progress] Invalid workstream transition: ${ws.status} -> completed for ${workstreamId}, skipping`,
-      );
-    } else {
-      const prevStatus = ws?.status;
-      await workstreamRepo.updateWorkstream(workstreamId, { status: "completed" });
-      eventBus.emitTyped("workstream.completed", { workstreamId, projectId });
-
-      try {
-        await auditLogRepo.createAuditLog({
-          projectId,
-          entityType: "workstream",
-          entityId: workstreamId,
-          action: "status_changed",
-          actorType: "system",
-          metadata: { from: prevStatus, to: "completed" },
-        });
-      } catch (err) {
-        console.warn("[Progress] Failed to create audit log for workstream completion:", err);
-      }
-    }
-
-    // Create automatic reviewer task before validation
-    try {
-      await createReviewerTask(workstreamId, projectId);
-    } catch (err) {
-      console.warn(
-        `[Progress] Failed to create reviewer task for workstream ${workstreamId}:`,
-        err,
-      );
-    }
-
-    if (VALIDATION_ENABLED) {
-      // When validation is enabled, defer unlocking dependents until validation passes.
-      // The validation worker will call unblockDependents() after a PASS verdict.
-      await validationQueue.add("validate", { workstreamId, projectId });
-      console.log(`[Progress] Enqueued validation for workstream ${workstreamId}`);
-    } else {
-      // No validation — unblock dependents immediately
-      await unblockDependents(workstreamId, projectId);
       await checkProjectCompletion(projectId);
+      return;
     }
+
+    if (counts.completed === counts.total && counts.total > 0) {
+      const ws = await workstreamRepo.getWorkstreamById(workstreamId);
+      if (ws && !canTransition(WORKSTREAM_TRANSITIONS, ws.status, "completed")) {
+        console.warn(
+          `[Progress] Invalid workstream transition: ${ws.status} -> completed for ${workstreamId}, skipping`,
+        );
+      } else {
+        const prevStatus = ws?.status;
+        await workstreamRepo.updateWorkstream(workstreamId, { status: "completed" });
+        eventBus.emitTyped("workstream.completed", { workstreamId, projectId });
+
+        try {
+          await auditLogRepo.createAuditLog({
+            projectId,
+            entityType: "workstream",
+            entityId: workstreamId,
+            action: "status_changed",
+            actorType: "system",
+            metadata: { from: prevStatus, to: "completed" },
+          });
+        } catch (err) {
+          console.warn("[Progress] Failed to create audit log for workstream completion:", err);
+        }
+      }
+
+      // Create automatic reviewer task before validation
+      try {
+        await createReviewerTask(workstreamId, projectId);
+      } catch (err) {
+        console.warn(
+          `[Progress] Failed to create reviewer task for workstream ${workstreamId}:`,
+          err,
+        );
+      }
+
+      if (VALIDATION_ENABLED) {
+        // When validation is enabled, defer unlocking dependents until validation passes.
+        // The validation worker will call unblockDependents() after a PASS verdict.
+        await validationQueue.add("validate", { workstreamId, projectId });
+        console.log(`[Progress] Enqueued validation for workstream ${workstreamId}`);
+      } else {
+        // No validation — unblock dependents immediately
+        await unblockDependents(workstreamId, projectId);
+        await checkProjectCompletion(projectId);
+      }
+    }
+  });
+
+  if (result === null) {
+    console.warn(
+      `[Progress] Skipped workstream completion check for ${workstreamId} — lock held by another worker`,
+    );
   }
 }
 
 export async function unblockDependents(completedWorkstreamId: string, projectId: string) {
-  const allWorkstreams = await workstreamRepo.listWorkstreamsByProject(projectId);
+  // Use distributed lock to prevent duplicate dispatch of dependent workstreams
+  const result = await withLock(`unblock-deps:${projectId}`, async () => {
+    const allWorkstreams = await workstreamRepo.listWorkstreamsByProject(projectId);
 
-  // Get project provider
-  const project = await projectRepo.getProjectById(projectId);
-  const provider = resolveProvider(project?.provider);
+    // Get project provider
+    const project = await projectRepo.getProjectById(projectId);
+    const provider = resolveProvider(project?.provider);
 
-  // Build set of all completed workstream IDs
-  const completedIds = new Set(
-    allWorkstreams.filter((ws) => ws.status === "completed").map((ws) => ws.id),
-  );
-  completedIds.add(completedWorkstreamId);
+    // Build set of all completed workstream IDs
+    const completedIds = new Set(
+      allWorkstreams.filter((ws) => ws.status === "completed").map((ws) => ws.id),
+    );
+    completedIds.add(completedWorkstreamId);
 
-  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-  for (const ws of allWorkstreams) {
-    if (ws.status !== "pending" && ws.status !== "blocked") continue;
-    if (ws.dependencies.length === 0) continue;
+    for (const ws of allWorkstreams) {
+      if (ws.status !== "pending" && ws.status !== "blocked") continue;
+      if (ws.dependencies.length === 0) continue;
 
-    // Dependencies are normalized to UUIDs by the planning worker
-    const allDepsMet = ws.dependencies.every((dep) => {
-      if (!UUID_RE.test(dep)) {
-        console.warn(`[Progress] Non-UUID dependency "${dep}" in workstream ${ws.id} — skipping`);
-        return true; // Don't block on invalid deps
-      }
-      return completedIds.has(dep);
-    });
+      // Dependencies are normalized to UUIDs by the planning worker
+      const allDepsMet = ws.dependencies.every((dep) => {
+        if (!UUID_RE.test(dep)) {
+          console.warn(`[Progress] Non-UUID dependency "${dep}" in workstream ${ws.id} — skipping`);
+          return true; // Don't block on invalid deps
+        }
+        return completedIds.has(dep);
+      });
 
-    if (allDepsMet) {
-      if (!canTransition(WORKSTREAM_TRANSITIONS, ws.status, "in_progress")) {
-        console.warn(
-          `[Progress] Invalid workstream transition: ${ws.status} -> in_progress for ${ws.id}, skipping`,
-        );
-        continue;
-      }
-      const prevWsStatus = ws.status;
-      await workstreamRepo.updateWorkstream(ws.id, { status: "in_progress" });
-      eventBus.emitTyped("workstream.started", { workstreamId: ws.id, projectId });
+      if (allDepsMet) {
+        if (!canTransition(WORKSTREAM_TRANSITIONS, ws.status, "in_progress")) {
+          console.warn(
+            `[Progress] Invalid workstream transition: ${ws.status} -> in_progress for ${ws.id}, skipping`,
+          );
+          continue;
+        }
+        const prevWsStatus = ws.status;
+        await workstreamRepo.updateWorkstream(ws.id, { status: "in_progress" });
+        eventBus.emitTyped("workstream.started", { workstreamId: ws.id, projectId });
 
-      try {
-        await auditLogRepo.createAuditLog({
+        try {
+          await auditLogRepo.createAuditLog({
+            projectId,
+            entityType: "workstream",
+            entityId: ws.id,
+            action: "status_changed",
+            actorType: "system",
+            metadata: { from: prevWsStatus, to: "in_progress", trigger: "dependencies_met" },
+          });
+        } catch (err) {
+          console.warn("[Progress] Failed to create audit log for workstream unblock:", err);
+        }
+
+        const task = await taskRepo.createTask({
+          workstreamId: ws.id,
           projectId,
-          entityType: "workstream",
-          entityId: ws.id,
-          action: "status_changed",
-          actorType: "system",
-          metadata: { from: prevWsStatus, to: "in_progress", trigger: "dependencies_met" },
+          role: (ws.assignedAgent as AgentRole) || "backend",
+          prompt: buildUserMessage(`Implement the ${ws.name} workstream: ${ws.objective}`, ws),
         });
-      } catch (err) {
-        console.warn("[Progress] Failed to create audit log for workstream unblock:", err);
+
+        if (!task) {
+          console.warn(`[Progress] Failed to create task for workstream ${ws.id}`);
+          continue;
+        }
+
+        eventBus.emitTyped("task.queued", { taskId: task.id, workstreamId: ws.id });
+
+        await implementationQueue.add(
+          "implement",
+          {
+            taskId: task.id,
+            workstreamId: ws.id,
+            projectId,
+            role: task.role,
+            prompt: task.prompt,
+            provider,
+          },
+          { jobId: `impl-${ws.id}` },
+        );
       }
-
-      const task = await taskRepo.createTask({
-        workstreamId: ws.id,
-        projectId,
-        role: (ws.assignedAgent as AgentRole) || "backend",
-        prompt: buildUserMessage(`Implement the ${ws.name} workstream: ${ws.objective}`, ws),
-      });
-
-      if (!task) {
-        console.warn(`[Progress] Failed to create task for workstream ${ws.id}`);
-        continue;
-      }
-
-      eventBus.emitTyped("task.queued", { taskId: task.id, workstreamId: ws.id });
-
-      await implementationQueue.add("implement", {
-        taskId: task.id,
-        workstreamId: ws.id,
-        projectId,
-        role: task.role,
-        prompt: task.prompt,
-        provider,
-      });
     }
+  });
+
+  if (result === null) {
+    console.warn(
+      `[Progress] Skipped unblock dependents for ${completedWorkstreamId} — lock held by another worker`,
+    );
   }
 }
 
 export async function checkProjectCompletion(projectId: string) {
-  const workstreams = await workstreamRepo.listWorkstreamsByProject(projectId);
-  if (workstreams.length === 0) {
-    console.log(`[Progress] Project ${projectId}: no workstreams yet, skipping completion check`);
-    return;
-  }
-
-  const allCompleted = workstreams.every((ws) => ws.status === "completed");
-  const anyFailed = workstreams.some((ws) => ws.status === "failed");
-  const anyActive = workstreams.some((ws) =>
-    ["in_progress", "pending", "blocked"].includes(ws.status),
-  );
-
-  if (allCompleted) {
-    let project = await projectRepo.getProjectById(projectId);
-    if (project && !canTransition(PROJECT_TRANSITIONS, project.status, "completed")) {
-      console.warn(
-        `[Progress] Invalid project transition: ${project.status} -> completed for ${projectId}, skipping`,
-      );
+  // Use distributed lock to prevent duplicate project completion processing
+  const result = await withLock(`project-completion:${projectId}`, async () => {
+    const workstreams = await workstreamRepo.listWorkstreamsByProject(projectId);
+    if (workstreams.length === 0) {
+      console.log(`[Progress] Project ${projectId}: no workstreams yet, skipping completion check`);
       return;
     }
-    const prevProjectStatus = project?.status;
-    await projectRepo.updateProject(projectId, { status: "completed" });
 
-    try {
-      await auditLogRepo.createAuditLog({
-        projectId,
-        entityType: "project",
-        entityId: projectId,
-        action: "status_changed",
-        actorType: "system",
-        metadata: { from: prevProjectStatus, to: "completed" },
-      });
-    } catch (err) {
-      console.warn("[Progress] Failed to create audit log for project completion:", err);
-    }
+    const allCompleted = workstreams.every((ws) => ws.status === "completed");
+    const anyFailed = workstreams.some((ws) => ws.status === "failed");
+    const anyActive = workstreams.some((ws) =>
+      ["in_progress", "pending", "blocked"].includes(ws.status),
+    );
 
-    // Sync linked feature status → done
-    await syncLinkedFeatureStatus(projectId, "done");
-
-    // For existing-mode projects, commit changes on the work branch
-    project = await projectRepo.getProjectById(projectId);
-    if (project?.projectMode === "existing" && project.workBranch) {
-      const projectDir = project.repoPath
-        ? resolve(project.repoPath)
-        : resolve(PROJECTS_DIR, projectId);
+    if (allCompleted) {
+      let project = await projectRepo.getProjectById(projectId);
+      if (project && !canTransition(PROJECT_TRANSITIONS, project.status, "completed")) {
+        console.warn(
+          `[Progress] Invalid project transition: ${project.status} -> completed for ${projectId}, skipping`,
+        );
+        return;
+      }
+      const prevProjectStatus = project?.status;
+      await projectRepo.updateProject(projectId, { status: "completed" });
 
       try {
-        await execFileAsync("git", ["-C", projectDir, "add", "-A"]);
-        await execFileAsync("git", [
-          "-C",
-          projectDir,
-          "commit",
-          "-m",
-          `feat: ${project.name}`,
-          "--allow-empty",
-        ]);
-        console.log(
-          `[Progress] Committed changes on branch ${project.workBranch} for project ${projectId}`,
-        );
+        await auditLogRepo.createAuditLog({
+          projectId,
+          entityType: "project",
+          entityId: projectId,
+          action: "status_changed",
+          actorType: "system",
+          metadata: { from: prevProjectStatus, to: "completed" },
+        });
       } catch (err) {
-        console.warn(`[Progress] Failed to commit changes for project ${projectId}:`, err);
+        console.warn("[Progress] Failed to create audit log for project completion:", err);
       }
-    }
-  } else if (anyFailed && !anyActive) {
-    const project = await projectRepo.getProjectById(projectId);
-    if (project && !canTransition(PROJECT_TRANSITIONS, project.status, "failed")) {
-      console.warn(
-        `[Progress] Invalid project transition: ${project.status} -> failed for ${projectId}, skipping`,
-      );
-      return;
-    }
-    await projectRepo.updateProject(projectId, { status: "failed" });
 
-    try {
-      await auditLogRepo.createAuditLog({
-        projectId,
-        entityType: "project",
-        entityId: projectId,
-        action: "status_changed",
-        actorType: "system",
-        metadata: { from: project?.status, to: "failed" },
-      });
-    } catch (err) {
-      console.warn("[Progress] Failed to create audit log for project failure:", err);
-    }
+      // Sync linked feature status → done
+      await syncLinkedFeatureStatus(projectId, "done");
 
-    // Sync linked feature status → todo
-    await syncLinkedFeatureStatus(projectId, "todo");
+      // For existing-mode projects, commit changes on the work branch
+      project = await projectRepo.getProjectById(projectId);
+      if (project?.projectMode === "existing" && project.workBranch) {
+        const projectDir = project.repoPath
+          ? resolve(project.repoPath)
+          : resolve(PROJECTS_DIR, projectId);
+
+        try {
+          await execFileAsync("git", ["-C", projectDir, "add", "-A"]);
+          await execFileAsync("git", [
+            "-C",
+            projectDir,
+            "commit",
+            "-m",
+            `feat: ${project.name}`,
+            "--allow-empty",
+          ]);
+          console.log(
+            `[Progress] Committed changes on branch ${project.workBranch} for project ${projectId}`,
+          );
+        } catch (err) {
+          console.warn(`[Progress] Failed to commit changes for project ${projectId}:`, err);
+        }
+      }
+    } else if (anyFailed && !anyActive) {
+      const project = await projectRepo.getProjectById(projectId);
+      if (project && !canTransition(PROJECT_TRANSITIONS, project.status, "failed")) {
+        console.warn(
+          `[Progress] Invalid project transition: ${project.status} -> failed for ${projectId}, skipping`,
+        );
+        return;
+      }
+      await projectRepo.updateProject(projectId, { status: "failed" });
+
+      try {
+        await auditLogRepo.createAuditLog({
+          projectId,
+          entityType: "project",
+          entityId: projectId,
+          action: "status_changed",
+          actorType: "system",
+          metadata: { from: project?.status, to: "failed" },
+        });
+      } catch (err) {
+        console.warn("[Progress] Failed to create audit log for project failure:", err);
+      }
+
+      // Sync linked feature status → todo
+      await syncLinkedFeatureStatus(projectId, "todo");
+    }
+  });
+
+  if (result === null) {
+    console.warn(
+      `[Progress] Skipped project completion check for ${projectId} — lock held by another worker`,
+    );
   }
 }
 
 async function createReviewerTask(workstreamId: string, projectId: string) {
   const ws = await workstreamRepo.getWorkstreamById(workstreamId);
   if (!ws) return;
+
+  // Idempotency: check if a reviewer task already exists for this workstream
+  const existingTasks = await taskRepo.listTasksByWorkstream(workstreamId);
+  const hasReviewerTask = existingTasks.some(
+    (t) => t.role === "reviewer" && (t.status === "queued" || t.status === "running"),
+  );
+  if (hasReviewerTask) {
+    console.log(`[Progress] Reviewer task already exists for workstream ${workstreamId}, skipping`);
+    return;
+  }
 
   const tasks = await taskRepo.listTasksByWorkstream(workstreamId);
   const completedTasks = tasks.filter((t) => t.status === "completed");
@@ -301,7 +343,7 @@ async function createReviewerTask(workstreamId: string, projectId: string) {
       const files = t.filesModified?.length
         ? `Files: ${t.filesModified.join(", ")}`
         : "No files modified";
-      const output = t.output ? t.output.slice(0, 500) : "No output";
+      const output = t.output ? t.output.slice(0, 2000) : "No output";
       return `### Task (${t.role})\n${files}\nOutput summary: ${output}`;
     })
     .join("\n\n");
@@ -343,14 +385,18 @@ async function createReviewerTask(workstreamId: string, projectId: string) {
     return;
   }
 
-  await implementationQueue.add("implement", {
-    taskId: reviewerTask.id,
-    workstreamId,
-    projectId,
-    role: "reviewer",
-    prompt: reviewPrompt,
-    provider,
-  });
+  await implementationQueue.add(
+    "implement",
+    {
+      taskId: reviewerTask.id,
+      workstreamId,
+      projectId,
+      role: "reviewer",
+      prompt: reviewPrompt,
+      provider,
+    },
+    { jobId: `review-${workstreamId}` },
+  );
 
   eventBus.emitTyped("task.queued", { taskId: reviewerTask.id, workstreamId });
   console.log(`[Progress] Created reviewer task ${reviewerTask.id} for workstream ${workstreamId}`);

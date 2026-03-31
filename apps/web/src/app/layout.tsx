@@ -9,18 +9,7 @@ export const metadata: Metadata = {
   description: "Orchestrate AI agents to build software from high-level goals",
 };
 
-const themeInitScript = `
-(function(){
-  try {
-    var t = localStorage.getItem("theme");
-    if (t === "light" || t === "dark") {
-      document.documentElement.setAttribute("data-theme", t);
-    } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-      document.documentElement.setAttribute("data-theme", "dark");
-    }
-  } catch(e) {}
-})();
-`;
+const themeInitScript = `(function(){try{var t=localStorage.getItem("theme");if(t==="light"||t==="dark"){document.documentElement.setAttribute("data-theme",t)}else if(window.matchMedia("(prefers-color-scheme: dark)").matches){document.documentElement.setAttribute("data-theme","dark")}}catch(e){}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -30,20 +19,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body>
-        <header
-          style={{
-            padding: "0.75rem 2rem",
-            borderBottom: "1px solid var(--color-border)",
-            background: "var(--color-surface)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <Link href="/" style={{ color: "inherit", textDecoration: "none" }}>
-            <h1 style={{ margin: 0, fontSize: "1.25rem", fontWeight: 700 }}>Orchestration</h1>
+        <header className="app-header">
+          <Link href="/" className="app-logo">
+            Orchestration
           </Link>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <nav className="app-nav">
             <ThemeToggle />
             <Link href="/workspaces" className="btn btn-secondary">
               Workspaces
@@ -54,10 +34,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Link href="/projects/new" className="btn btn-primary">
               New Project
             </Link>
-          </div>
+          </nav>
         </header>
         <ToastProvider>
-          <main style={{ padding: "2rem", maxWidth: 960, margin: "0 auto" }}>{children}</main>
+          <main className="app-main">{children}</main>
         </ToastProvider>
       </body>
     </html>

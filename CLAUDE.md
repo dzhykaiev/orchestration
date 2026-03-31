@@ -60,15 +60,24 @@ pnpm db:seed      # Seed data
 .agents/
   skills/
     frontend-design/
+.opencode/
+  plans/
+.pnpm-store/
+  v3/
 apps/
   api/
     src/
   orchestrator/
+    projects/
     src/
   web/
     src/
+contracts/
+  api/
+  events/
 docs/
   .vitepress/
+    cache/
   agent-briefs/
   agents/
   api/
@@ -79,6 +88,7 @@ docs/
   improvements/
   plans/
   runbooks/
+logs/
 packages/
   db/
     drizzle/

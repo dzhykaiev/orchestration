@@ -58,16 +58,8 @@ export function FeatureCard({ feature, onEdit, onKickoff, onDelete }: FeatureCar
           <a
             href={`/projects/${feature.orchestrationProjectId}`}
             onClick={(e) => e.stopPropagation()}
-            style={{
-              display: "inline-block",
-              padding: "1px 8px",
-              borderRadius: 10,
-              fontSize: "0.7rem",
-              fontWeight: 600,
-              textDecoration: "none",
-              backgroundColor: "var(--color-status-blue-bg)",
-              color: "var(--color-status-blue-text)",
-            }}
+            className="feature-project-link"
+            style={{ fontSize: "0.7rem", padding: "1px 8px", borderRadius: 10, fontWeight: 600 }}
           >
             Linked to project
           </a>
@@ -99,7 +91,7 @@ export function FeatureCard({ feature, onEdit, onKickoff, onDelete }: FeatureCar
         )}
         <button
           type="button"
-          className="btn btn-sm btn-danger"
+          className="btn btn-danger-sm"
           onClick={(e) => {
             e.stopPropagation();
             onDelete(feature);

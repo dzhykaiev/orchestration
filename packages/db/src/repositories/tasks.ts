@@ -29,33 +29,42 @@ export async function getTaskById(id: string) {
 }
 
 export async function createTask(input: CreateAgentTaskInput) {
-  let depth = 0;
-  let rootTaskId: string | undefined;
+  // Read parent task and insert child atomically to prevent race conditions
+  const result = await db.transaction(async (tx) => {
+    let depth = 0;
+    let rootTaskId: string | undefined;
 
-  if (input.parentTaskId) {
-    const parent = await getTaskById(input.parentTaskId);
-    if (parent) {
-      depth = (parent.depth ?? 0) + 1;
-      rootTaskId = parent.rootTaskId ?? parent.id;
+    if (input.parentTaskId) {
+      const [parent] = await tx
+        .select()
+        .from(schema.agentTasks)
+        .where(eq(schema.agentTasks.id, input.parentTaskId))
+        .limit(1);
+      if (parent) {
+        depth = (parent.depth ?? 0) + 1;
+        rootTaskId = parent.rootTaskId ?? parent.id;
+      }
     }
-  }
 
-  const [task] = await db
-    .insert(schema.agentTasks)
-    .values({
-      workstreamId: input.workstreamId,
-      projectId: input.projectId,
-      role: input.role,
-      tier: input.tier,
-      parentTaskId: input.parentTaskId,
-      rootTaskId,
-      depth,
-      prompt: input.prompt,
-      maxAttempts: input.maxAttempts ?? 3,
-    })
-    .returning();
+    const [task] = await tx
+      .insert(schema.agentTasks)
+      .values({
+        workstreamId: input.workstreamId,
+        projectId: input.projectId,
+        role: input.role,
+        tier: input.tier,
+        parentTaskId: input.parentTaskId,
+        rootTaskId,
+        depth,
+        prompt: input.prompt,
+        maxAttempts: input.maxAttempts ?? 3,
+      })
+      .returning();
 
-  return task ?? null;
+    return task ?? null;
+  });
+
+  return result;
 }
 
 export async function listChildTasks(parentTaskId: string) {
@@ -108,7 +117,7 @@ export async function markTaskCompleted(
       completedAt: new Date(),
       updatedAt: new Date(),
     })
-    .where(eq(schema.agentTasks.id, id))
+    .where(and(eq(schema.agentTasks.id, id), eq(schema.agentTasks.status, "running")))
     .returning();
 
   return task ?? null;
@@ -122,7 +131,7 @@ export async function markTaskFailed(id: string, error: string) {
       error,
       updatedAt: new Date(),
     })
-    .where(eq(schema.agentTasks.id, id))
+    .where(and(eq(schema.agentTasks.id, id), eq(schema.agentTasks.status, "running")))
     .returning();
 
   return task ?? null;
@@ -141,12 +150,13 @@ export async function cancelTasksByProject(projectId: string) {
 }
 
 export async function retryTask(id: string) {
-  // Only allow retry from "failed" state
+  // Only allow retry from "failed" state, reset attempts counter
   const [task] = await db
     .update(schema.agentTasks)
     .set({
       status: "queued",
       error: null,
+      attempts: 0,
       updatedAt: new Date(),
     })
     .where(and(eq(schema.agentTasks.id, id), eq(schema.agentTasks.status, "failed")))

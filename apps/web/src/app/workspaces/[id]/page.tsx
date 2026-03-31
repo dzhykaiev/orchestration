@@ -71,21 +71,34 @@ export default function WorkspaceDetailPage() {
       />
 
       {editing ? (
-        <div className="card" style={{ padding: "1.5rem", marginBottom: "1.5rem" }}>
-          <div className="flex flex-col gap-3">
-            <input
-              className="input"
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-            />
-            <textarea
-              className="textarea"
-              value={editDesc}
-              onChange={(e) => setEditDesc(e.target.value)}
-              rows={2}
-              placeholder="Description"
-            />
-            <div className="flex gap-2">
+        <div className="workspace-create-card">
+          <h3>Edit Workspace</h3>
+          <div className="flex flex-col gap-4">
+            <div>
+              <label className="label" htmlFor="edit-name">
+                Name
+              </label>
+              <input
+                id="edit-name"
+                className="input"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="label" htmlFor="edit-desc">
+                Description
+              </label>
+              <textarea
+                id="edit-desc"
+                className="textarea"
+                value={editDesc}
+                onChange={(e) => setEditDesc(e.target.value)}
+                rows={2}
+                placeholder="Description"
+              />
+            </div>
+            <div className="flex gap-2" style={{ marginTop: "0.25rem" }}>
               <button type="button" className="btn btn-primary" onClick={handleSave}>
                 Save
               </button>
@@ -96,103 +109,95 @@ export default function WorkspaceDetailPage() {
           </div>
         </div>
       ) : (
-        <div className="flex items-center justify-between" style={{ marginBottom: "1.5rem" }}>
-          <div>
-            <h2 style={{ margin: 0 }}>{workspace.name}</h2>
-            {workspace.description && (
-              <p
-                style={{
-                  margin: "0.25rem 0 0",
-                  color: "var(--color-text-secondary)",
-                  fontSize: "0.9rem",
-                }}
-              >
-                {workspace.description}
-              </p>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <Link href={`/workspaces/${id}/agents`} className="btn btn-secondary">
-              Agents
-            </Link>
-            <button type="button" className="btn btn-secondary" onClick={() => setEditing(true)}>
-              Edit
-            </button>
-            <button type="button" className="btn btn-danger" onClick={handleDelete}>
-              Delete
-            </button>
+        <div className="workspace-detail-header">
+          <div className="workspace-detail-top">
+            <div className="workspace-detail-info">
+              <h2 className="workspace-detail-title">{workspace.name}</h2>
+              {workspace.description && (
+                <p className="workspace-detail-desc">{workspace.description}</p>
+              )}
+            </div>
+            <div className="workspace-detail-actions">
+              <Link href={`/workspaces/${id}/agents`} className="btn btn-secondary">
+                Agents
+              </Link>
+              <button type="button" className="btn btn-secondary" onClick={() => setEditing(true)}>
+                Edit
+              </button>
+              <button type="button" className="btn btn-danger" onClick={handleDelete}>
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      <div
-        className="grid gap-3"
-        style={{ gridTemplateColumns: "repeat(4, 1fr)", marginBottom: "1.5rem" }}
-      >
-        <div className="card" style={{ padding: "1rem", textAlign: "center" }}>
-          <div style={{ fontSize: "1.5rem", fontWeight: 700 }}>{total}</div>
-          <div style={{ fontSize: "0.8rem", color: "var(--color-text-secondary)" }}>Total</div>
+      <div className="workspace-stats">
+        <div className="workspace-stat-card stat-total">
+          <div className="workspace-stat-value">{total}</div>
+          <div className="workspace-stat-label">Total</div>
         </div>
-        <div className="card" style={{ padding: "1rem", textAlign: "center" }}>
-          <div style={{ fontSize: "1.5rem", fontWeight: 700 }}>{statusCounts.active}</div>
-          <div style={{ fontSize: "0.8rem", color: "var(--color-text-secondary)" }}>Active</div>
+        <div className="workspace-stat-card stat-active">
+          <div className="workspace-stat-value">{statusCounts.active}</div>
+          <div className="workspace-stat-label">Active</div>
         </div>
-        <div className="card" style={{ padding: "1rem", textAlign: "center" }}>
-          <div style={{ fontSize: "1.5rem", fontWeight: 700 }}>{statusCounts.completed}</div>
-          <div style={{ fontSize: "0.8rem", color: "var(--color-text-secondary)" }}>Completed</div>
+        <div className="workspace-stat-card stat-completed">
+          <div className="workspace-stat-value">{statusCounts.completed}</div>
+          <div className="workspace-stat-label">Completed</div>
         </div>
-        <div className="card" style={{ padding: "1rem", textAlign: "center" }}>
-          <div style={{ fontSize: "1.5rem", fontWeight: 700 }}>{statusCounts.failed}</div>
-          <div style={{ fontSize: "0.8rem", color: "var(--color-text-secondary)" }}>Failed</div>
+        <div className="workspace-stat-card stat-failed">
+          <div className="workspace-stat-value">{statusCounts.failed}</div>
+          <div className="workspace-stat-label">Failed</div>
         </div>
       </div>
 
-      <div className="flex items-center justify-between" style={{ marginBottom: "1rem" }}>
-        <h3 style={{ margin: 0 }}>Projects</h3>
+      <div className="ws-section-header">
+        <h3 className="ws-section-title">Projects</h3>
         <Link href="/projects/new" className="btn btn-primary">
           New Project
         </Link>
       </div>
 
       {projects.length === 0 ? (
-        <div className="card" style={{ padding: "2rem", textAlign: "center" }}>
-          <p style={{ color: "var(--color-text-secondary)", margin: 0 }}>
-            No projects in this workspace yet.
+        <div className="workspace-empty">
+          <div className="workspace-empty-icon" aria-hidden="true">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+          </div>
+          <h3 className="workspace-empty-title">No projects yet</h3>
+          <p className="workspace-empty-desc">
+            Create your first project to start building with AI agents.
           </p>
+          <Link href="/projects/new" className="btn btn-primary">
+            New Project
+          </Link>
         </div>
       ) : (
-        <div className="flex flex-col gap-2">
+        <div className="workspace-project-list">
           {projects.map((project) => (
             <Link
               key={project.id}
               href={`/projects/${project.id}`}
-              className="card"
-              style={{
-                padding: "1rem 1.25rem",
-                textDecoration: "none",
-                color: "inherit",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
+              className="workspace-project-item"
             >
-              <div>
-                <strong>{project.name}</strong>
-                <p
-                  style={{
-                    margin: "0.25rem 0 0",
-                    fontSize: "0.85rem",
-                    color: "var(--color-text-secondary)",
-                    maxWidth: 500,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {project.goal}
-                </p>
+              <div className="workspace-project-info">
+                <div className="workspace-project-name">{project.name}</div>
+                <p className="workspace-project-goal">{project.goal}</p>
               </div>
-              <StatusBadge status={project.status} />
+              <div className="workspace-project-status">
+                <StatusBadge status={project.status} />
+              </div>
             </Link>
           ))}
         </div>
