@@ -44,7 +44,9 @@
       "Bash(psql:*)",
       "Bash(npx tsx:*)",
       "Bash(curl:*)",
-      "Bash(docker exec:*)"
+      "Bash(docker exec:*)",
+      "Bash(find /Users/yevhenii.dzhykaiev/Documents/study/orchestration/apps/orchestrator -name *launch* -o -name *preview* -o -name *serve*)",
+      "Bash(head:*)"
     ]
   }
 }
