@@ -45,6 +45,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </Link>
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
             <ThemeToggle />
+            <Link href="/workspaces" className="btn btn-secondary">
+              Workspaces
+            </Link>
             <Link href="/board" className="btn btn-secondary">
               Board
             </Link>

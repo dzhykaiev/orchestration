@@ -3,6 +3,9 @@
 import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { ArtifactList } from "../../../components/ArtifactList";
+import { AuditTimeline } from "../../../components/AuditTimeline";
+import { EscalationBanner } from "../../../components/EscalationBanner";
 import { FileTree } from "../../../components/FileTree";
 import { FileViewer } from "../../../components/FileViewer";
 import { ConfirmModal } from "../../../components/ui/ConfirmModal";
@@ -826,6 +829,15 @@ export default function ProjectDetailPage() {
           })}
         </>
       )}
+
+      {/* Escalations */}
+      <EscalationBanner projectId={projectId} />
+
+      {/* Artifacts */}
+      <ArtifactList projectId={projectId} />
+
+      {/* Activity Log */}
+      <AuditTimeline projectId={projectId} />
 
       <ConfirmModal
         isOpen={confirmAction === "stop"}

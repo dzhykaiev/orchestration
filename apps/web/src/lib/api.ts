@@ -1,4 +1,13 @@
-import type { AgentTaskDto, FeatureDto, ProjectDto, WorkstreamDto } from "@orchestration/shared";
+import type {
+  AgentDefinitionDto,
+  AgentTaskDto,
+  ArtifactDto,
+  AuditLogDto,
+  FeatureDto,
+  ProjectDto,
+  WorkspaceDto,
+  WorkstreamDto,
+} from "@orchestration/shared";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -31,7 +40,11 @@ interface FileEntry {
 }
 
 // Re-export shared DTO types for use in components
+type Workspace = WorkspaceDto;
 type Project = ProjectDto;
+type AuditLog = AuditLogDto;
+type Artifact = ArtifactDto;
+type AgentDefinition = AgentDefinitionDto;
 type Workstream = WorkstreamDto;
 type AgentTask = AgentTaskDto;
 type Feature = FeatureDto;
@@ -39,6 +52,46 @@ type Feature = FeatureDto;
 // --- API Client ---
 
 export const api = {
+  workspaces: {
+    list: (limit = 20, offset = 0) =>
+      fetchAPI<{ workspaces: Workspace[]; total: number }>(
+        `/api/workspaces?limit=${limit}&offset=${offset}`,
+      ),
+    get: (id: string) => fetchAPI<{ workspace: Workspace }>(`/api/workspaces/${id}`),
+    create: (body: { name: string; slug?: string; description?: string }) =>
+      fetchAPI<{ workspace: Workspace }>("/api/workspaces", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    update: (id: string, body: Record<string, unknown>) =>
+      fetchAPI<{ workspace: Workspace }>(`/api/workspaces/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }),
+    delete: (id: string) =>
+      fetchAPI<void>(`/api/workspaces/${id}`, {
+        method: "DELETE",
+      }),
+    projects: (id: string, limit = 20, offset = 0, includeArchived = false) =>
+      fetchAPI<{ projects: Project[]; total: number }>(
+        `/api/workspaces/${id}/projects?limit=${limit}&offset=${offset}&includeArchived=${includeArchived}`,
+      ),
+    agents: (id: string) => fetchAPI<{ agents: AgentDefinition[] }>(`/api/workspaces/${id}/agents`),
+    createAgent: (
+      id: string,
+      body: {
+        role: string;
+        tier: string;
+        name: string;
+        parentRole?: string;
+        systemPrompt?: string;
+      },
+    ) =>
+      fetchAPI<{ agent: AgentDefinition }>(`/api/workspaces/${id}/agents`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+  },
   projects: {
     list: (limit = 20, offset = 0, includeArchived = false) =>
       fetchAPI<{ projects: Project[]; total: number }>(
@@ -84,6 +137,16 @@ export const api = {
       fetchAPI<{ project: Project; workstreams: Workstream[]; tasks: AgentTask[] }>(
         `/api/projects/${id}/detail`,
       ),
+    auditLog: (id: string, limit = 50, offset = 0) =>
+      fetchAPI<{ logs: AuditLog[]; total: number }>(
+        `/api/projects/${id}/audit-log?limit=${limit}&offset=${offset}`,
+      ),
+    artifacts: (id: string, type?: string) => {
+      const query = type ? `?type=${type}` : "";
+      return fetchAPI<{ artifacts: Artifact[]; total: number }>(
+        `/api/projects/${id}/artifacts${query}`,
+      );
+    },
   },
   workstreams: {
     get: (id: string) => fetchAPI<{ workstream: Workstream }>(`/api/workstreams/${id}`),
@@ -94,6 +157,8 @@ export const api = {
       fetchAPI<{ task: AgentTask }>(`/api/tasks/${taskId}/retry`, {
         method: "POST",
       }),
+    children: (taskId: string) => fetchAPI<{ tasks: AgentTask[] }>(`/api/tasks/${taskId}/children`),
+    tree: (taskId: string) => fetchAPI<{ tasks: AgentTask[] }>(`/api/tasks/${taskId}/tree`),
   },
   features: {
     list: (status?: string) => {
@@ -137,4 +202,14 @@ export const api = {
   },
 };
 
-export type { Project, Workstream, AgentTask, FileEntry, Feature };
+export type {
+  Workspace,
+  Project,
+  Workstream,
+  AgentTask,
+  FileEntry,
+  Feature,
+  AuditLog,
+  Artifact,
+  AgentDefinition,
+};
