@@ -1,9 +1,24 @@
+import { taskRepo } from "@orchestration/db";
 import type { FastifyPluginAsync } from "fastify";
 import { idParamSchema } from "../schemas/projects.js";
 import { completeTaskSchema, createTaskSchema } from "../schemas/tasks.js";
 import { agentService } from "../services/agent.service.js";
 
 export const taskRoutes: FastifyPluginAsync = async (app) => {
+  // GET /:id/children — list child tasks (delegation tree)
+  app.get<{ Params: { id: string } }>("/:id/children", async (request) => {
+    const { id } = idParamSchema.parse(request.params);
+    const tasks = await taskRepo.listChildTasks(id);
+    return { tasks };
+  });
+
+  // GET /:id/tree — full subtask tree
+  app.get<{ Params: { id: string } }>("/:id/tree", async (request) => {
+    const { id } = idParamSchema.parse(request.params);
+    const tasks = await taskRepo.getTaskTree(id);
+    return { tasks };
+  });
+
   // POST / — create agent task and enqueue
   app.post("/", async (request, reply) => {
     const body = createTaskSchema.parse(request.body);

@@ -4,12 +4,18 @@ import { databasePlugin } from "./plugins/database.js";
 import { errorHandlerPlugin } from "./plugins/error-handler.js";
 import { redisPlugin } from "./plugins/redis.js";
 import { requestIdPlugin } from "./plugins/request-id.js";
+import { agentDefinitionRoutes, workspaceAgentRoutes } from "./routes/agent-definitions.js";
+import { artifactDetailRoutes, artifactRoutes } from "./routes/artifacts.js";
+import { auditLogRoutes } from "./routes/audit-logs.js";
+import { escalationRoutes, projectEscalationRoutes } from "./routes/escalations.js";
 import { eventRoutes } from "./routes/events.js";
 import { featureRoutes } from "./routes/features.js";
 import { fileRoutes } from "./routes/files.js";
 import { healthRoutes } from "./routes/health.js";
 import { projectRoutes } from "./routes/projects.js";
+import { taskReviewRoutes, workstreamReviewRoutes } from "./routes/reviews.js";
 import { taskRoutes } from "./routes/tasks.js";
+import { workspaceRoutes } from "./routes/workspaces.js";
 import { workstreamRoutes } from "./routes/workstreams.js";
 
 export interface AppOptions {
@@ -45,9 +51,19 @@ export async function buildApp(opts: AppOptions = {}): Promise<FastifyInstance> 
 
   // Routes
   await app.register(healthRoutes);
+  await app.register(workspaceRoutes, { prefix: "/api/workspaces" });
+  await app.register(workspaceAgentRoutes, { prefix: "/api/workspaces" });
+  await app.register(agentDefinitionRoutes, { prefix: "/api/agents" });
   await app.register(projectRoutes, { prefix: "/api/projects" });
   await app.register(workstreamRoutes, { prefix: "/api/workstreams" });
   await app.register(taskRoutes, { prefix: "/api/tasks" });
+  await app.register(artifactRoutes, { prefix: "/api/projects" });
+  await app.register(artifactDetailRoutes, { prefix: "/api/artifacts" });
+  await app.register(projectEscalationRoutes, { prefix: "/api/projects" });
+  await app.register(auditLogRoutes, { prefix: "/api/projects" });
+  await app.register(escalationRoutes, { prefix: "/api/escalations" });
+  await app.register(taskReviewRoutes, { prefix: "/api/tasks" });
+  await app.register(workstreamReviewRoutes, { prefix: "/api/workstreams" });
   await app.register(eventRoutes, { prefix: "/api/events" });
   await app.register(fileRoutes, { prefix: "/api/projects" });
   await app.register(featureRoutes, { prefix: "/api/features" });
