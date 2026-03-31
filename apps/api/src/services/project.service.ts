@@ -1,4 +1,4 @@
-import { projectRepo, taskRepo, workstreamRepo } from "@orchestration/db";
+import { featureRepo, projectRepo, taskRepo, workstreamRepo } from "@orchestration/db";
 import type { CreateProjectInput, UpdateProjectInput } from "@orchestration/shared";
 import type { Queue } from "bullmq";
 
@@ -114,9 +114,12 @@ export class ProjectService {
 
   async getDetail(id: string) {
     const project = await this.getById(id);
-    const workstreams = await workstreamRepo.listWorkstreamsByProject(id);
-    const tasks = await taskRepo.listTasksByProject(id);
-    return { project, workstreams, tasks };
+    const [workstreams, tasks, feature] = await Promise.all([
+      workstreamRepo.listWorkstreamsByProject(id),
+      taskRepo.listTasksByProject(id),
+      featureRepo.getFeatureByProjectId(id),
+    ]);
+    return { project, workstreams, tasks, feature };
   }
 
   async listWorkstreams(id: string) {

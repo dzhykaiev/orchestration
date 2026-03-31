@@ -4,7 +4,7 @@ import type { Queue } from "bullmq";
 import { BusinessError, NotFoundError } from "./project.service.js";
 
 export class FeatureService {
-  async list(opts: { status?: string; limit: number; offset: number }) {
+  async list(opts: { status?: string; workspaceId?: string; limit: number; offset: number }) {
     return featureRepo.listFeatures(opts);
   }
 

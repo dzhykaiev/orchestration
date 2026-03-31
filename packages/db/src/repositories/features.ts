@@ -1,33 +1,57 @@
 import type { CreateFeatureInput, UpdateFeatureInput } from "@orchestration/shared";
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { db, schema } from "../client.js";
 
-export async function listFeatures(opts: { status?: string; limit: number; offset: number }) {
-  const base = db.select().from(schema.features);
-  const countBase = db.select({ count: sql<number>`count(*)::int` }).from(schema.features);
-
+export async function listFeatures(opts: {
+  status?: string;
+  workspaceId?: string;
+  limit: number;
+  offset: number;
+}) {
+  const conditions = [];
   if (opts.status) {
-    const statusVal = opts.status as typeof schema.features.$inferSelect.status;
-    const [items, countResult] = await Promise.all([
-      base
-        .where(eq(schema.features.status, statusVal))
-        .orderBy(asc(schema.features.sortOrder), desc(schema.features.createdAt))
-        .limit(opts.limit)
-        .offset(opts.offset),
-      countBase.where(eq(schema.features.status, statusVal)),
-    ]);
-    return { features: items, total: countResult[0]?.count ?? 0 };
+    conditions.push(
+      eq(schema.features.status, opts.status as typeof schema.features.$inferSelect.status),
+    );
+  }
+  if (opts.workspaceId) {
+    conditions.push(eq(schema.features.workspaceId, opts.workspaceId));
   }
 
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
   const [items, countResult] = await Promise.all([
-    base
+    db
+      .select()
+      .from(schema.features)
+      .where(where)
       .orderBy(asc(schema.features.sortOrder), desc(schema.features.createdAt))
       .limit(opts.limit)
       .offset(opts.offset),
-    countBase,
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(schema.features)
+      .where(where),
   ]);
 
   return { features: items, total: countResult[0]?.count ?? 0 };
+}
+
+export async function listFeaturesByWorkspace(
+  workspaceId: string,
+  opts: { status?: string; limit: number; offset: number },
+) {
+  return listFeatures({ ...opts, workspaceId });
+}
+
+export async function getFeatureByProjectId(projectId: string) {
+  const result = await db
+    .select()
+    .from(schema.features)
+    .where(eq(schema.features.orchestrationProjectId, projectId))
+    .limit(1);
+
+  return result[0] ?? null;
 }
 
 export async function getFeatureById(id: string) {

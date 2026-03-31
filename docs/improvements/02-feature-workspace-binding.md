@@ -66,13 +66,13 @@ GET  /api/workspaces/:id/features → НЕ ІСНУЄ
 
 ## Чеклист
 
-- [ ] Repository: `listFeaturesByWorkspace(workspaceId, opts)` метод
-- [ ] Route: `GET /api/workspaces/:id/features`
-- [ ] Route: `POST /api/workspaces/:id/features`
-- [ ] Route: `GET /api/features?workspaceId=` query param filter
-- [ ] Repository: `getFeatureByProjectId(projectId)` метод
-- [ ] Project detail endpoint: включити linked feature
-- [ ] Sync: project completion → feature status update
+- [x] Repository: `listFeaturesByWorkspace(workspaceId, opts)` метод
+- [x] Route: `GET /api/workspaces/:id/features`
+- [x] Route: `POST /api/workspaces/:id/features`
+- [x] Route: `GET /api/features?workspaceId=` query param filter
+- [x] Repository: `getFeatureByProjectId(projectId)` метод
+- [x] Project detail endpoint: включити linked feature
+- [x] Sync: project completion → feature status update
 - [ ] Frontend: workspace selector на board
 - [ ] Frontend: feature card показує project status
 - [ ] Тести: workspace-scoped feature CRUD

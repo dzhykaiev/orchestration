@@ -20,7 +20,17 @@ export async function getWorkstreamById(id: string) {
   return result[0] ?? null;
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function createWorkstream(input: CreateWorkstreamInput) {
+  if (input.dependencies?.length) {
+    for (const dep of input.dependencies) {
+      if (!UUID_RE.test(dep)) {
+        console.warn(`[WorkstreamRepo] Non-UUID dependency "${dep}" in workstream "${input.name}" — will be normalized later`);
+      }
+    }
+  }
+
   const [ws] = await db
     .insert(schema.workstreams)
     .values({

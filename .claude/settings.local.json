@@ -43,7 +43,8 @@
       "Bash(chmod:*)",
       "Bash(psql:*)",
       "Bash(npx tsx:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(docker exec:*)"
     ]
   }
 }

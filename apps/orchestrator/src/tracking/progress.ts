@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
-import { projectRepo, taskRepo, workstreamRepo } from "@orchestration/db";
+import { featureRepo, projectRepo, taskRepo, workstreamRepo } from "@orchestration/db";
 import type { AgentRole } from "@orchestration/shared";
 import { eventBus } from "../events/index.js";
 import { buildSystemPrompt, buildUserMessage } from "../prompts/implementation.js";
@@ -59,18 +59,19 @@ async function unblockDependents(completedWorkstreamId: string, projectId: strin
   );
   completedIds.add(completedWorkstreamId);
 
-  // Build name-to-id map for resolving name-based dependencies
-  const nameToId = new Map(allWorkstreams.map((ws) => [ws.name, ws.id]));
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
   for (const ws of allWorkstreams) {
     if (ws.status !== "pending" && ws.status !== "blocked") continue;
     if (ws.dependencies.length === 0) continue;
 
-    // Dependencies might be IDs or names — check both
+    // Dependencies are normalized to UUIDs by the planning worker
     const allDepsMet = ws.dependencies.every((dep) => {
-      if (completedIds.has(dep)) return true;
-      const resolvedId = nameToId.get(dep);
-      return resolvedId ? completedIds.has(resolvedId) : false;
+      if (!UUID_RE.test(dep)) {
+        console.warn(`[Progress] Non-UUID dependency "${dep}" in workstream ${ws.id} — skipping`);
+        return true; // Don't block on invalid deps
+      }
+      return completedIds.has(dep);
     });
 
     if (allDepsMet) {
@@ -115,6 +116,9 @@ async function checkProjectCompletion(projectId: string) {
   if (allCompleted) {
     await projectRepo.updateProject(projectId, { status: "completed" });
 
+    // Sync linked feature status → done
+    await syncLinkedFeatureStatus(projectId, "done");
+
     // For existing-mode projects, commit changes on the work branch
     const project = await projectRepo.getProjectById(projectId);
     if (project?.projectMode === "existing" && project.workBranch) {
@@ -141,5 +145,22 @@ async function checkProjectCompletion(projectId: string) {
     }
   } else if (anyFailed && !anyActive) {
     await projectRepo.updateProject(projectId, { status: "failed" });
+
+    // Sync linked feature status → todo
+    await syncLinkedFeatureStatus(projectId, "todo");
+  }
+}
+
+async function syncLinkedFeatureStatus(projectId: string, status: "done" | "todo") {
+  try {
+    const feature = await featureRepo.getFeatureByProjectId(projectId);
+    if (feature) {
+      await featureRepo.updateFeature(feature.id, { status });
+      console.log(
+        `[Progress] Synced feature ${feature.id} status to "${status}" for project ${projectId}`,
+      );
+    }
+  } catch (err) {
+    console.warn(`[Progress] Failed to sync feature status for project ${projectId}:`, err);
   }
 }

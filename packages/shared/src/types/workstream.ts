@@ -32,6 +32,7 @@ export interface CreateWorkstreamInput {
 export interface UpdateWorkstreamInput {
   status?: WorkstreamStatus;
   assignedAgent?: string | null;
+  dependencies?: string[];
   deliverables?: string[];
   validationStatus?: ValidationStatus | null;
   validationOutput?: string | null;

@@ -206,8 +206,24 @@ export async function handlePlanningJob(job: Job<PlanningJobData>) {
       return { projectId, workstreamCount: 0, filesCreated: relativeFiles.length };
     }
 
-    // 9. Build name-to-id map
+    // 9. Normalize dependencies: replace name-based deps with UUIDs
     const nameToId = new Map(createdWorkstreams.map((ws) => [ws.name, ws.id]));
+    for (const ws of createdWorkstreams) {
+      const deps = ws.dependencies as string[];
+      if (deps.length === 0) continue;
+
+      const normalizedDeps = deps.map((dep) => {
+        const resolvedId = nameToId.get(dep);
+        if (resolvedId) return resolvedId;
+        if (!dep.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+          console.warn(`[Planning] Unknown dependency "${dep}" in workstream "${ws.name}" — keeping as-is`);
+        }
+        return dep;
+      });
+
+      await workstreamRepo.updateWorkstream(ws.id, { dependencies: normalizedDeps });
+      (ws as { dependencies: string[] }).dependencies = normalizedDeps;
+    }
 
     // 10. Dispatch tasks for workstreams with no dependencies
     for (const ws of createdWorkstreams) {

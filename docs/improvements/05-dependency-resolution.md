@@ -81,10 +81,10 @@ for (const ws of createdWorkstreams) {
 
 ## Чеклист
 
-- [ ] Planning worker: нормалізація dependencies name→UUID після створення workstreams
+- [x] Planning worker: нормалізація dependencies name→UUID після створення workstreams
 - [ ] Circular dependency detection: працює з нормалізованими UUID
 - [ ] API validation: dependencies при створенні — тільки UUID існуючих workstreams
-- [ ] Progress tracking: прибрати nameToId fallback, тільки UUID
-- [ ] Frontend: DependencyGraph працює тільки з UUID edges
+- [x] Progress tracking: прибрати nameToId fallback, тільки UUID
+- [x] Frontend: DependencyGraph працює тільки з UUID edges
 - [ ] Тести: нормалізація залежностей в planning worker
 - [ ] Тести: невалідні dependencies → помилка

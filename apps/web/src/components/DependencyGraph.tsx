@@ -166,10 +166,11 @@ export function DependencyGraph({ workstreams, onNodeClick }: DependencyGraphPro
       },
     }));
 
+    const wsById = new Map(workstreams.map((w) => [w.id, w]));
     const edges: Edge[] = [];
     for (const ws of workstreams) {
       for (const dep of ws.dependencies) {
-        const depWs = workstreams.find((w) => w.id === dep || w.name === dep);
+        const depWs = wsById.get(dep);
         if (depWs) {
           const depCompleted = depWs.status === "completed";
           const depActive = depWs.status === "in_progress";
