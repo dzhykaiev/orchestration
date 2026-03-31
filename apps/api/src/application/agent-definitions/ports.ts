@@ -1,7 +1,4 @@
-import type {
-  CreateAgentDefinitionInput,
-  UpdateAgentDefinitionInput,
-} from "@orchestration/shared";
+import type { CreateAgentDefinitionInput, UpdateAgentDefinitionInput } from "@orchestration/shared";
 
 export interface AgentDefinitionRecord {
   id: string;
