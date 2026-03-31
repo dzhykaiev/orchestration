@@ -65,7 +65,6 @@ apps/
   api/
     src/
   orchestrator/
-    projects/
     src/
   web/
     src/
@@ -73,7 +72,6 @@ docs/
   contracts/
   decisions/
   runbooks/
-logs/
 packages/
   db/
     drizzle/
