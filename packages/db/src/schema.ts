@@ -346,3 +346,22 @@ export const reviews = pgTable(
     index("idx_reviews_workstream").on(t.workstreamId),
   ],
 );
+
+export const todoStatusEnum = pgEnum("todo_status", ["pending", "in_progress", "completed"]);
+
+export const todos = pgTable(
+  "todos",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    workspaceId: uuid("workspace_id")
+      .references(() => workspaces.id, { onDelete: "cascade" })
+      .notNull(),
+    title: text("title").notNull(),
+    description: text("description"),
+    status: todoStatusEnum("status").default("pending").notNull(),
+    order: integer("order").default(0).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => [index("idx_todos_workspace").on(t.workspaceId), index("idx_todos_status").on(t.status)],
+);

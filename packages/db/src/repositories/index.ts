@@ -8,3 +8,4 @@ export * as artifactRepo from "./artifacts.js";
 export * as agentDefinitionRepo from "./agent-definitions.js";
 export * as escalationRepo from "./escalations.js";
 export * as reviewRepo from "./reviews.js";
+export * as todoRepo from "./todos.js";
