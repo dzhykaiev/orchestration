@@ -1,3 +1,8 @@
+import type {
+  CreateAgentDefinitionInput,
+  UpdateAgentDefinitionInput,
+} from "@orchestration/shared";
+
 export interface AgentDefinitionRecord {
   id: string;
   [key: string]: unknown;
@@ -5,29 +10,10 @@ export interface AgentDefinitionRecord {
 
 export interface AgentDefinitionRepositoryPort {
   listByWorkspace(workspaceId: string): Promise<AgentDefinitionRecord[]>;
-  createAgentDefinition(input: {
-    workspaceId: string;
-    name: string;
-    role: string;
-    tier: string;
-    promptTemplate?: string;
-    modelPreference?: string;
-    timeoutSec?: number;
-    maxRetries?: number;
-    metadata?: Record<string, unknown>;
-  }): Promise<AgentDefinitionRecord>;
+  createAgentDefinition(input: CreateAgentDefinitionInput): Promise<AgentDefinitionRecord | null>;
   updateAgentDefinition(
     id: string,
-    input: Partial<{
-      name: string;
-      role: string;
-      tier: string;
-      promptTemplate: string;
-      modelPreference: string;
-      timeoutSec: number;
-      maxRetries: number;
-      metadata: Record<string, unknown>;
-    }>,
+    input: UpdateAgentDefinitionInput,
   ): Promise<AgentDefinitionRecord | null>;
   getById(id: string): Promise<AgentDefinitionRecord | null>;
   deleteAgentDefinition(id: string): Promise<void>;
