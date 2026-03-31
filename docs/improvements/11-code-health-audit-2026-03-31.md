@@ -114,7 +114,7 @@
 
 ### 7) Оновити конфіг тестового воркспейсу Vitest
 
-Є deprecation warning для `vitest.workspace.ts`.
+Є deprecation warning для `vitest.config.ts`.
 
 **Джерело**
 
@@ -141,7 +141,7 @@
 
 - [x] Винести єдиний utility для резолву LLM provider.
 - [x] Прибрати зайві status-касти через сильніші типи.
-- [x] Мігрувати з `vitest.workspace.ts` на `test.projects`.
+- [x] Мігрувати з `vitest.config.ts` на `test.projects`.
 
 <!-- DONE by Codex at 2026-03-31 -->
 <!-- DONE by Codex at 2026-03-31 (follow-up) -->

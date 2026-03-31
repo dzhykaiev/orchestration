@@ -310,7 +310,7 @@ Establish the infrastructure, tooling, and quality guardrails that support all o
 | Root package.json | `package.json` | Workspace scripts |
 | Workspace config | `pnpm-workspace.yaml` | Workspace definitions |
 | Env example | `.env.example` | All required environment variables |
-| Vitest workspace | `vitest.workspace.ts` | Monorepo test configuration |
+| Vitest workspace | `vitest.config.ts` | Monorepo test configuration |
 | Dev script | `scripts/dev.sh` | Start all services for development |
 | Reset script | `scripts/reset-db.sh` | Drop and recreate database |
 | Check script | `scripts/check.sh` | Run lint, format check, type check, and tests |

@@ -6,8 +6,8 @@ The Architect is the first agent to run. It receives the user's goal and produce
 
 - Design system architecture from a high-level goal
 - Define all shared types in `packages/shared/src/types/`
-- Create API contracts in `contracts/api/`
-- Define event contracts in `contracts/events/`
+- Create API contracts in `packages/shared/src/schemas/`
+- Define event contracts in `packages/shared/src/types/events.ts`
 - Document database entity-relationship model
 - Create workstream plan with dependencies and deliverables
 
@@ -29,8 +29,8 @@ The architect produces a structured plan containing:
 
 ```
 packages/shared/src/types/    # Entity type definitions
-contracts/api/                 # API contracts
-contracts/events/              # Event contracts
+packages/shared/src/schemas/  # API DTO schemas/contracts
+packages/shared/src/types/    # Event contracts (events.ts)
 ```
 
 ## Constraints

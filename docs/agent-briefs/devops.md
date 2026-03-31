@@ -25,7 +25,7 @@ You have write access to these paths only:
 - `docker-compose.yml` — local development services
 - `Dockerfile*` — Dockerfiles for each app (not yet created)
 - `.github/*` — GitHub Actions workflows (not yet created)
-- `vitest.workspace.ts` — Vitest workspace config
+- `vitest.config.ts` — Vitest workspace config
 - `apps/*/vitest.config.ts` — per-app test configs
 - `biome.json` — linter/formatter configuration
 - `tsconfig.base.json` — base TypeScript config
@@ -40,7 +40,7 @@ You have write access to these paths only:
 
 - **`docker-compose.yml`** — PostgreSQL 16 alpine (5432) + Redis 7 alpine (6379), health checks, persistent volumes
 - **`biome.json`** — formatter (2-space, 100 width, double quotes), linter with recommended rules, import organization
-- **`vitest.workspace.ts`** — references `apps/api/vitest.config.ts` and `apps/orchestrator/vitest.config.ts`
+- **`vitest.config.ts`** — references `apps/api/vitest.config.ts` and `apps/orchestrator/vitest.config.ts`
 - **`tsconfig.base.json`** — strict mode, ES2020 target, ESNext module, path aliases
 - **`scripts/dev.sh`** — starts Docker services + all apps in dev mode
 - **`scripts/pre-commit`** — pre-commit hook for auto-updating project docs

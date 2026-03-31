@@ -28,7 +28,7 @@ interface Project {
 
 ### API Contracts
 
-Defined in `contracts/api/`. Specify request/response shapes for every API endpoint.
+Defined in `packages/shared/src/schemas/`. Specify request/response shapes for every API endpoint.
 
 ```typescript
 // Example: Create Project
@@ -44,7 +44,7 @@ interface CreateProjectResponse extends Project {}
 
 ### Event Contracts
 
-Defined in `contracts/events/`. Specify event payloads for real-time updates.
+Defined in `packages/shared/src/types/events.ts`. Specify event payloads for real-time updates.
 
 ```typescript
 // Example: Task completed event

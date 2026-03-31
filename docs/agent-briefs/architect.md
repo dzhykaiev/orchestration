@@ -33,8 +33,8 @@ You have write access to these paths only:
 ### You MUST
 
 - Define all entity types in `packages/shared/src/types/` and export them from `packages/shared/src/types/index.ts`
-- Define all API contracts in `contracts/api/` (request/response shapes, endpoints, methods, status codes)
-- Define all queue/event contracts in `contracts/events/` (job names, payloads, SSE event types)
+- Define all API contracts in `packages/shared/src/schemas/` (request/response shapes, endpoints, methods, status codes)
+- Define all queue/event contracts in `packages/shared/src/types/events.ts` (job names, payloads, SSE event types)
 - Document the database entity-relationship model in `docs/`
 - Create a workstream plan that describes what each agent should build and in what order
 - Use strict TypeScript types — no `any`, prefer union literal types for statuses and roles
@@ -71,14 +71,14 @@ Types already exist in `packages/shared/src/types/`:
 
 ## Current Contracts
 
-Contracts already exist in `contracts/`:
+Contracts are defined in `packages/shared/`:
 
 | File | Contents |
 |---|---|
-| `contracts/api/projects.ts` | ListProjects, GetProject, CreateProject, UpdateProject, PlanProject request/response |
-| `contracts/api/workstreams.ts` | Workstream CRUD contracts |
-| `contracts/api/agent-tasks.ts` | AgentTask CRUD contracts |
-| `contracts/events/index.ts` | OrchestratorEvent union: project.*, workstream.*, task.* events |
+| `packages/shared/src/schemas/project.ts` | Project DTO/query/input schemas |
+| `packages/shared/src/schemas/workstream.ts` | Workstream DTO/input schemas |
+| `packages/shared/src/schemas/agent-task.ts` | Task DTO/input schemas |
+| `packages/shared/src/types/events.ts` | OrchestratorEvent union: project.*, workstream.*, task.* events |
 
 ## Required Inputs
 
@@ -92,11 +92,11 @@ Contracts already exist in `contracts/`:
 - Entity definitions, relationships, cardinality
 - API design principles, error format
 
-### 2. API Contracts (`contracts/api/`)
+### 2. API Contracts (`packages/shared/src/schemas/`)
 
 One file per resource with typed request/response shapes, endpoints, methods, error codes.
 
-### 3. Event Contracts (`contracts/events/`)
+### 3. Event Contracts (`packages/shared/src/types/events.ts`)
 
 - BullMQ job names, payload types, retry config
 - SSE event types for real-time UI updates
@@ -119,8 +119,8 @@ None. This agent runs first.
 ## Done Criteria
 
 - [ ] All entity types are defined in `packages/shared/src/types/` and exported
-- [ ] All API endpoints have contracts in `contracts/api/` with request/response types
-- [ ] All queue job types and SSE events have contracts in `contracts/events/`
+- [ ] All API endpoints have contracts in `packages/shared/src/schemas/` with request/response types
+- [ ] All queue job types and SSE events have contracts in `packages/shared/src/types/events.ts`
 - [ ] Architecture documentation exists and describes system data flow
 - [ ] Data model document exists with all entities and relationships
 - [ ] Workstream plan exists with clear agent assignments and dependency order

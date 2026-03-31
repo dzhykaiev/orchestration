@@ -72,7 +72,7 @@ apps/api/src/
 
 ### You MUST
 
-- Read contracts from `contracts/api/` and implement every defined endpoint exactly as specified
+- Read contracts from `packages/shared/src/schemas/` and implement every defined endpoint exactly as specified
 - Import shared types from `@orchestration/shared` — do not redefine types locally
 - Use Zod schemas in `apps/api/src/schemas/` for all request input validation
 - Implement proper error handling with consistent error response shapes via the error-handler plugin
@@ -97,7 +97,7 @@ apps/api/src/
 
 Before you start, these must exist:
 
-1. **API contracts** — `contracts/api/*.ts` defining every endpoint's method, path, request shape, and response shape
+1. **API contracts** — `packages/shared/src/schemas/*.ts` defining every endpoint's method, path, request shape, and response shape
 2. **Shared types** — `packages/shared/src/types/` with entity types, enums, and common types
 3. **Database repositories** — `packages/db/src/repositories/` providing data access methods
 
@@ -129,12 +129,12 @@ Real-time event publishing via SSE channel for orchestrator progress updates.
 
 | Agent | What you need from them | Status check |
 |---|---|---|
-| Architect | Contracts in `contracts/api/`, types in `packages/shared/src/types/` | Files exist and export types |
+| Architect | Contracts in `packages/shared/src/schemas/`, types in `packages/shared/src/types/` | Files exist and export types |
 | Data agent | Repository classes in `packages/db/src/repositories/` | Classes exist and export CRUD methods |
 
 ## Done Criteria
 
-- [ ] Every endpoint in `contracts/api/` has a corresponding route handler
+- [ ] Every endpoint in `packages/shared/src/schemas/` has a corresponding route handler
 - [ ] All routes use Zod schema validation for request params, query, and body
 - [ ] All routes return responses matching the contract's response types
 - [ ] Error handler returns the standard error shape for all error codes

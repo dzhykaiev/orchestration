@@ -16,7 +16,7 @@ Sets up infrastructure, CI/CD, Docker, and development tooling.
 ```
 docker-compose.yml         # Infrastructure
 biome.json                 # Linter/formatter
-vitest.workspace.ts        # Test config
+vitest.config.ts           # Test config
 tsconfig.base.json         # TypeScript base config
 scripts/                   # Development scripts
 .env.example               # Environment template
@@ -29,7 +29,7 @@ scripts/                   # Development scripts
 | Docker Compose (PostgreSQL + Redis) | ✅ Done |
 | Development scripts | ✅ Done |
 | Biome configuration | ✅ Done |
-| Vitest workspace | ✅ Done |
+| Vitest config (`vitest.config.ts`) | ✅ Done |
 | TypeScript configs | ✅ Done |
 | `.env.example` | ✅ Done |
 | Production Dockerfiles | ❌ Not started |

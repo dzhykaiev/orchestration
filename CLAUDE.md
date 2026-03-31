@@ -12,7 +12,7 @@ AI-driven software orchestration platform. Користувач задає ці�
 - **Queue**: BullMQ + Redis — job orchestration, retries, priorities (3 workers: planning, implementation, validation)
 - **AI**: LLM provider abstraction (`apps/orchestrator/src/llm/`) — Claude CLI + OpenCode providers, per-role mapping
 - **Events**: SSE (Server-Sent Events) via `GET /api/events` for real-time UI updates
-- **Testing**: Vitest (workspace config in `vitest.workspace.ts`)
+- **Testing**: Vitest (`vitest.config.ts` with `test.projects`)
 - **Linting**: Biome
 
 ## Flow
@@ -44,14 +44,15 @@ pnpm db:seed      # Seed data
 - Shared types live in `packages/shared/src/types/` (project, workstream, agent-task, feature, events, llm-provider)
 - DB schema in `packages/db/src/schema.ts` — single source of truth for tables, enums, relations
 - DB repositories in `packages/db/src/repositories/` — used by both `apps/api` and `apps/orchestrator`
-- API contracts in `contracts/api/`, event contracts in `contracts/events/`
+- Active contracts in `packages/shared/src/{types,schemas,state-machine.ts}` and DB contract in `packages/db/src/schema.ts`
+- `contracts/api` and `contracts/events` are currently placeholders
 - Zod validation schemas in `apps/api/src/schemas/` — per-resource request validation
 - Agent briefs (what each agent does) in `docs/agent-briefs/`
 - LLM prompts and parsers in `apps/orchestrator/src/prompts/`
 - Architecture docs in `docs/`
 - Imports between packages use `@orchestration/*` workspace aliases
-- Agent roles: `architect | backend | frontend | data | devops | qa`
-- Project statuses: `draft | planning | in_progress | completed | failed | archived`
+- Agent roles: `ceo | planner | architect | lead | backend | frontend | data | devops | qa | reviewer`
+- Project statuses: `draft | planning | in_progress | completed | failed | cancelled | archived`
 
 <!-- AUTO_START -->
 ## Project Structure (auto-generated)
@@ -59,7 +60,10 @@ pnpm db:seed      # Seed data
 ```
 .agents/
   skills/
+    adr-writer/
+    execution-plan/
     frontend-design/
+    project-architect-review/
 .opencode/
   plans/
 .pnpm-store/

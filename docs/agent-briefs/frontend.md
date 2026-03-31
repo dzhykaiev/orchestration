@@ -67,7 +67,7 @@ apps/web/src/
 
 ### You MUST
 
-- Read contracts from `contracts/api/` to know the exact API shape you are calling
+- Read contracts from `packages/shared/src/schemas/` to know the exact API shape you are calling
 - Read shared types from `packages/shared/src/types/` and use them for all data structures
 - Use the Next.js App Router (not Pages Router)
 - Build a typed API client in `apps/web/src/lib/` that matches the contracts
@@ -93,7 +93,7 @@ apps/web/src/
 
 Before you start, these must exist:
 
-1. **API contracts** — `contracts/api/*.ts` so you know endpoint URLs, methods, and response shapes
+1. **API contracts** — `packages/shared/src/schemas/*.ts` so you know endpoint URLs, methods, and response shapes
 2. **Shared types** — `packages/shared/src/types/` for entity types, enums, and common types
 3. **Running API** — the backend agent's API must be available (or you must mock it during development)
 
@@ -132,7 +132,7 @@ Before you start, these must exist:
 
 | Agent | What you need from them | Status check |
 |---|---|---|
-| Architect | Contracts in `contracts/api/`, types in `packages/shared/src/types/` | Files exist and export types |
+| Architect | Contracts in `packages/shared/src/schemas/`, types in `packages/shared/src/types/` | Files exist and export types |
 | Backend agent | Running API at configured URL | API responds to `GET /health` |
 
 ## Key Libraries

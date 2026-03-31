@@ -2,7 +2,7 @@ import { escalationRepo } from "@orchestration/db";
 import { EscalationListQuerySchema, ProjectIdParamSchema } from "@orchestration/shared";
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
-import { NotFoundError } from "../services/project.service.js";
+import { NotFoundError } from "../domain/common/errors.js";
 
 const idParam = z.object({ id: z.string().uuid() });
 

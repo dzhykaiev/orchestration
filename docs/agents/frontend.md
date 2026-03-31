@@ -29,7 +29,7 @@ apps/web/src/lib/          # Utilities, API client
 
 ## Input
 
-- API contracts from `contracts/api/`
+- API contracts from `packages/shared/src/schemas/`
 - Shared types from `@orchestration/shared`
 
 ## Constraints

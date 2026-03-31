@@ -23,7 +23,7 @@ apps/api/src/plugins/      # Fastify plugins
 ## Input
 
 The backend agent receives:
-- API contracts from `contracts/api/`
+- API contracts from `packages/shared/src/schemas/`
 - Shared types from `packages/shared/src/types/`
 - Database schema from `packages/db/src/schema.ts`
 - Repository interfaces from `packages/db/src/repositories/`

@@ -18,7 +18,7 @@ This is a TypeScript monorepo managed with pnpm workspaces:
 | Queue | — | BullMQ / Redis |
 | AI | `apps/orchestrator/src/llm/` | LLM provider abstraction |
 
-Test runner: **Vitest** (workspace config in `vitest.workspace.ts`)
+Test runner: **Vitest** (workspace config in `vitest.config.ts`)
 
 ## Owned Files
 
@@ -76,7 +76,7 @@ apps/orchestrator/src/output/
 Before you start, these must exist:
 
 1. **Implemented code** — routes, services, repositories, components from implementation agents
-2. **Contracts** — `contracts/api/` and `contracts/events/` defining expected behavior
+2. **Contracts** — `packages/shared/src/schemas/` and `packages/shared/src/types/events.ts` defining expected behavior
 3. **Test infrastructure** — Vitest config from devops agent, running PostgreSQL/Redis for integration tests
 
 ## Expected Outputs
@@ -143,7 +143,7 @@ async function clearTables(): Promise<void>
 | Backend agent | Implemented routes, services in `apps/api/src/` | Source files exist |
 | Frontend agent | Implemented components, hooks, pages in `apps/web/src/` | Source files exist |
 | Data agent | Schema and repositories in `packages/db/src/` | Schema and repository files exist |
-| DevOps agent | Vitest config, Docker Compose for test services | `vitest.workspace.ts` exists |
+| DevOps agent | Vitest config, Docker Compose for test services | `vitest.config.ts` exists |
 
 ## Bug Reporting Protocol
 
@@ -166,7 +166,7 @@ it.skip("should return 404 when project does not exist", () => {
 ## Done Criteria
 
 - [ ] >80% code coverage on critical paths (services, repositories, route handlers)
-- [ ] Every endpoint in `contracts/api/` has at least one integration test
+- [ ] Every endpoint in `packages/shared/src/schemas/` has at least one integration test
 - [ ] Every service method has unit tests covering success and error paths
 - [ ] Every repository has tests running against a real test database
 - [ ] Orchestrator workers have tests with mocked LLM providers

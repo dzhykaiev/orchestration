@@ -90,14 +90,14 @@ This plan is divided into six phases. Each phase builds on the previous one and 
    - Status update pipeline: task status changes update workstream and project status
 
 5. **API integration**
-   - `POST /projects/:id/start` endpoint to trigger orchestration
+   - `POST /projects/:id/plan` endpoint to trigger orchestration planning
    - `GET /projects/:id/workstreams` endpoint
    - `GET /workstreams/:id/tasks` endpoint
    - Job enqueue from API server to orchestrator via BullMQ
 
 ### Exit Criteria
 
-- Submitting a project goal and calling `/projects/:id/start` enqueues a planning job.
+- Submitting a project goal and calling `/projects/:id/plan` enqueues a planning job.
 - The orchestrator picks up the job, calls Claude API, and produces a structured plan.
 - Workstreams and tasks are created in the database with correct dependencies.
 - Implementation tasks are enqueued in the correct order.
@@ -172,7 +172,7 @@ This plan is divided into six phases. Each phase builds on the previous one and 
 2. **Project creation**
    - Goal submission form with text area
    - Form validation
-   - Submit handler that calls `POST /projects` and then `POST /projects/:id/start`
+   - Submit handler that calls `POST /projects` and then `POST /projects/:id/plan`
    - Redirect to project detail page after creation
 
 3. **Project list view**

@@ -43,7 +43,10 @@ AI-driven software development orchestration platform. Provide a high-level soft
 ```
 .agents/
   skills/
+    adr-writer/
+    execution-plan/
     frontend-design/
+    project-architect-review/
 .opencode/
   plans/
 .pnpm-store/
