@@ -41,7 +41,7 @@ export default function BoardPage() {
     {} as Record<string, Feature[]>,
   );
 
-  async function handleDrop(featureId: string, newStatus: string) {
+  async function handleDrop(featureId: string, newStatus: Feature["status"]) {
     const feature = features.find((f) => f.id === featureId);
     if (!feature || feature.status === newStatus) return;
 

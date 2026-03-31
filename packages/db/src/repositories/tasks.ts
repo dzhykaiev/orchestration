@@ -1,5 +1,5 @@
 import type { CreateAgentTaskInput } from "@orchestration/shared";
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { db, schema } from "../client.js";
 
 export async function listTasksByWorkstream(workstreamId: string) {
@@ -7,6 +7,14 @@ export async function listTasksByWorkstream(workstreamId: string) {
     .select()
     .from(schema.agentTasks)
     .where(eq(schema.agentTasks.workstreamId, workstreamId))
+    .orderBy(asc(schema.agentTasks.createdAt));
+}
+
+export async function listTasksByProject(projectId: string) {
+  return db
+    .select()
+    .from(schema.agentTasks)
+    .where(eq(schema.agentTasks.projectId, projectId))
     .orderBy(asc(schema.agentTasks.createdAt));
 }
 
@@ -44,10 +52,13 @@ export async function markTaskStarted(id: string) {
       attempts: sql`${schema.agentTasks.attempts} + 1`,
       updatedAt: new Date(),
     })
-    .where(eq(schema.agentTasks.id, id))
+    .where(and(eq(schema.agentTasks.id, id), eq(schema.agentTasks.status, "queued")))
     .returning();
 
-  return task ?? null;
+  if (!task) {
+    throw new Error(`Task ${id} cannot be started (not in queued state or does not exist)`);
+  }
+  return task;
 }
 
 export async function markTaskCompleted(
@@ -99,8 +110,7 @@ export async function cancelTasksByProject(projectId: string) {
 }
 
 export async function retryTask(id: string) {
-  // Note: don't increment attempts here — markTaskStarted already increments
-  // when the task actually begins running
+  // Only allow retry from "failed" state
   const [task] = await db
     .update(schema.agentTasks)
     .set({
@@ -108,10 +118,13 @@ export async function retryTask(id: string) {
       error: null,
       updatedAt: new Date(),
     })
-    .where(eq(schema.agentTasks.id, id))
+    .where(and(eq(schema.agentTasks.id, id), eq(schema.agentTasks.status, "failed")))
     .returning();
 
-  return task ?? null;
+  if (!task) {
+    throw new Error(`Task ${id} cannot be retried (not in failed state or does not exist)`);
+  }
+  return task;
 }
 
 export async function deleteTasksByProject(projectId: string) {

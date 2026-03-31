@@ -30,8 +30,16 @@ export async function handleImplementationJob(job: Job<ImplementationJobData>) {
     `[Implementation] ${role} agent (${provider || "default"}) task ${taskId} | workstream ${workstreamId}`,
   );
 
-  // 1. Mark task as started
-  await taskRepo.markTaskStarted(taskId);
+  // 1. Mark task as started (guarded: only from "queued" state)
+  try {
+    await taskRepo.markTaskStarted(taskId);
+  } catch (err) {
+    // Task is not in queued state — likely duplicate delivery, abort gracefully
+    console.warn(
+      `[Implementation] Skipping task ${taskId}: ${err instanceof Error ? err.message : err}`,
+    );
+    return;
+  }
   eventBus.emitTyped("task.started", { taskId });
 
   // Project directory where agent works

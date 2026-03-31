@@ -16,8 +16,13 @@ export const projectStatusEnum = pgEnum("project_status", [
   "in_progress",
   "completed",
   "failed",
+  "cancelled",
   "archived",
 ]);
+
+export const providerEnum = pgEnum("provider", ["claude", "opencode"]);
+export const projectModeEnum = pgEnum("project_mode", ["greenfield", "existing"]);
+export const validationStatusEnum = pgEnum("validation_status", ["pass", "fail", "error"]);
 
 export const workstreamStatusEnum = pgEnum("workstream_status", [
   "pending",
@@ -67,11 +72,11 @@ export const projects = pgTable(
     goal: text("goal").notNull(),
     status: projectStatusEnum("status").default("draft").notNull(),
     architecture: text("architecture"),
-    provider: text("provider").default("opencode").notNull(),
+    provider: providerEnum("provider").default("opencode").notNull(),
     totalCostUsd: numeric("total_cost_usd", { precision: 10, scale: 4 }).default("0").notNull(),
     repoUrl: text("repo_url"),
     repoPath: text("repo_path"),
-    projectMode: text("project_mode").default("greenfield").notNull(),
+    projectMode: projectModeEnum("project_mode").default("greenfield").notNull(),
     workBranch: text("work_branch"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -94,7 +99,7 @@ export const workstreams = pgTable(
     deliverables: jsonb("deliverables").$type<string[]>().default([]).notNull(),
     ownedPaths: jsonb("owned_paths").$type<string[]>().default([]).notNull(),
     order: integer("order").default(0).notNull(),
-    validationStatus: text("validation_status"),
+    validationStatus: validationStatusEnum("validation_status"),
     validationOutput: text("validation_output"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),

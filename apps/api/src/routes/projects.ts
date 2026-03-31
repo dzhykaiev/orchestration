@@ -65,6 +65,12 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
     return reply.status(204).send();
   });
 
+  // GET /:id/detail — aggregated project detail (project + workstreams + tasks)
+  app.get<{ Params: { id: string } }>("/:id/detail", async (request) => {
+    const { id } = idParamSchema.parse(request.params);
+    return projectService.getDetail(id);
+  });
+
   // GET /:id/workstreams — list workstreams for a project
   app.get<{ Params: { id: string } }>("/:id/workstreams", async (request) => {
     const { id } = idParamSchema.parse(request.params);

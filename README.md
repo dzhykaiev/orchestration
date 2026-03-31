@@ -41,6 +41,9 @@ AI-driven software development orchestration platform. Provide a high-level soft
 
 <!-- PROJECT_STRUCTURE_START -->
 ```
+.agents/
+  skills/
+    frontend-design/
 agents/
 apps/
   api/
@@ -50,10 +53,6 @@ apps/
     src/
   web/
     src/
-contracts/
-  api/
-  events/
-  types/
 docs/
   contracts/
   decisions/

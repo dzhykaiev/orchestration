@@ -4,6 +4,7 @@ export type ProjectStatus =
   | "in_progress"
   | "completed"
   | "failed"
+  | "cancelled"
   | "archived";
 export type LLMProviderType = "claude" | "opencode";
 export type ProjectMode = "greenfield" | "existing";

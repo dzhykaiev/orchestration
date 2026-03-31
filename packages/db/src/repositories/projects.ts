@@ -1,5 +1,5 @@
-import type { CreateProjectInput, UpdateProjectInput } from "@orchestration/shared";
-import { desc, eq, ne, sql } from "drizzle-orm";
+import type { CreateProjectInput, ProjectStatus, UpdateProjectInput } from "@orchestration/shared";
+import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { db, schema } from "../client.js";
 
 export async function updateTotalCost(projectId: string) {
@@ -74,6 +74,15 @@ export async function updateProject(id: string, input: UpdateProjectInput) {
     .where(eq(schema.projects.id, id))
     .returning();
 
+  return project ?? null;
+}
+
+export async function transitionStatus(id: string, from: ProjectStatus, to: ProjectStatus) {
+  const [project] = await db
+    .update(schema.projects)
+    .set({ status: to, updatedAt: new Date() })
+    .where(and(eq(schema.projects.id, id), eq(schema.projects.status, from)))
+    .returning();
   return project ?? null;
 }
 

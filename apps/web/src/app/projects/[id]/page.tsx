@@ -48,19 +48,18 @@ export default function ProjectDetailPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [projectRes, wsRes] = await Promise.all([
-        api.projects.get(projectId),
-        api.projects.workstreams(projectId),
-      ]);
-      setProject(projectRes.project);
-      setWorkstreams(wsRes.workstreams);
+      const { project: proj, workstreams: ws, tasks } = await api.projects.detail(projectId);
+      setProject(proj);
+      setWorkstreams(ws);
 
-      for (const ws of wsRes.workstreams) {
-        if (["in_progress", "completed", "failed", "cancelled"].includes(ws.status)) {
-          const res = await api.workstreams.tasks(ws.id);
-          setTasksByWorkstream((prev) => ({ ...prev, [ws.id]: res.tasks }));
-        }
+      // Group tasks by workstreamId
+      const grouped: Record<string, AgentTask[]> = {};
+      for (const task of tasks) {
+        const wsId = task.workstreamId;
+        if (!grouped[wsId]) grouped[wsId] = [];
+        (grouped[wsId] as AgentTask[]).push(task);
       }
+      setTasksByWorkstream(grouped);
 
       setError(null);
     } catch (err) {
@@ -227,9 +226,9 @@ export default function ProjectDetailPage() {
 
   const providerLabel = PROVIDER_LABELS[project.provider] ?? project.provider;
   const canStop = ["planning", "in_progress"].includes(project.status);
-  const canArchive = ["completed", "failed", "draft"].includes(project.status);
-  const canDelete = ["archived", "completed", "failed"].includes(project.status);
-  const canChangeProvider = ["draft", "failed"].includes(project.status);
+  const canArchive = ["completed", "failed", "cancelled", "draft"].includes(project.status);
+  const canDelete = ["archived", "completed", "failed", "cancelled"].includes(project.status);
+  const canChangeProvider = ["draft", "failed", "cancelled"].includes(project.status);
 
   const completedWs = workstreams.filter((ws) => ws.status === "completed").length;
   const activeWs = workstreams.filter((ws) => ws.status === "in_progress").length;
@@ -408,7 +407,19 @@ export default function ProjectDetailPage() {
         >
           <strong>Project failed</strong>
           <p className="text-sm" style={{ margin: "4px 0 0" }}>
-            One or more workstreams failed after max retries, or the project was stopped.
+            One or more workstreams failed after max retries.
+          </p>
+        </div>
+      )}
+
+      {project.status === "cancelled" && (
+        <div
+          className="card"
+          style={{ background: "var(--color-status-gray-bg)", borderColor: "var(--color-border)" }}
+        >
+          <strong>Project cancelled</strong>
+          <p className="text-sm" style={{ margin: "4px 0 0" }}>
+            The project was stopped by the user. You can archive or delete it.
           </p>
         </div>
       )}
@@ -802,8 +813,8 @@ export default function ProjectDetailPage() {
                               task.updatedAt &&
                               ` · Finished ${timeAgo(task.updatedAt)}`}
                             {task.costUsd != null &&
-                              task.costUsd > 0 &&
-                              ` · $${task.costUsd.toFixed(4)}`}
+                              Number(task.costUsd) > 0 &&
+                              ` · $${Number(task.costUsd).toFixed(4)}`}
                           </div>
                         </div>
                       ))

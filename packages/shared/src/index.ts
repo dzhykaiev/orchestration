@@ -30,3 +30,47 @@ export type {
 } from "./types/index.js";
 
 export { EVENTS_CHANNEL } from "./types/index.js";
+
+export {
+  ProjectDtoSchema,
+  CreateProjectSchema,
+  UpdateProjectSchema,
+  ProjectIdParamSchema,
+  ProjectListQuerySchema,
+  projectStatusValues,
+  providerValues,
+  projectModeValues,
+  WorkstreamDtoSchema,
+  CreateWorkstreamSchema,
+  UpdateWorkstreamSchema,
+  workstreamStatusValues,
+  validationStatusValues,
+  AgentTaskDtoSchema,
+  CreateAgentTaskSchema,
+  CompleteAgentTaskSchema,
+  agentTaskStatusValues,
+  agentRoleValues,
+  FeatureDtoSchema,
+  CreateFeatureSchema,
+  UpdateFeatureSchema,
+  FeatureIdParamSchema,
+  FeatureListQuerySchema,
+  ReorderFeaturesSchema,
+  featureStatusValues,
+  featureTypeValues,
+} from "./schemas/index.js";
+
+export type {
+  ProjectDto,
+  WorkstreamDto,
+  AgentTaskDto,
+  FeatureDto,
+} from "./schemas/index.js";
+
+export {
+  PROJECT_TRANSITIONS,
+  WORKSTREAM_TRANSITIONS,
+  TASK_TRANSITIONS,
+  InvalidTransitionError,
+  assertTransition,
+} from "./state-machine.js";

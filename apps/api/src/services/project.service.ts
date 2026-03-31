@@ -34,11 +34,14 @@ export class ProjectService {
   async plan(id: string, planningQueue: Queue) {
     const project = await this.getById(id);
 
-    if (project.status !== "draft") {
-      throw new BusinessError("Only draft projects can be planned");
+    // Atomic compare-and-swap: only transition from draft → planning
+    const updated = await projectRepo.transitionStatus(id, "draft", "planning");
+    if (!updated) {
+      throw new BusinessError(
+        "Only draft projects can be planned (project may have already started)",
+      );
     }
 
-    const updated = await projectRepo.updateProject(id, { status: "planning" });
     await planningQueue.add("plan", {
       projectId: id,
       goal: project.goal,
@@ -46,7 +49,7 @@ export class ProjectService {
     });
 
     const workstreams = await workstreamRepo.listWorkstreamsByProject(id);
-    return { project: updated ?? project, workstreams };
+    return { project: updated, workstreams };
   }
 
   async stop(id: string, planningQueue: Queue, implementationQueue: Queue) {
@@ -80,7 +83,7 @@ export class ProjectService {
       // non-critical — queue cleanup is best effort
     }
 
-    const updated = await projectRepo.updateProject(id, { status: "failed" });
+    const updated = await projectRepo.updateProject(id, { status: "cancelled" });
     if (!updated) throw new NotFoundError("Project not found");
     return updated;
   }
@@ -100,11 +103,20 @@ export class ProjectService {
   async delete(id: string) {
     const project = await this.getById(id);
 
-    if (!["archived", "completed", "failed"].includes(project.status)) {
-      throw new BusinessError("Only archived, completed, or failed projects can be deleted");
+    if (!["archived", "completed", "failed", "cancelled"].includes(project.status)) {
+      throw new BusinessError(
+        "Only archived, completed, failed, or cancelled projects can be deleted",
+      );
     }
 
     await projectRepo.deleteProject(id);
+  }
+
+  async getDetail(id: string) {
+    const project = await this.getById(id);
+    const workstreams = await workstreamRepo.listWorkstreamsByProject(id);
+    const tasks = await taskRepo.listTasksByProject(id);
+    return { project, workstreams, tasks };
   }
 
   async listWorkstreams(id: string) {

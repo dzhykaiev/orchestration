@@ -57,6 +57,9 @@ pnpm db:seed      # Seed data
 ## Project Structure (auto-generated)
 
 ```
+.agents/
+  skills/
+    frontend-design/
 agents/
 apps/
   api/
@@ -66,10 +69,6 @@ apps/
     src/
   web/
     src/
-contracts/
-  api/
-  events/
-  types/
 docs/
   contracts/
   decisions/

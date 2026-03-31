@@ -8,32 +8,67 @@ import IORedis from "ioredis";
 
 const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 const CHANNEL = EVENTS_CHANNEL;
+const MAX_BUFFER_SIZE = 100;
 
 class EventBus {
   private publisher: IORedis.default;
   private ownsConnection: boolean;
+  private buffer: string[] = [];
+  private flushing = false;
 
   constructor(connection?: IORedis.default) {
     this.ownsConnection = !connection;
     this.publisher =
       connection ??
       new IORedis.default(REDIS_URL, { maxRetriesPerRequest: null, enableReadyCheck: false });
+
+    this.publisher.on("ready", () => {
+      this.flushBuffer();
+    });
   }
 
   emit(event: OrchestratorEvent): void {
+    const message = JSON.stringify(event);
+
     if (this.publisher.status !== "ready") {
-      console.warn(
-        `[EventBus] Skipping event ${event.type} — Redis not ready (status: ${this.publisher.status})`,
-      );
+      if (this.buffer.length < MAX_BUFFER_SIZE) {
+        this.buffer.push(message);
+        console.warn(
+          `[EventBus] Redis not ready — buffered event ${event.type} (${this.buffer.length}/${MAX_BUFFER_SIZE})`,
+        );
+      } else {
+        console.error(`[EventBus] Buffer full (${MAX_BUFFER_SIZE}) — dropping event ${event.type}`);
+      }
       return;
     }
-    this.publisher.publish(CHANNEL, JSON.stringify(event)).catch((err) => {
+
+    this.publisher.publish(CHANNEL, message).catch((err) => {
       console.error(`[EventBus] Failed to publish ${event.type}:`, err.message);
     });
   }
 
   emitTyped<T extends EventType>(type: T, payload: EventPayload<T>): void {
     this.emit({ type, payload } as OrchestratorEvent);
+  }
+
+  private async flushBuffer(): Promise<void> {
+    if (this.flushing || this.buffer.length === 0) return;
+    this.flushing = true;
+
+    const toFlush = [...this.buffer];
+    this.buffer = [];
+
+    console.log(`[EventBus] Flushing ${toFlush.length} buffered events`);
+
+    for (const message of toFlush) {
+      try {
+        await this.publisher.publish(CHANNEL, message);
+      } catch (err) {
+        console.error("[EventBus] Failed to flush buffered event:", err);
+      }
+    }
+
+    this.flushing = false;
   }
 
   async close(): Promise<void> {

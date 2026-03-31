@@ -1,3 +1,5 @@
+import type { AgentTaskDto, FeatureDto, ProjectDto, WorkstreamDto } from "@orchestration/shared";
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 async function fetchAPI<T>(path: string, opts?: RequestInit): Promise<T> {
@@ -28,61 +30,11 @@ interface FileEntry {
   size?: number;
 }
 
-interface Project {
-  id: string;
-  name: string;
-  goal: string;
-  status: string;
-  architecture?: string;
-  provider: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface Workstream {
-  id: string;
-  projectId: string;
-  name: string;
-  objective: string;
-  status: string;
-  dependencies: string[];
-  assignedAgent: string | null;
-  deliverables: string[];
-  ownedPaths: string[];
-  order: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface AgentTask {
-  id: string;
-  workstreamId: string;
-  projectId: string;
-  role: string;
-  prompt: string;
-  status: string;
-  output?: string;
-  filesModified: string[];
-  error?: string;
-  attempts: number;
-  maxAttempts: number;
-  costUsd?: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface Feature {
-  id: string;
-  title: string;
-  description: string | null;
-  status: string;
-  type: string;
-  priority: number;
-  sortOrder: number;
-  orchestrationProjectId: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
+// Re-export shared DTO types for use in components
+type Project = ProjectDto;
+type Workstream = WorkstreamDto;
+type AgentTask = AgentTaskDto;
+type Feature = FeatureDto;
 
 // --- API Client ---
 
@@ -128,6 +80,10 @@ export const api = {
       }),
     workstreams: (id: string) =>
       fetchAPI<{ workstreams: Workstream[] }>(`/api/projects/${id}/workstreams`),
+    detail: (id: string) =>
+      fetchAPI<{ project: Project; workstreams: Workstream[]; tasks: AgentTask[] }>(
+        `/api/projects/${id}/detail`,
+      ),
   },
   workstreams: {
     get: (id: string) => fetchAPI<{ workstream: Workstream }>(`/api/workstreams/${id}`),

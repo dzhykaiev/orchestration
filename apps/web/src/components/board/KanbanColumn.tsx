@@ -21,9 +21,9 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 interface KanbanColumnProps {
-  status: string;
+  status: Feature["status"];
   features: Feature[];
-  onDrop: (featureId: string, newStatus: string) => void;
+  onDrop: (featureId: string, newStatus: Feature["status"]) => void;
   onEdit: (feature: Feature) => void;
   onKickoff?: (feature: Feature) => void;
   onDelete: (feature: Feature) => void;

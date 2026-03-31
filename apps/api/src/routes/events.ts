@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { OrchestratorEvent } from "@orchestration/shared";
 import type { FastifyPluginAsync } from "fastify";
 import IORedis from "ioredis";
@@ -11,14 +12,84 @@ const eventQuerySchema = z.object({
   projectId: z.string().uuid().optional(),
 });
 
-export const eventRoutes: FastifyPluginAsync = async (app) => {
-  app.get("/", async (request, reply) => {
-    const { projectId } = eventQuerySchema.parse(request.query);
+interface SSEClient {
+  projectId?: string;
+  write: (data: string) => void;
+}
 
-    const subscriber = new IORedis.default(REDIS_URL, {
+class SSEHub {
+  private subscriber: IORedis.default;
+  private clients = new Map<string, SSEClient>();
+
+  constructor(redisUrl: string) {
+    this.subscriber = new IORedis.default(redisUrl, {
       maxRetriesPerRequest: null,
       enableReadyCheck: false,
     });
+    this.subscriber.subscribe(EVENTS_CHANNEL).catch((err) => {
+      console.error("[SSEHub] Failed to subscribe:", err);
+    });
+    this.subscriber.on("message", (_channel: string, message: string) => {
+      this.broadcast(message);
+    });
+    this.subscriber.on("error", (err) => {
+      console.error("[SSEHub] Redis subscriber error:", err);
+    });
+  }
+
+  private broadcast(message: string) {
+    try {
+      const event: OrchestratorEvent = JSON.parse(message);
+
+      for (const [, client] of this.clients) {
+        if (client.projectId && event.payload && "projectId" in event.payload) {
+          if ((event.payload as Record<string, unknown>).projectId !== client.projectId) continue;
+        }
+        client.write(
+          `id: ${Date.now()}\nevent: ${event.type}\ndata: ${JSON.stringify(event.payload)}\n\n`,
+        );
+      }
+    } catch (err) {
+      console.error("[SSEHub] Failed to process event:", err);
+    }
+  }
+
+  addClient(id: string, projectId: string | undefined, write: (data: string) => void) {
+    this.clients.set(id, { projectId, write });
+  }
+
+  removeClient(id: string) {
+    this.clients.delete(id);
+  }
+
+  async close() {
+    await this.subscriber.unsubscribe(EVENTS_CHANNEL).catch(() => {});
+    this.subscriber.disconnect();
+    this.clients.clear();
+  }
+}
+
+let hub: SSEHub | null = null;
+
+function getHub(): SSEHub {
+  if (!hub) {
+    hub = new SSEHub(REDIS_URL);
+  }
+  return hub;
+}
+
+export const eventRoutes: FastifyPluginAsync = async (app) => {
+  app.addHook("onClose", async () => {
+    if (hub) {
+      await hub.close();
+      hub = null;
+    }
+  });
+
+  app.get("/", async (request, reply) => {
+    const { projectId } = eventQuerySchema.parse(request.query);
+    const clientId = randomUUID();
+    const sseHub = getHub();
 
     reply.raw.writeHead(200, {
       "Content-Type": "text/event-stream",
@@ -33,34 +104,13 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
 
     const cleanup = () => {
       clearInterval(heartbeat);
-      subscriber.unsubscribe(EVENTS_CHANNEL).catch(() => {});
-      subscriber.disconnect();
+      sseHub.removeClient(clientId);
     };
 
     request.raw.on("close", cleanup);
 
-    subscriber.on("message", (_channel: string, message: string) => {
-      try {
-        const event: OrchestratorEvent = JSON.parse(message);
-
-        if (projectId && event.payload && "projectId" in event.payload) {
-          if (event.payload.projectId !== projectId) return;
-        }
-
-        const id = Date.now();
-        reply.raw.write(
-          `id: ${id}\nevent: ${event.type}\ndata: ${JSON.stringify(event.payload)}\n\n`,
-        );
-      } catch (err) {
-        app.log.error({ err }, "Failed to process SSE event");
-      }
+    sseHub.addClient(clientId, projectId, (data: string) => {
+      reply.raw.write(data);
     });
-
-    subscriber.on("error", (err) => {
-      app.log.error({ err }, "Redis subscriber error");
-      cleanup();
-    });
-
-    await subscriber.subscribe(EVENTS_CHANNEL);
   });
 };
