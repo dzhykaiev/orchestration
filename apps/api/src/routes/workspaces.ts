@@ -1,4 +1,3 @@
-import { featureRepo } from "@orchestration/db";
 import type { FastifyPluginAsync } from "fastify";
 import { createFeatureSchema, featureListQuerySchema } from "../schemas/features.js";
 import {
@@ -8,6 +7,7 @@ import {
   workspaceIdParamSchema,
   workspaceListQuerySchema,
 } from "../schemas/workspaces.js";
+import { featureService } from "../services/feature.service.js";
 import { workspaceService } from "../services/workspace.service.js";
 
 export const workspaceRoutes: FastifyPluginAsync = async (app) => {
@@ -60,7 +60,7 @@ export const workspaceRoutes: FastifyPluginAsync = async (app) => {
     const { id } = workspaceIdParamSchema.parse(request.params);
     await workspaceService.getById(id); // ensure workspace exists
     const query = featureListQuerySchema.parse(request.query);
-    const result = await featureRepo.listFeaturesByWorkspace(id, query);
+    const result = await featureService.list({ ...query, workspaceId: id });
     return { ...result, limit: query.limit, offset: query.offset };
   });
 
@@ -69,7 +69,7 @@ export const workspaceRoutes: FastifyPluginAsync = async (app) => {
     const { id } = workspaceIdParamSchema.parse(request.params);
     await workspaceService.getById(id); // ensure workspace exists
     const body = createFeatureSchema.parse(request.body);
-    const feature = await featureRepo.createFeature({ ...body, workspaceId: id });
+    const feature = await featureService.create({ ...body, workspaceId: id });
     return reply.status(201).send({ feature });
   });
 };
