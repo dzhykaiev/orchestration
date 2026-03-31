@@ -48,7 +48,12 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
   // POST /:id/stop — stop/cancel a running project
   app.post<{ Params: { id: string } }>("/:id/stop", async (request) => {
     const { id } = idParamSchema.parse(request.params);
-    const project = await projectService.stop(id, app.queues.planning, app.queues.implementation);
+    const project = await projectService.stop(
+      id,
+      app.queues.planning,
+      app.queues.implementation,
+      app.queues.validation,
+    );
     return { project };
   });
 

@@ -1,5 +1,6 @@
 import cors from "@fastify/cors";
 import Fastify, { type FastifyInstance } from "fastify";
+import { auditPlugin } from "./plugins/audit.js";
 import { databasePlugin } from "./plugins/database.js";
 import { errorHandlerPlugin } from "./plugins/error-handler.js";
 import { redisPlugin } from "./plugins/redis.js";
@@ -47,6 +48,10 @@ export async function buildApp(opts: AppOptions = {}): Promise<FastifyInstance> 
 
   if (!opts.skipRedis) {
     await app.register(redisPlugin);
+  }
+
+  if (!opts.skipDatabase) {
+    await app.register(auditPlugin);
   }
 
   // Routes

@@ -1,11 +1,19 @@
 import { access } from "node:fs/promises";
 import { resolve } from "node:path";
-import { projectRepo, taskRepo, workstreamRepo } from "@orchestration/db";
-import type { ValidationStatus } from "@orchestration/shared";
+import {
+  artifactRepo,
+  auditLogRepo,
+  projectRepo,
+  taskRepo,
+  workstreamRepo,
+} from "@orchestration/db";
+import type { ValidationStatus, WorkstreamStatus } from "@orchestration/shared";
+import { WORKSTREAM_TRANSITIONS, canTransition } from "@orchestration/shared";
 import type { Job } from "bullmq";
 import { eventBus } from "../events/index.js";
 import { createLLMProvider } from "../llm/index.js";
 import { AGENT_BRIEFS } from "../prompts/briefs.js";
+import { checkProjectCompletion, unblockDependents } from "../tracking/progress.js";
 
 const PROJECTS_DIR = resolve(process.env.PROJECTS_DIR || "./projects");
 
@@ -77,6 +85,10 @@ export async function handleValidationJob(job: Job<ValidationJobData>) {
         validationStatus: "pass" as ValidationStatus,
         validationOutput: "No files modified — nothing to validate.",
       });
+
+      // Still need to unblock dependents on pass
+      await unblockDependents(workstreamId, projectId);
+      await checkProjectCompletion(projectId);
       return;
     }
 
@@ -126,11 +138,63 @@ ${project.architecture || "No architecture document available."}
       validationOutput: result,
     });
 
-    eventBus.emitTyped("workstream.completed", {
-      workstreamId,
-      projectId,
-      validationResult: { status: validationStatus, output: result },
-    });
+    // Audit: workstream reviewed
+    try {
+      await auditLogRepo.createAuditLog({
+        projectId,
+        entityType: "workstream",
+        entityId: workstreamId,
+        action: "reviewed",
+        actorType: "agent",
+        actorId: "qa",
+        metadata: { validationStatus },
+      });
+    } catch (err) {
+      console.warn("[Validation] Failed to create audit log for validation:", err);
+    }
+
+    // Artifact: review report
+    try {
+      await artifactRepo.createArtifact({
+        projectId,
+        workstreamId,
+        type: "review_report",
+        name: `QA Validation - ${workstream.name}`,
+        content: result,
+        metadata: { validationStatus },
+      });
+    } catch (err) {
+      console.warn("[Validation] Failed to create review_report artifact:", err);
+    }
+
+    if (validationStatus === "fail") {
+      // Validation failed — mark workstream as failed
+      const ws = await workstreamRepo.getWorkstreamById(workstreamId);
+      if (ws && canTransition(WORKSTREAM_TRANSITIONS, ws.status as WorkstreamStatus, "failed")) {
+        await workstreamRepo.updateWorkstream(workstreamId, { status: "failed" });
+        eventBus.emitTyped("workstream.failed", {
+          workstreamId,
+          projectId,
+          error: `Validation failed: ${result.slice(0, 500)}`,
+        });
+      } else {
+        console.warn(
+          `[Validation] Cannot transition workstream ${workstreamId} (status: ${ws?.status}) to failed`,
+        );
+      }
+
+      await checkProjectCompletion(projectId);
+    } else {
+      // Validation passed — now it's safe to unblock dependents
+      eventBus.emitTyped("workstream.completed", {
+        workstreamId,
+        projectId,
+        validationResult: { status: validationStatus, output: result },
+      });
+
+      await unblockDependents(workstreamId, projectId);
+      await checkProjectCompletion(projectId);
+    }
 
     console.log(`[Validation] Workstream ${workstreamId} verdict: ${validationStatus}`);
   } catch (error) {

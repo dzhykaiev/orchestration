@@ -5,6 +5,9 @@ import { join } from "node:path";
 import type { LLMProvider, RunOptions, RunResult } from "@orchestration/shared";
 import { listFilesRecursive } from "./file-utils.js";
 
+/** Configurable timeout for LLM execution (default: 10 minutes) */
+const LLM_TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS) || 600_000;
+
 /**
  * Claude CLI provider implementation.
  * Uses the Claude desktop CLI with full tool access.
@@ -47,6 +50,8 @@ export class ClaudeProvider implements LLMProvider {
       await writeFile(promptFile, prompt, "utf-8");
 
       return await new Promise<RunResult>((resolvePromise, reject) => {
+        let settled = false;
+
         const child = spawn(
           "sh",
           ["-c", `cat "${promptFile}" | claude ${args.map((a) => `'${a}'`).join(" ")}`],
@@ -56,6 +61,15 @@ export class ClaudeProvider implements LLMProvider {
             env: { ...process.env },
           },
         );
+
+        // Set up timeout to kill the process if it exceeds LLM_TIMEOUT_MS
+        const timeoutTimer = setTimeout(() => {
+          if (!settled) {
+            settled = true;
+            child.kill("SIGKILL");
+            reject(new Error(`LLM execution timed out after ${LLM_TIMEOUT_MS}ms`));
+          }
+        }, LLM_TIMEOUT_MS);
 
         let stdout = "";
         let stderr = "";
@@ -69,10 +83,18 @@ export class ClaudeProvider implements LLMProvider {
         });
 
         child.on("error", (err) => {
-          reject(new Error(`Failed to spawn claude CLI: ${err.message}`));
+          if (!settled) {
+            settled = true;
+            clearTimeout(timeoutTimer);
+            reject(new Error(`Failed to spawn claude CLI: ${err.message}`));
+          }
         });
 
         child.on("close", (code) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeoutTimer);
+
           if (code !== 0 && code !== null) {
             reject(new Error(`claude CLI exited with code ${code}: ${stderr || stdout}`));
             return;

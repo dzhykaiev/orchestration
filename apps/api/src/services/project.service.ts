@@ -1,8 +1,5 @@
 import { featureRepo, projectRepo, taskRepo, workstreamRepo } from "@orchestration/db";
-import {
-  PROJECT_TRANSITIONS,
-  assertTransition,
-} from "@orchestration/shared";
+import { PROJECT_TRANSITIONS, assertTransition } from "@orchestration/shared";
 import type { CreateProjectInput, ProjectStatus, UpdateProjectInput } from "@orchestration/shared";
 import type { Queue } from "bullmq";
 
@@ -63,15 +60,15 @@ export class ProjectService {
     return { project: updated, workstreams };
   }
 
-  async stop(id: string, planningQueue: Queue, implementationQueue: Queue) {
+  async stop(
+    id: string,
+    planningQueue: Queue,
+    implementationQueue: Queue,
+    validationQueue?: Queue,
+  ) {
     const project = await this.getById(id);
 
-    assertTransition(
-      PROJECT_TRANSITIONS,
-      project.status as ProjectStatus,
-      "cancelled",
-      "project",
-    );
+    assertTransition(PROJECT_TRANSITIONS, project.status as ProjectStatus, "cancelled", "project");
 
     // Cancel all queued/running tasks
     await taskRepo.cancelTasksByProject(id);
@@ -93,6 +90,14 @@ export class ProjectService {
           await job.remove();
         }
       }
+      if (validationQueue) {
+        const valJobs = await validationQueue.getJobs(["waiting", "delayed", "prioritized"]);
+        for (const job of valJobs) {
+          if (job?.data?.projectId === id) {
+            await job.remove();
+          }
+        }
+      }
     } catch {
       // non-critical — queue cleanup is best effort
     }
@@ -105,12 +110,7 @@ export class ProjectService {
   async archive(id: string) {
     const project = await this.getById(id);
 
-    assertTransition(
-      PROJECT_TRANSITIONS,
-      project.status as ProjectStatus,
-      "archived",
-      "project",
-    );
+    assertTransition(PROJECT_TRANSITIONS, project.status as ProjectStatus, "archived", "project");
 
     const updated = await projectRepo.updateProject(id, { status: "archived" });
     if (!updated) throw new NotFoundError("Project not found");

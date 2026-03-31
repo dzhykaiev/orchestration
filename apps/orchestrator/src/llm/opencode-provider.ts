@@ -5,6 +5,9 @@ import { join } from "node:path";
 import type { LLMProvider, RunOptions, RunResult } from "@orchestration/shared";
 import { listFilesRecursive } from "./file-utils.js";
 
+/** Configurable timeout for LLM execution (default: 10 minutes) */
+const LLM_TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS) || 600_000;
+
 /**
  * OpenCode provider implementation.
  * Uses the OpenCode CLI with full tool access.
@@ -45,12 +48,23 @@ export class OpenCodeProvider implements LLMProvider {
       }
 
       return await new Promise<RunResult>((resolvePromise, reject) => {
+        let settled = false;
+
         // Pass prompt via stdin instead of shell arg to avoid length limits
         const child = spawn("opencode", args, {
           stdio: ["pipe", "pipe", "pipe"],
           cwd,
           env: { ...process.env },
         });
+
+        // Set up timeout to kill the process if it exceeds LLM_TIMEOUT_MS
+        const timeoutTimer = setTimeout(() => {
+          if (!settled) {
+            settled = true;
+            child.kill("SIGKILL");
+            reject(new Error(`LLM execution timed out after ${LLM_TIMEOUT_MS}ms`));
+          }
+        }, LLM_TIMEOUT_MS);
 
         let stdout = "";
         let stderr = "";
@@ -64,7 +78,11 @@ export class OpenCodeProvider implements LLMProvider {
         });
 
         child.on("error", (err) => {
-          reject(new Error(`Failed to spawn opencode CLI: ${err.message}`));
+          if (!settled) {
+            settled = true;
+            clearTimeout(timeoutTimer);
+            reject(new Error(`Failed to spawn opencode CLI: ${err.message}`));
+          }
         });
 
         // Write prompt to stdin and close
@@ -72,6 +90,10 @@ export class OpenCodeProvider implements LLMProvider {
         child.stdin.end();
 
         child.on("close", (code) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeoutTimer);
+
           if (code !== 0 && code !== null) {
             reject(new Error(`opencode CLI exited with code ${code}: ${stderr || stdout}`));
             return;

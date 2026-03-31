@@ -1,5 +1,5 @@
-import type { CreateAgentTaskInput } from "@orchestration/shared";
-import { and, asc, eq, sql } from "drizzle-orm";
+import type { AgentTaskStatus, CreateAgentTaskInput } from "@orchestration/shared";
+import { and, asc, eq, lt, sql } from "drizzle-orm";
 import { db, schema } from "../client.js";
 
 export async function listTasksByWorkstream(workstreamId: string) {
@@ -160,6 +160,23 @@ export async function retryTask(id: string) {
 
 export async function deleteTasksByProject(projectId: string) {
   return db.delete(schema.agentTasks).where(eq(schema.agentTasks.projectId, projectId));
+}
+
+export async function findStaleTasks(status: AgentTaskStatus, olderThanMinutes: number) {
+  const cutoff = new Date(Date.now() - olderThanMinutes * 60 * 1000);
+
+  // Use the most relevant timestamp per status
+  const timeColumn =
+    status === "running"
+      ? schema.agentTasks.startedAt
+      : status === "queued"
+        ? schema.agentTasks.createdAt
+        : schema.agentTasks.updatedAt;
+
+  return db
+    .select()
+    .from(schema.agentTasks)
+    .where(and(eq(schema.agentTasks.status, status), lt(timeColumn, cutoff)));
 }
 
 export async function countTasksByWorkstream(workstreamId: string) {

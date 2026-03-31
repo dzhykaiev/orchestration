@@ -28,11 +28,20 @@ const SHARED_STANDARDS = `
 - For SQL migrations, ensure they are idempotent where possible (\`IF NOT EXISTS\`, \`ON CONFLICT\`, etc.).
 - For configuration files, ensure they are valid (parseable YAML, JSON, etc.).`;
 
-export function buildSystemPrompt(role: AgentRole, architecture: string): string {
-  const brief = AGENT_BRIEFS[role];
+export function buildSystemPrompt(
+  role: AgentRole,
+  architecture: string,
+  options?: { customBrief?: string; capabilities?: string[] },
+): string {
+  const brief = options?.customBrief || AGENT_BRIEFS[role];
+
+  const capabilitiesSection =
+    options?.capabilities && options.capabilities.length > 0
+      ? `\n## Capabilities\n\n${options.capabilities.map((c) => `- ${c}`).join("\n")}\n`
+      : "";
 
   return `${brief}
-
+${capabilitiesSection}
 ## Project Architecture
 
 ${architecture || "No architecture document available yet. Check README.md or other docs in the project directory."}

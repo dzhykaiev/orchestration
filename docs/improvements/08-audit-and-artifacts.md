@@ -87,13 +87,13 @@ Validation worker — створити артефакти:
 
 ## Чеклист
 
-- [ ] Plugin: audit middleware для API мутацій
-- [ ] Orchestrator: audit logs при planning
-- [ ] Orchestrator: audit logs при task start/complete/fail
-- [ ] Orchestrator: audit logs при validation
-- [ ] Orchestrator: artifact створення при planning (architecture + plan)
-- [ ] Orchestrator: artifact створення при implementation (code_diff + log)
-- [ ] Orchestrator: artifact створення при validation (review_report)
-- [ ] Architecture: зберігати і як project field і як artifact
+- [x] Plugin: audit middleware для API мутацій
+- [x] Orchestrator: audit logs при planning
+- [x] Orchestrator: audit logs при task start/complete/fail
+- [x] Orchestrator: audit logs при validation
+- [x] Orchestrator: artifact створення при planning (architecture + plan)
+- [x] Orchestrator: artifact створення при implementation (code_diff + log)
+- [x] Orchestrator: artifact створення при validation (review_report)
+- [x] Architecture: зберігати і як project field і як artifact
 - [ ] Тести: audit logs створюються автоматично
 - [ ] Тести: артефакти створюються під час orchestration flow

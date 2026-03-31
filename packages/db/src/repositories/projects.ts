@@ -1,5 +1,5 @@
 import type { CreateProjectInput, ProjectStatus, UpdateProjectInput } from "@orchestration/shared";
-import { and, desc, eq, ne, sql } from "drizzle-orm";
+import { and, desc, eq, lt, ne, sql } from "drizzle-orm";
 import { db, schema } from "../client.js";
 import { getWorkspaceById } from "./workspaces.js";
 
@@ -147,6 +147,14 @@ export async function getCostBreakdown(projectId: string) {
     })),
     taskCount: countResult[0]?.count ?? 0,
   };
+}
+
+export async function findStaleProjects(status: ProjectStatus, olderThanMinutes: number) {
+  const cutoff = new Date(Date.now() - olderThanMinutes * 60 * 1000);
+  return db
+    .select()
+    .from(schema.projects)
+    .where(and(eq(schema.projects.status, status), lt(schema.projects.updatedAt, cutoff)));
 }
 
 export async function deleteProject(id: string) {

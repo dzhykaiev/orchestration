@@ -2,7 +2,13 @@ import { execFile } from "node:child_process";
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
-import { projectRepo, taskRepo, workstreamRepo } from "@orchestration/db";
+import {
+  artifactRepo,
+  auditLogRepo,
+  projectRepo,
+  taskRepo,
+  workstreamRepo,
+} from "@orchestration/db";
 import type { AgentRole } from "@orchestration/shared";
 import type { Job } from "bullmq";
 import { eventBus } from "../events/index.js";
@@ -179,6 +185,30 @@ export async function handlePlanningJob(job: Job<PlanningJobData>) {
     // 7. Store architecture on project
     await projectRepo.updateProject(projectId, { architecture });
 
+    // 7b. Create architecture artifact
+    try {
+      await artifactRepo.createArtifact({
+        projectId,
+        type: "architecture",
+        name: "Architecture Document",
+        content: architecture || result,
+      });
+    } catch (err) {
+      console.warn("[Planning] Failed to create architecture artifact:", err);
+    }
+
+    // 7c. Create planning output artifact
+    try {
+      await artifactRepo.createArtifact({
+        projectId,
+        type: "document",
+        name: "Planning Output",
+        content: result,
+      });
+    } catch (err) {
+      console.warn("[Planning] Failed to create planning output artifact:", err);
+    }
+
     // 8. Create workstreams in DB
     const createdWorkstreams = [];
     for (const wsDef of workstreamDefs) {
@@ -197,6 +227,20 @@ export async function handlePlanningJob(job: Job<PlanningJobData>) {
         continue;
       }
       createdWorkstreams.push(ws);
+
+      // Audit: workstream created
+      try {
+        await auditLogRepo.createAuditLog({
+          projectId,
+          entityType: "workstream",
+          entityId: ws.id,
+          action: "created",
+          actorType: "agent",
+          actorId: "architect",
+        });
+      } catch (err) {
+        console.warn("[Planning] Failed to create audit log for workstream:", err);
+      }
     }
 
     if (createdWorkstreams.length === 0) {
@@ -216,7 +260,9 @@ export async function handlePlanningJob(job: Job<PlanningJobData>) {
         const resolvedId = nameToId.get(dep);
         if (resolvedId) return resolvedId;
         if (!dep.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-          console.warn(`[Planning] Unknown dependency "${dep}" in workstream "${ws.name}" — keeping as-is`);
+          console.warn(
+            `[Planning] Unknown dependency "${dep}" in workstream "${ws.name}" — keeping as-is`,
+          );
         }
         return dep;
       });
@@ -266,6 +312,21 @@ export async function handlePlanningJob(job: Job<PlanningJobData>) {
       projectId,
       workstreamIds: createdWorkstreams.map((ws) => ws.id),
     });
+
+    // Audit: planning completed
+    try {
+      await auditLogRepo.createAuditLog({
+        projectId,
+        entityType: "project",
+        entityId: projectId,
+        action: "completed",
+        actorType: "agent",
+        actorId: "architect",
+        metadata: { phase: "planning", workstreamCount: createdWorkstreams.length },
+      });
+    } catch (err) {
+      console.warn("[Planning] Failed to create audit log for planning completion:", err);
+    }
 
     return {
       projectId,

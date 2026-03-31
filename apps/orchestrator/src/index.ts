@@ -5,6 +5,7 @@ import { eventBus } from "./events/emitter.js";
 import { closeSharedResources } from "./shared-resources.js";
 import { handleImplementationJob } from "./workers/implementation.js";
 import { handlePlanningJob } from "./workers/planning.js";
+import { handleRecoveryJob } from "./workers/recovery.js";
 import { handleValidationJob } from "./workers/validation.js";
 
 const connection = new IORedis.default(process.env.REDIS_URL || "redis://localhost:6379", {
@@ -69,6 +70,15 @@ async function main() {
     console.error("[Validation] Worker error:", err.message);
   });
 
+  // Recovery: check for stale jobs every 2 minutes
+  const RECOVERY_INTERVAL_MS = 2 * 60 * 1000;
+  const recoveryInterval = setInterval(() => {
+    handleRecoveryJob().catch((err) => {
+      console.error("[Recovery] Unhandled error in recovery job:", err);
+    });
+  }, RECOVERY_INTERVAL_MS);
+  console.log("[Orchestrator] Recovery job scheduled (every 2 minutes).");
+
   let shuttingDown = false;
   const shutdown = async () => {
     if (shuttingDown) return;
@@ -81,6 +91,8 @@ async function main() {
     }, 10_000);
 
     try {
+      console.log("[Orchestrator] Stopping recovery interval...");
+      clearInterval(recoveryInterval);
       console.log("[Orchestrator] Closing workers...");
       await Promise.allSettled([
         planningWorker.close(),

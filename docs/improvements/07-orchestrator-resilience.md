@@ -85,13 +85,13 @@ Periodic job (cron або BullMQ repeatable) що перевіряє:
 
 ## Чеклист
 
-- [ ] Recovery worker: stale planning detection
-- [ ] Recovery worker: orphaned queued tasks re-enqueue
-- [ ] Recovery worker: stuck running tasks timeout
-- [ ] LLM providers: configurable timeout
-- [ ] LLM providers: process kill on timeout
-- [ ] Validation: FAIL → workstream failed + retry/escalation
-- [ ] Validation: тільки PASS unlock dependents
-- [ ] Project stop: remove BullMQ jobs
-- [ ] Implementation worker: check project status before execution
+- [x] Recovery worker: stale planning detection
+- [x] Recovery worker: orphaned queued tasks re-enqueue
+- [x] Recovery worker: stuck running tasks timeout
+- [x] LLM providers: configurable timeout
+- [x] LLM providers: process kill on timeout
+- [x] Validation: FAIL → workstream failed + retry/escalation
+- [x] Validation: тільки PASS unlock dependents
+- [x] Project stop: remove BullMQ jobs
+- [x] Implementation worker: check project status before execution
 - [ ] Тести: recovery scenarios

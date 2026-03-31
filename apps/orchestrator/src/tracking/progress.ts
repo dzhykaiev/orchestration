@@ -1,8 +1,14 @@
 import { execFile } from "node:child_process";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
-import { featureRepo, projectRepo, taskRepo, workstreamRepo } from "@orchestration/db";
-import type { AgentRole, FeatureStatus, ProjectStatus, WorkstreamStatus } from "@orchestration/shared";
+import { featureRepo, projectRepo, reviewRepo, taskRepo, workstreamRepo } from "@orchestration/db";
+import type {
+  AgentRole,
+  FeatureStatus,
+  ProjectStatus,
+  ReviewVerdict,
+  WorkstreamStatus,
+} from "@orchestration/shared";
 import {
   FEATURE_TRANSITIONS,
   PROJECT_TRANSITIONS,
@@ -27,7 +33,9 @@ export async function checkWorkstreamCompletion(workstreamId: string, projectId:
   if (counts.failed > 0) {
     const ws = await workstreamRepo.getWorkstreamById(workstreamId);
     if (ws && !canTransition(WORKSTREAM_TRANSITIONS, ws.status as WorkstreamStatus, "failed")) {
-      console.warn(`[Progress] Invalid workstream transition: ${ws.status} -> failed for ${workstreamId}, skipping`);
+      console.warn(
+        `[Progress] Invalid workstream transition: ${ws.status} -> failed for ${workstreamId}, skipping`,
+      );
     } else {
       await workstreamRepo.updateWorkstream(workstreamId, { status: "failed" });
       eventBus.emitTyped("workstream.failed", {
@@ -43,23 +51,38 @@ export async function checkWorkstreamCompletion(workstreamId: string, projectId:
   if (counts.completed === counts.total && counts.total > 0) {
     const ws = await workstreamRepo.getWorkstreamById(workstreamId);
     if (ws && !canTransition(WORKSTREAM_TRANSITIONS, ws.status as WorkstreamStatus, "completed")) {
-      console.warn(`[Progress] Invalid workstream transition: ${ws.status} -> completed for ${workstreamId}, skipping`);
+      console.warn(
+        `[Progress] Invalid workstream transition: ${ws.status} -> completed for ${workstreamId}, skipping`,
+      );
     } else {
       await workstreamRepo.updateWorkstream(workstreamId, { status: "completed" });
       eventBus.emitTyped("workstream.completed", { workstreamId, projectId });
     }
 
-    if (VALIDATION_ENABLED) {
-      await validationQueue.add("validate", { workstreamId, projectId });
-      console.log(`[Progress] Enqueued validation for workstream ${workstreamId}`);
+    // Create automatic reviewer task before validation
+    try {
+      await createReviewerTask(workstreamId, projectId);
+    } catch (err) {
+      console.warn(
+        `[Progress] Failed to create reviewer task for workstream ${workstreamId}:`,
+        err,
+      );
     }
 
-    await unblockDependents(workstreamId, projectId);
-    await checkProjectCompletion(projectId);
+    if (VALIDATION_ENABLED) {
+      // When validation is enabled, defer unlocking dependents until validation passes.
+      // The validation worker will call unblockDependents() after a PASS verdict.
+      await validationQueue.add("validate", { workstreamId, projectId });
+      console.log(`[Progress] Enqueued validation for workstream ${workstreamId}`);
+    } else {
+      // No validation — unblock dependents immediately
+      await unblockDependents(workstreamId, projectId);
+      await checkProjectCompletion(projectId);
+    }
   }
 }
 
-async function unblockDependents(completedWorkstreamId: string, projectId: string) {
+export async function unblockDependents(completedWorkstreamId: string, projectId: string) {
   const allWorkstreams = await workstreamRepo.listWorkstreamsByProject(projectId);
 
   // Get project provider
@@ -92,7 +115,9 @@ async function unblockDependents(completedWorkstreamId: string, projectId: strin
 
     if (allDepsMet) {
       if (!canTransition(WORKSTREAM_TRANSITIONS, ws.status as WorkstreamStatus, "in_progress")) {
-        console.warn(`[Progress] Invalid workstream transition: ${ws.status} -> in_progress for ${ws.id}, skipping`);
+        console.warn(
+          `[Progress] Invalid workstream transition: ${ws.status} -> in_progress for ${ws.id}, skipping`,
+        );
         continue;
       }
       await workstreamRepo.updateWorkstream(ws.id, { status: "in_progress" });
@@ -124,7 +149,7 @@ async function unblockDependents(completedWorkstreamId: string, projectId: strin
   }
 }
 
-async function checkProjectCompletion(projectId: string) {
+export async function checkProjectCompletion(projectId: string) {
   const workstreams = await workstreamRepo.listWorkstreamsByProject(projectId);
 
   const allCompleted = workstreams.every((ws) => ws.status === "completed");
@@ -135,8 +160,13 @@ async function checkProjectCompletion(projectId: string) {
 
   if (allCompleted) {
     let project = await projectRepo.getProjectById(projectId);
-    if (project && !canTransition(PROJECT_TRANSITIONS, project.status as ProjectStatus, "completed")) {
-      console.warn(`[Progress] Invalid project transition: ${project.status} -> completed for ${projectId}, skipping`);
+    if (
+      project &&
+      !canTransition(PROJECT_TRANSITIONS, project.status as ProjectStatus, "completed")
+    ) {
+      console.warn(
+        `[Progress] Invalid project transition: ${project.status} -> completed for ${projectId}, skipping`,
+      );
       return;
     }
     await projectRepo.updateProject(projectId, { status: "completed" });
@@ -171,13 +201,138 @@ async function checkProjectCompletion(projectId: string) {
   } else if (anyFailed && !anyActive) {
     const project = await projectRepo.getProjectById(projectId);
     if (project && !canTransition(PROJECT_TRANSITIONS, project.status as ProjectStatus, "failed")) {
-      console.warn(`[Progress] Invalid project transition: ${project.status} -> failed for ${projectId}, skipping`);
+      console.warn(
+        `[Progress] Invalid project transition: ${project.status} -> failed for ${projectId}, skipping`,
+      );
       return;
     }
     await projectRepo.updateProject(projectId, { status: "failed" });
 
     // Sync linked feature status → todo
     await syncLinkedFeatureStatus(projectId, "todo");
+  }
+}
+
+async function createReviewerTask(workstreamId: string, projectId: string) {
+  const ws = await workstreamRepo.getWorkstreamById(workstreamId);
+  if (!ws) return;
+
+  const tasks = await taskRepo.listTasksByWorkstream(workstreamId);
+  const completedTasks = tasks.filter((t) => t.status === "completed");
+
+  if (completedTasks.length === 0) return;
+
+  // Build a summary of task outputs and modified files
+  const taskSummaries = completedTasks
+    .map((t) => {
+      const files = t.filesModified?.length
+        ? `Files: ${t.filesModified.join(", ")}`
+        : "No files modified";
+      const output = t.output ? t.output.slice(0, 500) : "No output";
+      return `### Task (${t.role})\n${files}\nOutput summary: ${output}`;
+    })
+    .join("\n\n");
+
+  const allFiles = completedTasks.flatMap((t) => t.filesModified ?? []);
+  const uniqueFiles = [...new Set(allFiles)];
+
+  const reviewPrompt = [
+    `## Review Request for Workstream: ${ws.name}`,
+    "",
+    `**Objective:** ${ws.objective}`,
+    `**Deliverables:** ${ws.deliverables.join(", ")}`,
+    "",
+    `## Modified Files (${uniqueFiles.length})`,
+    uniqueFiles.map((f) => `- ${f}`).join("\n"),
+    "",
+    "## Task Outputs",
+    taskSummaries,
+    "",
+    "## Instructions",
+    "Review the workstream deliverables and task outputs above.",
+    "Provide your verdict as one of: APPROVED, CHANGES_REQUESTED, or REJECTED.",
+    "Include detailed feedback explaining your decision.",
+  ].join("\n");
+
+  // Get project provider
+  const project = await projectRepo.getProjectById(projectId);
+  const provider =
+    ((project as Record<string, unknown>)?.provider as string) ||
+    process.env.LLM_PROVIDER ||
+    "opencode";
+
+  const reviewerTask = await taskRepo.createTask({
+    workstreamId,
+    projectId,
+    role: "reviewer",
+    prompt: reviewPrompt,
+  });
+
+  if (!reviewerTask) {
+    console.warn(`[Progress] Failed to create reviewer task for workstream ${workstreamId}`);
+    return;
+  }
+
+  await implementationQueue.add("implement", {
+    taskId: reviewerTask.id,
+    workstreamId,
+    projectId,
+    role: "reviewer",
+    prompt: reviewPrompt,
+    provider,
+  });
+
+  eventBus.emitTyped("task.queued", { taskId: reviewerTask.id, workstreamId });
+  console.log(`[Progress] Created reviewer task ${reviewerTask.id} for workstream ${workstreamId}`);
+}
+
+const VERDICT_PATTERN = /\b(APPROVED|CHANGES_REQUESTED|REJECTED)\b/;
+
+/**
+ * Parse reviewer output and create a review record.
+ * Call this from the implementation worker when a reviewer task completes.
+ */
+export async function handleReviewerOutput(
+  taskId: string,
+  workstreamId: string,
+  projectId: string,
+  output: string,
+): Promise<void> {
+  const verdictMatch = VERDICT_PATTERN.exec(output);
+  if (!verdictMatch) {
+    console.warn(`[Progress] No verdict found in reviewer output for task ${taskId}`);
+    return;
+  }
+
+  const verdictRaw = verdictMatch[1] as string;
+  const verdict = verdictRaw.toLowerCase() as ReviewVerdict;
+
+  try {
+    await reviewRepo.createReview({
+      taskId,
+      workstreamId,
+      projectId,
+      verdict,
+      feedback: output.slice(0, 5000),
+    });
+    console.log(`[Progress] Created review record for task ${taskId} with verdict: ${verdict}`);
+
+    if (verdict === "approved") {
+      console.log(`[Progress] Workstream ${workstreamId} review: APPROVED`);
+    } else if (verdict === "changes_requested") {
+      // TODO: Implement retry loop — create new tasks with reviewer feedback
+      // For now, just log the result. The workstream remains completed.
+      console.log(
+        `[Progress] Workstream ${workstreamId} review: CHANGES_REQUESTED (retry not yet implemented)`,
+      );
+    } else if (verdict === "rejected") {
+      // TODO: Handle rejected reviews — potentially mark workstream as failed
+      console.log(
+        `[Progress] Workstream ${workstreamId} review: REJECTED (handling not yet implemented)`,
+      );
+    }
+  } catch (err) {
+    console.error(`[Progress] Failed to create review record for task ${taskId}:`, err);
   }
 }
 

@@ -98,17 +98,17 @@ DELEGATE: frontend — Create the user profile page component
 
 ## Чеклист
 
-- [ ] Implementation worker: lookup workspace agent definition для system prompt
-- [ ] Fallback: якщо нема definition → hardcoded AGENT_BRIEFS
-- [ ] Escalation: автоматичне створення parent-tier task
-- [ ] Escalation: правильний prompt з context від failed task
-- [ ] Delegation: парсинг DELEGATE pattern з lead output
-- [ ] Delegation: створення child tasks з правильним parentTaskId
-- [ ] Delegation: lead task чекає completion всіх child tasks
-- [ ] Review: автоматичний reviewer task після workstream completion
-- [ ] Review: парсинг verdict і створення review record
-- [ ] Review: CHANGES_REQUESTED → retry з feedback
-- [ ] Review: APPROVED → proceed до validation/completion
+- [x] Implementation worker: lookup workspace agent definition для system prompt
+- [x] Fallback: якщо нема definition → hardcoded AGENT_BRIEFS
+- [x] Escalation: автоматичне створення parent-tier task
+- [x] Escalation: правильний prompt з context від failed task
+- [x] Delegation: парсинг DELEGATE pattern з lead output
+- [x] Delegation: створення child tasks з правильним parentTaskId
+- [x] Delegation: lead task чекає completion всіх child tasks
+- [x] Review: автоматичний reviewer task після workstream completion
+- [x] Review: парсинг verdict і створення review record
+- [ ] Review: CHANGES_REQUESTED → retry з feedback (TODO in code)
+- [x] Review: APPROVED → proceed до validation/completion
 - [ ] Тести: escalation flow end-to-end
 - [ ] Тести: delegation flow end-to-end
 - [ ] Тести: review flow end-to-end
