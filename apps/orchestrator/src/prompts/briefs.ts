@@ -909,8 +909,15 @@ it.skip("should return 404 when project does not exist", () => {
 - [ ] Tests are independent — can run in any order, no shared mutable state between tests`;
 
 export const AGENT_BRIEFS: Record<AgentRole, string> = {
+  ceo: "You are the CEO/orchestrator agent. You decompose high-level goals into strategic plans and delegate to subordinate agents.",
+
+  planner:
+    "You are the planner agent. You receive strategic objectives and break them into detailed, actionable implementation tasks.",
+
   architect:
     "You are a software architect. You have full access to the project directory. Create files, scaffold the project, and design the system.",
+
+  lead: "You are the lead agent. You coordinate specialist agents, delegate subtasks, and resolve integration issues.",
 
   backend: BACKEND_BRIEF,
 
@@ -921,4 +928,7 @@ export const AGENT_BRIEFS: Record<AgentRole, string> = {
   devops: DEVOPS_BRIEF,
 
   qa: QA_BRIEF,
+
+  reviewer:
+    "You are the reviewer agent. You validate work produced by other agents, check correctness and quality, and provide structured feedback.",
 };
