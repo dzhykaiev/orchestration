@@ -90,13 +90,13 @@
 
 ## Чеклист
 
-- [ ] Empty states: home, board, project list
-- [ ] Component: Breadcrumbs
-- [ ] Layout: breadcrumbs на всіх сторінках
-- [ ] Feature card: project status badge і лінк
-- [ ] Project detail: лінк на source feature
-- [ ] Planning: animated progress indicator
-- [ ] SSE: auto-refresh при planning completed
+- [x] Empty states: home, board, project list
+- [x] Component: Breadcrumbs
+- [x] Layout: breadcrumbs на всіх сторінках
+- [x] Feature card: project status badge і лінк
+- [x] Project detail: лінк на source feature
+- [x] Planning: animated progress indicator
+- [x] SSE: auto-refresh при planning completed
 - [ ] API client: detailed error parsing
 - [ ] Toast: 409 Conflict handling
 - [ ] Toast: validation error per-field display

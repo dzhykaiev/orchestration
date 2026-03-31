@@ -73,7 +73,7 @@ GET  /api/workspaces/:id/features → НЕ ІСНУЄ
 - [x] Repository: `getFeatureByProjectId(projectId)` метод
 - [x] Project detail endpoint: включити linked feature
 - [x] Sync: project completion → feature status update
-- [ ] Frontend: workspace selector на board
-- [ ] Frontend: feature card показує project status
+- [x] Frontend: workspace selector на board
+- [x] Frontend: feature card показує project status
 - [ ] Тести: workspace-scoped feature CRUD
 - [ ] Тести: feature ↔ project sync

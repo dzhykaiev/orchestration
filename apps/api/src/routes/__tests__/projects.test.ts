@@ -59,6 +59,12 @@ vi.mock("@orchestration/db", () => ({
     cancelTasksByProject: vi.fn().mockResolvedValue([]),
     listTasksByProject,
   },
+  featureRepo: {
+    getFeatureByProjectId: vi.fn().mockResolvedValue(null),
+  },
+  auditLogRepo: {
+    createAuditLog: vi.fn().mockResolvedValue(undefined),
+  },
 }));
 
 const mockQueues = {
@@ -110,7 +116,7 @@ describe("Project Routes", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/projects",
-      payload: { name: "Test Project", goal: "Build something" },
+      payload: { name: "Test Project", goal: "Build something", workspaceId: "00000000-0000-0000-0000-000000000001" },
     });
     expect(res.statusCode).toBe(201);
     const body = JSON.parse(res.payload);

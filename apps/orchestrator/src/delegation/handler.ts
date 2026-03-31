@@ -73,10 +73,7 @@ export async function handleDelegation(params: {
         `[Delegation] Created child task ${childTask.id} (${normalizedRole}) from lead task ${params.taskId}`,
       );
     } catch (err) {
-      console.error(
-        `[Delegation] Failed to create/enqueue child task for role ${role}:`,
-        err,
-      );
+      console.error(`[Delegation] Failed to create/enqueue child task for role ${role}:`, err);
     }
   }
 

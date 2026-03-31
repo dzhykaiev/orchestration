@@ -26,7 +26,9 @@ export async function createWorkstream(input: CreateWorkstreamInput) {
   if (input.dependencies?.length) {
     for (const dep of input.dependencies) {
       if (!UUID_RE.test(dep)) {
-        console.warn(`[WorkstreamRepo] Non-UUID dependency "${dep}" in workstream "${input.name}" — will be normalized later`);
+        console.warn(
+          `[WorkstreamRepo] Non-UUID dependency "${dep}" in workstream "${input.name}" — will be normalized later`,
+        );
       }
     }
   }

@@ -129,9 +129,12 @@ export default function WorkspacesPage() {
 
       {workspaces.length === 0 ? (
         <div className="card" style={{ padding: "3rem", textAlign: "center" }}>
-          <p style={{ color: "var(--color-text-secondary)", margin: 0 }}>
-            No workspaces yet. Create one to get started.
+          <p style={{ color: "var(--color-text-secondary)", marginBottom: "1rem" }}>
+            Create your first workspace to organize projects and features.
           </p>
+          <button type="button" className="btn btn-primary" onClick={() => setShowCreate(true)}>
+            Create Workspace
+          </button>
         </div>
       ) : (
         <div

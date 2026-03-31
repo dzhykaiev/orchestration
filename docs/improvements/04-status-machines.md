@@ -131,6 +131,6 @@ export function canTransition(map: TransitionMap, from: string, to: string): boo
 - [x] Schema: прибрати `status` з UpdateFeatureSchema
 - [x] Schema: прибрати `status` з UpdateWorkstreamSchema
 - [ ] Route: dedicated status transition endpoints де потрібно
-- [ ] Audit: запис кожної зміни статусу
+- [x] Audit: запис кожної зміни статусу
 - [ ] Тести: валідні переходи працюють
 - [ ] Тести: невалідні переходи повертають 409

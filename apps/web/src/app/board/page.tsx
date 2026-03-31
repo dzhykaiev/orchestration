@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Breadcrumbs } from "../../components/Breadcrumbs";
 import { FeatureModal } from "../../components/board/FeatureModal";
 import { KanbanColumn } from "../../components/board/KanbanColumn";
 import { useToast } from "../../hooks/useToast";
@@ -9,9 +11,21 @@ import type { Feature, Workspace } from "../../lib/api";
 
 const STATUSES = ["backlog", "todo", "in_progress", "done", "rejected"] as const;
 
+function getStoredWorkspaceId(): string {
+  if (typeof window === "undefined") return "";
+  return localStorage.getItem("board_workspace_id") || "";
+}
+
+function storeWorkspaceId(id: string) {
+  if (typeof window !== "undefined") {
+    localStorage.setItem("board_workspace_id", id);
+  }
+}
+
 export default function BoardPage() {
   const [features, setFeatures] = useState<Feature[]>([]);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingFeature, setEditingFeature] = useState<Feature | null>(null);
@@ -19,14 +33,27 @@ export default function BoardPage() {
   const toastRef = useRef(toast);
   toastRef.current = toast;
 
-  const fetchFeatures = useCallback(async () => {
+  // Load workspaces first, then features for selected workspace
+  const fetchWorkspaces = useCallback(async () => {
     try {
-      const [featuresData, workspacesData] = await Promise.all([
-        api.features.list(),
-        api.workspaces.list(100, 0),
-      ]);
-      setFeatures(featuresData.data);
+      const workspacesData = await api.workspaces.list(100, 0);
       setWorkspaces(workspacesData.data);
+      return workspacesData.data;
+    } catch (err) {
+      toastRef.current.error(err instanceof Error ? err.message : "Failed to load workspaces");
+      return [];
+    }
+  }, []);
+
+  const fetchFeatures = useCallback(async (workspaceId: string) => {
+    if (!workspaceId) {
+      setFeatures([]);
+      setLoading(false);
+      return;
+    }
+    try {
+      const featuresData = await api.workspaces.features(workspaceId);
+      setFeatures(featuresData.data);
     } catch (err) {
       toastRef.current.error(err instanceof Error ? err.message : "Failed to load features");
     } finally {
@@ -35,8 +62,32 @@ export default function BoardPage() {
   }, []);
 
   useEffect(() => {
-    fetchFeatures();
-  }, [fetchFeatures]);
+    fetchWorkspaces().then((ws) => {
+      if (ws.length === 0) {
+        setLoading(false);
+        return;
+      }
+      const stored = getStoredWorkspaceId();
+      const match = ws.find((w) => w.id === stored);
+      const initial = match ? match.id : ws[0]?.id || "";
+      setSelectedWorkspaceId(initial);
+      storeWorkspaceId(initial);
+      fetchFeatures(initial);
+    });
+  }, [fetchWorkspaces, fetchFeatures]);
+
+  function handleWorkspaceChange(wsId: string) {
+    setSelectedWorkspaceId(wsId);
+    storeWorkspaceId(wsId);
+    setLoading(true);
+    fetchFeatures(wsId);
+  }
+
+  const refreshFeatures = useCallback(async () => {
+    if (selectedWorkspaceId) {
+      await fetchFeatures(selectedWorkspaceId);
+    }
+  }, [selectedWorkspaceId, fetchFeatures]);
 
   const featuresByStatus = STATUSES.reduce(
     (acc, status) => {
@@ -103,7 +154,7 @@ export default function BoardPage() {
       }
       setModalOpen(false);
       setEditingFeature(null);
-      await fetchFeatures();
+      await refreshFeatures();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save feature");
     }
@@ -121,7 +172,7 @@ export default function BoardPage() {
     try {
       const { project } = await api.features.kickoff(feature.id);
       toast.success(`Project created: ${project.name}`);
-      await fetchFeatures();
+      await refreshFeatures();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to kickoff");
     }
@@ -139,17 +190,37 @@ export default function BoardPage() {
     }
   }
 
+  const selectedWorkspace = workspaces.find((w) => w.id === selectedWorkspaceId);
+
   if (loading) {
     return (
       <div>
+        <Breadcrumbs items={[{ label: "Board" }]} />
         <h2>Feature Board</h2>
         <p className="text-muted">Loading...</p>
       </div>
     );
   }
 
+  if (workspaces.length === 0) {
+    return (
+      <div>
+        <Breadcrumbs items={[{ label: "Board" }]} />
+        <h2>Feature Board</h2>
+        <div className="card" style={{ textAlign: "center", padding: "3rem" }}>
+          <p className="text-muted mb-2">Create a workspace to manage features.</p>
+          <Link href="/workspaces" className="btn btn-primary">
+            Create Workspace
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="kanban-page">
+      <Breadcrumbs items={[{ label: "Board" }]} />
+
       <div
         style={{
           display: "flex",
@@ -164,24 +235,52 @@ export default function BoardPage() {
             Drag features between columns. Kickoff from Todo to start self-improvement.
           </p>
         </div>
-        <button type="button" className="btn btn-primary" onClick={handleNewFeature}>
-          + New Feature
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <select
+            className="input"
+            value={selectedWorkspaceId}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+              handleWorkspaceChange(e.target.value)
+            }
+            aria-label="Select workspace"
+            style={{ padding: "0.35rem 0.5rem", width: "auto", minWidth: 180 }}
+          >
+            {workspaces.map((ws) => (
+              <option key={ws.id} value={ws.id}>
+                {ws.name}
+              </option>
+            ))}
+          </select>
+          <button type="button" className="btn btn-primary" onClick={handleNewFeature}>
+            + New Feature
+          </button>
+        </div>
       </div>
 
-      <div className="kanban-board">
-        {STATUSES.map((status) => (
-          <KanbanColumn
-            key={status}
-            status={status}
-            features={featuresByStatus[status] || []}
-            onDrop={handleDrop}
-            onEdit={handleEdit}
-            onKickoff={handleKickoff}
-            onDelete={handleDelete}
-          />
-        ))}
-      </div>
+      {features.length === 0 ? (
+        <div className="card" style={{ textAlign: "center", padding: "3rem" }}>
+          <p className="text-muted mb-2">
+            No features in this workspace. Add your first feature to the backlog.
+          </p>
+          <button type="button" className="btn btn-primary" onClick={handleNewFeature}>
+            + New Feature
+          </button>
+        </div>
+      ) : (
+        <div className="kanban-board">
+          {STATUSES.map((status) => (
+            <KanbanColumn
+              key={status}
+              status={status}
+              features={featuresByStatus[status] || []}
+              onDrop={handleDrop}
+              onEdit={handleEdit}
+              onKickoff={handleKickoff}
+              onDelete={handleDelete}
+            />
+          ))}
+        </div>
+      )}
 
       <FeatureModal
         isOpen={modalOpen}

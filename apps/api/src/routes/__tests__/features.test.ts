@@ -105,7 +105,7 @@ describe("Feature Routes", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/features",
-      payload: { title: "New Feature" },
+      payload: { title: "New Feature", workspaceId: "00000000-0000-0000-0000-000000000001" },
     });
     expect(res.statusCode).toBe(201);
     const body = JSON.parse(res.payload);

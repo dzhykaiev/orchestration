@@ -116,8 +116,8 @@
 - [ ] `CreateProjectSchema`: workspaceId required
 - [ ] `CreateFeatureSchema`: workspaceId required
 - [ ] Feature kickoff: наслідує workspaceId
-- [ ] Frontend: workspace selector в project creation form
-- [ ] Frontend: board фільтрація по workspace
+- [x] Frontend: workspace selector в project creation form
+- [x] Frontend: board фільтрація по workspace
 - [ ] Тести: оновити існуючі тести projects і features
 - [ ] Тести: новий тест — project creation без workspace = 400
 - [ ] Тести: новий тест — feature kickoff наслідує workspace

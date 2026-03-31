@@ -41,11 +41,7 @@ export const TASK_TRANSITIONS: TransitionMap<AgentTaskStatus> = {
   cancelled: [],
 };
 
-export function canTransition<S extends string>(
-  map: TransitionMap<S>,
-  from: S,
-  to: S,
-): boolean {
+export function canTransition<S extends string>(map: TransitionMap<S>, from: S, to: S): boolean {
   return map[from]?.includes(to) ?? false;
 }
 

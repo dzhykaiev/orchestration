@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AgentHierarchy } from "../../../../components/AgentHierarchy";
+import { Breadcrumbs } from "../../../../components/Breadcrumbs";
 import { type AgentDefinition, type Workspace, api } from "../../../../lib/api";
 
 const TIER_OPTIONS = ["ceo", "planner", "architect", "lead", "specialist", "reviewer"];
@@ -62,20 +62,13 @@ export default function WorkspaceAgentsPage() {
 
   return (
     <div>
-      <div className="flex items-center gap-2" style={{ marginBottom: "0.5rem" }}>
-        <Link
-          href={`/workspaces/${id}`}
-          style={{
-            color: "var(--color-text-secondary)",
-            textDecoration: "none",
-            fontSize: "0.85rem",
-          }}
-        >
-          {workspace.name}
-        </Link>
-        <span style={{ color: "var(--color-text-secondary)", fontSize: "0.85rem" }}>/</span>
-        <span style={{ fontSize: "0.85rem" }}>Agents</span>
-      </div>
+      <Breadcrumbs
+        items={[
+          { label: "Workspaces", href: "/workspaces" },
+          { label: workspace.name, href: `/workspaces/${id}` },
+          { label: "Agents" },
+        ]}
+      />
 
       <div className="flex items-center justify-between" style={{ marginBottom: "1.5rem" }}>
         <h2 style={{ margin: 0 }}>Agent Hierarchy</h2>

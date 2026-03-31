@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Breadcrumbs } from "../../../components/Breadcrumbs";
 import { StatusBadge } from "../../../components/ui/StatusBadge";
 import { type Project, type Workspace, api } from "../../../lib/api";
 
@@ -65,19 +66,9 @@ export default function WorkspaceDetailPage() {
 
   return (
     <div>
-      <div className="flex items-center gap-2" style={{ marginBottom: "0.5rem" }}>
-        <Link
-          href="/workspaces"
-          style={{
-            color: "var(--color-text-secondary)",
-            textDecoration: "none",
-            fontSize: "0.85rem",
-          }}
-        >
-          Workspaces
-        </Link>
-        <span style={{ color: "var(--color-text-secondary)", fontSize: "0.85rem" }}>/</span>
-      </div>
+      <Breadcrumbs
+        items={[{ label: "Workspaces", href: "/workspaces" }, { label: workspace.name }]}
+      />
 
       {editing ? (
         <div className="card" style={{ padding: "1.5rem", marginBottom: "1.5rem" }}>

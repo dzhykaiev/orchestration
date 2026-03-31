@@ -77,6 +77,10 @@ export const api = {
         `/api/workspaces/${id}/projects?limit=${limit}&offset=${offset}&includeArchived=${includeArchived}`,
       ),
     agents: (id: string) => fetchAPI<{ agents: AgentDefinition[] }>(`/api/workspaces/${id}/agents`),
+    features: (id: string, limit = 100, offset = 0) =>
+      fetchAPI<{ data: Feature[]; total: number; limit: number; offset: number }>(
+        `/api/workspaces/${id}/features?limit=${limit}&offset=${offset}`,
+      ),
     createAgent: (
       id: string,
       body: {
@@ -135,9 +139,19 @@ export const api = {
     workstreams: (id: string) =>
       fetchAPI<{ workstreams: Workstream[] }>(`/api/projects/${id}/workstreams`),
     detail: (id: string) =>
-      fetchAPI<{ project: Project; workstreams: Workstream[]; tasks: AgentTask[] }>(
-        `/api/projects/${id}/detail`,
-      ),
+      fetchAPI<{
+        project: Project;
+        workstreams: Workstream[];
+        tasks: AgentTask[];
+        feature?: Feature | null;
+      }>(`/api/projects/${id}/detail`),
+    costs: (id: string) =>
+      fetchAPI<{
+        total: number;
+        byWorkstream: { workstreamId: string; name: string; cost: number }[];
+        byRole: { role: string; cost: number }[];
+        taskCount: number;
+      }>(`/api/projects/${id}/costs`),
     auditLog: (id: string, limit = 50, offset = 0) =>
       fetchAPI<{ data: AuditLog[]; total: number; limit: number; offset: number }>(
         `/api/projects/${id}/audit-log?limit=${limit}&offset=${offset}`,

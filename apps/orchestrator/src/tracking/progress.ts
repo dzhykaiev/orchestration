@@ -1,7 +1,14 @@
 import { execFile } from "node:child_process";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
-import { featureRepo, projectRepo, reviewRepo, taskRepo, workstreamRepo } from "@orchestration/db";
+import {
+  auditLogRepo,
+  featureRepo,
+  projectRepo,
+  reviewRepo,
+  taskRepo,
+  workstreamRepo,
+} from "@orchestration/db";
 import type {
   AgentRole,
   FeatureStatus,
@@ -43,6 +50,24 @@ export async function checkWorkstreamCompletion(workstreamId: string, projectId:
         projectId,
         error: `${counts.failed} of ${counts.total} tasks failed`,
       });
+
+      try {
+        await auditLogRepo.createAuditLog({
+          projectId,
+          entityType: "workstream",
+          entityId: workstreamId,
+          action: "status_changed",
+          actorType: "system",
+          metadata: {
+            from: ws?.status,
+            to: "failed",
+            failedTasks: counts.failed,
+            totalTasks: counts.total,
+          },
+        });
+      } catch (err) {
+        console.warn("[Progress] Failed to create audit log for workstream failure:", err);
+      }
     }
     await checkProjectCompletion(projectId);
     return;
@@ -55,8 +80,22 @@ export async function checkWorkstreamCompletion(workstreamId: string, projectId:
         `[Progress] Invalid workstream transition: ${ws.status} -> completed for ${workstreamId}, skipping`,
       );
     } else {
+      const prevStatus = ws?.status;
       await workstreamRepo.updateWorkstream(workstreamId, { status: "completed" });
       eventBus.emitTyped("workstream.completed", { workstreamId, projectId });
+
+      try {
+        await auditLogRepo.createAuditLog({
+          projectId,
+          entityType: "workstream",
+          entityId: workstreamId,
+          action: "status_changed",
+          actorType: "system",
+          metadata: { from: prevStatus, to: "completed" },
+        });
+      } catch (err) {
+        console.warn("[Progress] Failed to create audit log for workstream completion:", err);
+      }
     }
 
     // Create automatic reviewer task before validation
@@ -120,8 +159,22 @@ export async function unblockDependents(completedWorkstreamId: string, projectId
         );
         continue;
       }
+      const prevWsStatus = ws.status;
       await workstreamRepo.updateWorkstream(ws.id, { status: "in_progress" });
       eventBus.emitTyped("workstream.started", { workstreamId: ws.id, projectId });
+
+      try {
+        await auditLogRepo.createAuditLog({
+          projectId,
+          entityType: "workstream",
+          entityId: ws.id,
+          action: "status_changed",
+          actorType: "system",
+          metadata: { from: prevWsStatus, to: "in_progress", trigger: "dependencies_met" },
+        });
+      } catch (err) {
+        console.warn("[Progress] Failed to create audit log for workstream unblock:", err);
+      }
 
       const task = await taskRepo.createTask({
         workstreamId: ws.id,
@@ -169,7 +222,21 @@ export async function checkProjectCompletion(projectId: string) {
       );
       return;
     }
+    const prevProjectStatus = project?.status;
     await projectRepo.updateProject(projectId, { status: "completed" });
+
+    try {
+      await auditLogRepo.createAuditLog({
+        projectId,
+        entityType: "project",
+        entityId: projectId,
+        action: "status_changed",
+        actorType: "system",
+        metadata: { from: prevProjectStatus, to: "completed" },
+      });
+    } catch (err) {
+      console.warn("[Progress] Failed to create audit log for project completion:", err);
+    }
 
     // Sync linked feature status → done
     await syncLinkedFeatureStatus(projectId, "done");
@@ -207,6 +274,19 @@ export async function checkProjectCompletion(projectId: string) {
       return;
     }
     await projectRepo.updateProject(projectId, { status: "failed" });
+
+    try {
+      await auditLogRepo.createAuditLog({
+        projectId,
+        entityType: "project",
+        entityId: projectId,
+        action: "status_changed",
+        actorType: "system",
+        metadata: { from: project?.status, to: "failed" },
+      });
+    } catch (err) {
+      console.warn("[Progress] Failed to create audit log for project failure:", err);
+    }
 
     // Sync linked feature status → todo
     await syncLinkedFeatureStatus(projectId, "todo");

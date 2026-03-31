@@ -229,17 +229,27 @@ export default function HomePage() {
             {projects.length === 0 ? (
               workspaces.length === 0 ? (
                 <>
-                  <p className="text-muted mb-2">No workspaces yet. Create a workspace first.</p>
+                  <p className="text-muted mb-2">
+                    No projects yet. Create a workspace and add features to get started.
+                  </p>
                   <Link href="/workspaces" className="btn btn-primary">
                     Create Workspace
                   </Link>
                 </>
               ) : (
                 <>
-                  <p className="text-muted mb-2">No projects yet.</p>
-                  <Link href="/projects/new" className="btn btn-primary">
-                    Create your first project
-                  </Link>
+                  <p className="text-muted mb-2">
+                    No projects yet. Create features and kick them off, or create a project
+                    directly.
+                  </p>
+                  <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                    <Link href="/board" className="btn btn-secondary">
+                      Feature Board
+                    </Link>
+                    <Link href="/projects/new" className="btn btn-primary">
+                      Create Project
+                    </Link>
+                  </div>
                 </>
               )
             ) : (

@@ -53,6 +53,26 @@ export function FeatureCard({ feature, onEdit, onKickoff, onDelete }: FeatureCar
             : feature.description}
         </p>
       )}
+      {feature.orchestrationProjectId && (
+        <div style={{ marginTop: 6, marginBottom: 2 }}>
+          <a
+            href={`/projects/${feature.orchestrationProjectId}`}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              display: "inline-block",
+              padding: "1px 8px",
+              borderRadius: 10,
+              fontSize: "0.7rem",
+              fontWeight: 600,
+              textDecoration: "none",
+              backgroundColor: "var(--color-status-blue-bg)",
+              color: "var(--color-status-blue-text)",
+            }}
+          >
+            Linked to project
+          </a>
+        </div>
+      )}
       <div className="feature-card-footer">
         {feature.orchestrationProjectId ? (
           <a

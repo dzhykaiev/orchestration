@@ -64,6 +64,6 @@
 - [x] Repository: COALESCE в SUM агрегації
 - [x] Repository: метод getCostBreakdown(projectId)
 - [x] Route: `GET /api/projects/:id/costs`
-- [ ] Frontend: cost в project header
-- [ ] Frontend: cost в workstream cards
+- [x] Frontend: cost в project header
+- [x] Frontend: cost в workstream cards
 - [ ] Тести: cost aggregation з null values

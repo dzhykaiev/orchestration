@@ -1,8 +1,5 @@
-import { featureRepo, projectRepo } from "@orchestration/db";
-import {
-  FEATURE_TRANSITIONS,
-  assertTransition,
-} from "@orchestration/shared";
+import { auditLogRepo, featureRepo, projectRepo } from "@orchestration/db";
+import { FEATURE_TRANSITIONS, assertTransition } from "@orchestration/shared";
 import type { CreateFeatureInput, FeatureStatus, UpdateFeatureInput } from "@orchestration/shared";
 import type { Queue } from "bullmq";
 import { BusinessError, NotFoundError } from "./project.service.js";
@@ -86,6 +83,19 @@ export class FeatureService {
       goal: project.goal,
       provider: project.provider || process.env.LLM_PROVIDER || "opencode",
     });
+
+    try {
+      await auditLogRepo.createAuditLog({
+        projectId: project.id,
+        entityType: "feature",
+        entityId: id,
+        action: "status_changed",
+        actorType: "user",
+        metadata: { from: feature.status, to: "in_progress" },
+      });
+    } catch (err) {
+      console.warn("[FeatureService] Failed to create audit log for kickoff:", err);
+    }
 
     const updatedFeature = await featureRepo.getFeatureById(id);
     return { feature: updatedFeature ?? feature, project };

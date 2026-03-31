@@ -28,10 +28,7 @@ export async function listFeatures(opts: {
       .orderBy(asc(schema.features.sortOrder), desc(schema.features.createdAt))
       .limit(opts.limit)
       .offset(opts.offset),
-    db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(schema.features)
-      .where(where),
+    db.select({ count: sql<number>`count(*)::int` }).from(schema.features).where(where),
   ]);
 
   return { data: items, total: countResult[0]?.count ?? 0 };

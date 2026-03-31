@@ -1,4 +1,10 @@
-import { featureRepo, projectRepo, taskRepo, workstreamRepo } from "@orchestration/db";
+import {
+  auditLogRepo,
+  featureRepo,
+  projectRepo,
+  taskRepo,
+  workstreamRepo,
+} from "@orchestration/db";
 import { PROJECT_TRANSITIONS, assertTransition } from "@orchestration/shared";
 import type { CreateProjectInput, ProjectStatus, UpdateProjectInput } from "@orchestration/shared";
 import type { Queue } from "bullmq";
@@ -56,6 +62,19 @@ export class ProjectService {
       provider: project.provider || process.env.LLM_PROVIDER || "opencode",
     });
 
+    try {
+      await auditLogRepo.createAuditLog({
+        projectId: id,
+        entityType: "project",
+        entityId: id,
+        action: "status_changed",
+        actorType: "user",
+        metadata: { from: "draft", to: "planning" },
+      });
+    } catch (err) {
+      console.warn("[ProjectService] Failed to create audit log for plan:", err);
+    }
+
     const workstreams = await workstreamRepo.listWorkstreamsByProject(id);
     return { project: updated, workstreams };
   }
@@ -104,6 +123,20 @@ export class ProjectService {
 
     const updated = await projectRepo.updateProject(id, { status: "cancelled" });
     if (!updated) throw new NotFoundError("Project not found");
+
+    try {
+      await auditLogRepo.createAuditLog({
+        projectId: id,
+        entityType: "project",
+        entityId: id,
+        action: "status_changed",
+        actorType: "user",
+        metadata: { from: project.status, to: "cancelled" },
+      });
+    } catch (err) {
+      console.warn("[ProjectService] Failed to create audit log for stop:", err);
+    }
+
     return updated;
   }
 
@@ -114,6 +147,20 @@ export class ProjectService {
 
     const updated = await projectRepo.updateProject(id, { status: "archived" });
     if (!updated) throw new NotFoundError("Project not found");
+
+    try {
+      await auditLogRepo.createAuditLog({
+        projectId: id,
+        entityType: "project",
+        entityId: id,
+        action: "status_changed",
+        actorType: "user",
+        metadata: { from: project.status, to: "archived" },
+      });
+    } catch (err) {
+      console.warn("[ProjectService] Failed to create audit log for archive:", err);
+    }
+
     return updated;
   }
 

@@ -1,10 +1,12 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { ArtifactList } from "../../../components/ArtifactList";
 import { AuditTimeline } from "../../../components/AuditTimeline";
+import { Breadcrumbs } from "../../../components/Breadcrumbs";
 import { EscalationBanner } from "../../../components/EscalationBanner";
 import { FileTree } from "../../../components/FileTree";
 import { FileViewer } from "../../../components/FileViewer";
@@ -15,7 +17,14 @@ import { StatusBadge } from "../../../components/ui/StatusBadge";
 import { useToastContext } from "../../../components/ui/ToastProvider";
 import { usePolling } from "../../../hooks/usePolling";
 import { useSSE } from "../../../hooks/useSSE";
-import { type AgentTask, type Project, type Workstream, api } from "../../../lib/api";
+import {
+  type AgentTask,
+  type Feature,
+  type Project,
+  type Workspace,
+  type Workstream,
+  api,
+} from "../../../lib/api";
 import { getProviderStyle, timeAgo } from "../../../lib/utils";
 
 const DependencyGraph = dynamic(
@@ -37,6 +46,14 @@ export default function ProjectDetailPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [workstreams, setWorkstreams] = useState<Workstream[]>([]);
   const [tasksByWorkstream, setTasksByWorkstream] = useState<Record<string, AgentTask[]>>({});
+  const [linkedFeature, setLinkedFeature] = useState<Feature | null>(null);
+  const [workspace, setWorkspace] = useState<Workspace | null>(null);
+  const [costBreakdown, setCostBreakdown] = useState<{
+    total: number;
+    byWorkstream: { workstreamId: string; name: string; cost: number }[];
+    byRole: { role: string; cost: number }[];
+    taskCount: number;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [planning, setPlanning] = useState(false);
@@ -51,9 +68,15 @@ export default function ProjectDetailPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const { project: proj, workstreams: ws, tasks } = await api.projects.detail(projectId);
+      const {
+        project: proj,
+        workstreams: ws,
+        tasks,
+        feature,
+      } = await api.projects.detail(projectId);
       setProject(proj);
       setWorkstreams(ws);
+      setLinkedFeature(feature ?? null);
 
       // Group tasks by workstreamId
       const grouped: Record<string, AgentTask[]> = {};
@@ -63,6 +86,20 @@ export default function ProjectDetailPage() {
         (grouped[wsId] as AgentTask[]).push(task);
       }
       setTasksByWorkstream(grouped);
+
+      // Fetch workspace info for breadcrumbs
+      if (proj.workspaceId) {
+        api.workspaces
+          .get(proj.workspaceId)
+          .then((res) => setWorkspace(res.workspace))
+          .catch(() => {});
+      }
+
+      // Fetch cost breakdown
+      api.projects
+        .costs(projectId)
+        .then((data) => setCostBreakdown(data))
+        .catch(() => {});
 
       setError(null);
     } catch (err) {
@@ -239,17 +276,24 @@ export default function ProjectDetailPage() {
   const allTasks = Object.values(tasksByWorkstream).flat();
   const runningTasks = allTasks.filter((t) => t.status === "running");
 
+  // Build cost lookup by workstream
+  const costByWorkstream: Record<string, number> = {};
+  if (costBreakdown) {
+    for (const entry of costBreakdown.byWorkstream) {
+      costByWorkstream[entry.workstreamId] = entry.cost;
+    }
+  }
+
   return (
     <div>
-      <button
-        type="button"
-        className="btn btn-secondary"
-        onClick={() => router.push("/")}
-        style={{ marginBottom: "1rem" }}
-        aria-label="Back to projects list"
-      >
-        &larr; Back
-      </button>
+      {/* Breadcrumbs */}
+      <Breadcrumbs
+        items={[
+          { label: "Workspaces", href: "/workspaces" },
+          ...(workspace ? [{ label: workspace.name, href: `/workspaces/${workspace.id}` }] : []),
+          { label: project.name },
+        ]}
+      />
 
       {/* Header */}
       <div className="flex justify-between items-center mb-1">
@@ -267,12 +311,38 @@ export default function ProjectDetailPage() {
           >
             {providerLabel}
           </span>
+          {costBreakdown && costBreakdown.total > 0 && (
+            <span
+              className="text-sm"
+              style={{
+                padding: "2px 10px",
+                borderRadius: 10,
+                fontSize: "0.75rem",
+                fontWeight: 600,
+                background: "var(--color-status-neutral-bg)",
+                color: "var(--color-status-neutral-text)",
+              }}
+            >
+              ${costBreakdown.total.toFixed(4)}
+            </span>
+          )}
         </div>
         <StatusBadge status={project.status} />
       </div>
-      <p className="text-muted" style={{ margin: "0 0 1rem" }}>
+      <p className="text-muted" style={{ margin: "0 0 0.5rem" }}>
         {project.goal}
       </p>
+
+      {/* Link to source feature */}
+      {linkedFeature && (
+        <p className="text-sm" style={{ margin: "0 0 1rem", color: "var(--color-text-muted)" }}>
+          Created from feature:{" "}
+          <Link href="/board" style={{ color: "var(--color-primary)" }}>
+            {linkedFeature.title}
+          </Link>
+        </p>
+      )}
+      {!linkedFeature && <div style={{ marginBottom: "0.5rem" }} />}
 
       {/* Action buttons */}
       <div style={{ display: "flex", gap: 8, marginBottom: "1.5rem", flexWrap: "wrap" }}>
@@ -345,12 +415,24 @@ export default function ProjectDetailPage() {
           style={{ background: "var(--color-status-blue-bg)", borderColor: "var(--color-border)" }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: "1.2rem" }}>&#9881;</span>
-            <strong>Architect agent is planning...</strong>
+            <span
+              style={{
+                display: "inline-block",
+                width: 18,
+                height: 18,
+                border: "2px solid var(--color-status-blue-text)",
+                borderTopColor: "transparent",
+                borderRadius: "50%",
+                animation: "spin 1s linear infinite",
+              }}
+            />
+            <strong>Architect is analyzing your goal...</strong>
           </div>
           <p className="text-sm" style={{ margin: "4px 0 0" }}>
-            {providerLabel} is analyzing the goal, designing architecture, and creating workstreams.
+            {providerLabel} is designing architecture and creating workstreams. This page will
+            update automatically.
           </p>
+          <style>{"@keyframes spin { to { transform: rotate(360deg); } }"}</style>
         </div>
       )}
 
@@ -597,6 +679,20 @@ export default function ProjectDetailPage() {
                 <p className="text-sm text-muted" style={{ margin: "0.5rem 0 0" }}>
                   {ws.objective}
                 </p>
+
+                {costByWorkstream[ws.id] != null && (costByWorkstream[ws.id] ?? 0) > 0 && (
+                  <span
+                    className="text-sm"
+                    style={{
+                      display: "inline-block",
+                      marginTop: 4,
+                      fontSize: "0.75rem",
+                      color: "var(--color-text-muted)",
+                    }}
+                  >
+                    Cost: ${(costByWorkstream[ws.id] ?? 0).toFixed(4)}
+                  </span>
+                )}
 
                 {tasks.length > 0 && (
                   <div style={{ marginTop: 8 }}>
