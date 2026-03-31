@@ -46,7 +46,7 @@ pnpm db:seed      # Seed data
 - DB repositories in `packages/db/src/repositories/` — used by both `apps/api` and `apps/orchestrator`
 - API contracts in `contracts/api/`, event contracts in `contracts/events/`
 - Zod validation schemas in `apps/api/src/schemas/` — per-resource request validation
-- Agent briefs (what each agent does) in `agents/`
+- Agent briefs (what each agent does) in `docs/agent-briefs/`
 - LLM prompts and parsers in `apps/orchestrator/src/prompts/`
 - Architecture docs in `docs/`
 - Imports between packages use `@orchestration/*` workspace aliases
@@ -60,7 +60,6 @@ pnpm db:seed      # Seed data
 .agents/
   skills/
     frontend-design/
-agents/
 apps/
   api/
     src/
@@ -69,8 +68,10 @@ apps/
   web/
     src/
 docs/
+  agent-briefs/
   contracts/
   decisions/
+  plans/
   runbooks/
 packages/
   db/

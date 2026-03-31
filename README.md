@@ -44,7 +44,6 @@ AI-driven software development orchestration platform. Provide a high-level soft
 .agents/
   skills/
     frontend-design/
-agents/
 apps/
   api/
     src/
@@ -53,8 +52,10 @@ apps/
   web/
     src/
 docs/
+  agent-briefs/
   contracts/
   decisions/
+  plans/
   runbooks/
 packages/
   db/
@@ -94,8 +95,8 @@ See [docs/runbooks/local-development.md](docs/runbooks/local-development.md) for
 | [Product Overview](docs/product-overview.md) | What this system does and MVP scope |
 | [Architecture](docs/architecture.md) | System design, data flow, database schema |
 | [Stack Decisions](docs/stack-decisions.md) | Why each technology was chosen |
-| [Implementation Plan](docs/implementation-plan.md) | Phased build plan |
-| [Workstreams](docs/workstreams.md) | Parallel work definitions |
+| [Implementation Plan](docs/plans/implementation-plan.md) | Phased build plan |
+| [Workstreams](docs/plans/workstreams.md) | Parallel work definitions |
 | [Assumptions](docs/assumptions.md) | Assumptions made for MVP |
 | [Contracts](docs/contracts/README.md) | Contract-first development approach |
 | [ADR-001](docs/decisions/ADR-001-initial-architecture.md) | Initial architecture decision |
@@ -104,12 +105,12 @@ See [docs/runbooks/local-development.md](docs/runbooks/local-development.md) for
 
 Each agent has an execution brief defining its mission, boundaries, owned files, and done criteria:
 
-- [Architect](agents/architect-brief.md) — Designs system, defines contracts
-- [Backend](agents/backend-agent.md) — Implements Fastify API
-- [Frontend](agents/frontend-agent.md) — Builds Next.js dashboard
-- [Data](agents/data-agent.md) — Database schema, migrations, repositories
-- [DevOps](agents/devops-agent.md) — Infrastructure, CI, tooling
-- [QA](agents/qa-agent.md) — Tests and contract validation
+- [Architect](docs/agent-briefs/architect.md) — Designs system, defines contracts
+- [Backend](docs/agent-briefs/backend.md) — Implements Fastify API
+- [Frontend](docs/agent-briefs/frontend.md) — Builds Next.js dashboard
+- [Data](docs/agent-briefs/data.md) — Database schema, migrations, repositories
+- [DevOps](docs/agent-briefs/devops.md) — Infrastructure, CI, tooling
+- [QA](docs/agent-briefs/qa.md) — Tests and contract validation
 
 ## Development
 
