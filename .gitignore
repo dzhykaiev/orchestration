@@ -51,3 +51,7 @@ tmp/
 
 
 .claude/settings.local.json
+
+# VitePress
+docs/.vitepress/dist/
+docs/.vitepress/cache/

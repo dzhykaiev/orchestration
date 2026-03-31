@@ -21,12 +21,17 @@
     "db:generate": "pnpm --filter @orchestration/db run generate",
     "db:push": "pnpm --filter @orchestration/db run push",
     "db:seed": "pnpm --filter @orchestration/api run db:seed",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs",
     "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules apps/*/.next apps/*/dist packages/*/dist",
     "prepare": "cp scripts/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.0",
     "typescript": "^5.7.0",
-    "vitest": "^3.0.0"
+    "vitepress": "^1.6.4",
+    "vitest": "^3.0.0",
+    "vue": "^3.5.31"
   }
 }
