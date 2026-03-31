@@ -1,4 +1,13 @@
 export {
+  WorkspaceDtoSchema,
+  CreateWorkspaceSchema,
+  UpdateWorkspaceSchema,
+  WorkspaceIdParamSchema,
+  WorkspaceListQuerySchema,
+  type WorkspaceDto,
+} from "./workspace.js";
+
+export {
   ProjectDtoSchema,
   CreateProjectSchema,
   UpdateProjectSchema,
@@ -25,8 +34,45 @@ export {
   CompleteAgentTaskSchema,
   agentTaskStatusValues,
   agentRoleValues,
+  agentTierValues,
   type AgentTaskDto,
 } from "./agent-task.js";
+
+export {
+  AgentDefinitionDtoSchema,
+  CreateAgentDefinitionSchema,
+  UpdateAgentDefinitionSchema,
+  type AgentDefinitionDto,
+} from "./agent-definition.js";
+
+export {
+  ArtifactDtoSchema,
+  ArtifactListQuerySchema,
+  artifactTypeValues,
+  type ArtifactDto,
+} from "./artifact.js";
+
+export {
+  AuditLogDtoSchema,
+  AuditLogListQuerySchema,
+  auditActionValues,
+  actorTypeValues,
+  type AuditLogDto,
+} from "./audit-log.js";
+
+export {
+  EscalationDtoSchema,
+  EscalationListQuerySchema,
+  escalationStatusValues,
+  type EscalationDto,
+} from "./escalation.js";
+
+export {
+  ReviewDtoSchema,
+  ReviewListQuerySchema,
+  reviewVerdictValues,
+  type ReviewDto,
+} from "./review.js";
 
 export {
   FeatureDtoSchema,

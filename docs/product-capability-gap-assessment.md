@@ -16,9 +16,10 @@ This assessment is based on the current codebase and identifies:
 
 ## 1) Missing capabilities
 
-### Company/workspace model
-- No organization/company/workspace entities, memberships, or tenant scoping.
-- Projects are top-level and not linked to workspace ownership.
+### ~~Company/workspace model~~ ✅ IMPLEMENTED
+- ~~No organization/company/workspace entities, memberships, or tenant scoping.~~
+- ~~Projects are top-level and not linked to workspace ownership.~~
+- **Status:** `workspaces` table exists with full CRUD API (`/api/workspaces`), slug-based routing, and project association via `workspace_id` FK. Memberships and RBAC are still missing.
 
 ### Goal management
 - A single `goal` exists per project and a lightweight `features` board exists, but there is no hierarchy (objective → initiative → epic → task), KPI tracking, or goal dependency graph.
@@ -26,8 +27,8 @@ This assessment is based on the current codebase and identifies:
 ### Plan/task decomposition
 - Workstreams and dependencies exist, but decomposition is shallow and does not model rich task DAGs with risk, confidence, acceptance criteria, or alternatives.
 
-### Agent hierarchy and roles
-- Agent roles are static enums; there is no dynamic hierarchy (manager/reviewer/escalation agents), capability registry, or role policies.
+### Agent hierarchy and roles — PARTIALLY IMPLEMENTED
+- Agent roles expanded to 10: ceo, planner, architect, lead, backend, frontend, data, devops, qa, reviewer. Agent tier hierarchy added (strategic, tactical, operational) via `agent_definitions` table. Dynamic capability registry and role policies are still missing.
 
 ### Dependency management
 - Dependencies are simple string arrays with limited semantic meaning (no typed dependency edges, critical path metadata, or contract-level dependency policies).
@@ -38,11 +39,13 @@ This assessment is based on the current codebase and identifies:
 ### Escalation
 - No first-class escalation model (route-to-human, severity levels, on-call handoff, timeout escalation).
 
-### Artifacts
-- Files are visible from filesystem output, but artifacts are not first-class immutable records (plan artifact, review artifact, execution transcript, evidence bundle).
+### ~~Artifacts~~ ✅ IMPLEMENTED
+- ~~Files are visible from filesystem output, but artifacts are not first-class immutable records.~~
+- **Status:** `artifacts` table with typed categories (code_diff, test_result, document, architecture, config, log, review_report). Full CRUD API at `/api/projects/:id/artifacts`. Linked to projects, workstreams, and tasks.
 
-### Audit logs
-- No durable append-only audit log for governance/compliance across agent decisions and human overrides.
+### ~~Audit logs~~ ✅ IMPLEMENTED
+- ~~No durable append-only audit log for governance/compliance across agent decisions and human overrides.~~
+- **Status:** `audit_logs` table with typed actions (created, updated, status_changed, delegated, escalated, reviewed, completed, failed), actor tracking (user, agent, system), and entity-level linking. API at `/api/projects/:id/audit-log`. UI component `AuditTimeline` exists.
 
 ### Observability
 - Basic event stream and logs exist, but no deep tracing, reliability metrics, SLOs, or per-agent health analytics.
@@ -68,8 +71,8 @@ This assessment is based on the current codebase and identifies:
 
 - Circular dependencies are handled by removing dependency edges, which can preserve liveness but break correctness.
 - Validation relies on textual LLM verdict parsing (`VERDICT: PASS/FAIL`) instead of strongly structured, machine-verifiable checks.
-- Event taxonomy is narrow and misses governance events (approval, escalation, override, policy violations).
-- Status model is execution-focused and lacks governance states (`awaiting_approval`, `escalated`, `blocked_by_policy`, etc.).
+- Event taxonomy has expanded but still misses governance events (approval, escalation, override, policy violations).
+- Status model is execution-focused; audit_logs now track escalation/delegation actions but no governance states in project/task status enums (`awaiting_approval`, `escalated`, `blocked_by_policy`, etc.).
 - Feature kickoff is tied to `SELF_REPO_PATH`, useful for internal workflows but not general multi-tenant agency usage.
 - Project total-cost update path is inconsistent across flows (risk of stale aggregate cost depending on how task completion is triggered).
 
@@ -79,11 +82,11 @@ This assessment is based on the current codebase and identifies:
 
 For the target product vision (teams/agencies), MVP should prioritize:
 
-1. Workspace + membership + RBAC
+1. ~~Workspace~~ ✅ — basic workspace model exists; membership + RBAC still needed
 2. Governance-ready run lifecycle with approval gates
 3. Structured plan graph (task DAG + dependency semantics)
 4. Human-in-the-loop checkpoints for risky actions
-5. Durable audit log and traceability
+5. ~~Durable audit log and traceability~~ ✅ — audit_logs table and API implemented
 6. Budget and runtime guardrails (caps, alerts, auto-pause)
 7. Baseline failure recovery (checkpoint + resumable runs)
 

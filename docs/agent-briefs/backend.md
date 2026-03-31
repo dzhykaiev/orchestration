@@ -31,22 +31,27 @@ apps/api/src/
 ├── index.ts              # Server entry point, graceful shutdown
 ├── app.ts                # Fastify app factory (CORS, plugins, routes)
 ├── routes/
-│   ├── projects.ts       # /api/projects — CRUD + plan/stop/archive
-│   ├── workstreams.ts    # /api/workstreams
-│   ├── tasks.ts          # /api/tasks
-│   ├── features.ts       # /api/features
-│   ├── files.ts          # /api/projects/:id/files
-│   ├── events.ts         # /api/events — SSE endpoint
+│   ├── projects.ts       # /api/projects — CRUD + plan/stop/archive/detail
+│   ├── workstreams.ts    # /api/workstreams — CRUD + tasks
+│   ├── tasks.ts          # /api/tasks — create, retry, complete
+│   ├── features.ts       # /api/features — CRUD + reorder + kickoff
+│   ├── workspaces.ts     # /api/workspaces — CRUD + project listing
+│   ├── artifacts.ts      # /api/projects/:id/artifacts — list, get, delete
+│   ├── audit-logs.ts     # /api/projects/:id/audit-log — list
+│   ├── files.ts          # /api/projects/:id/files — listing + content
+│   ├── events.ts         # /api/events — SSE endpoint via Redis Pub/Sub
 │   ├── health.ts         # /health
 │   └── __tests__/        # Route integration tests
 ├── schemas/
 │   ├── projects.ts       # Zod schemas for project validation
 │   ├── workstreams.ts    # Zod schemas for workstream validation
 │   ├── tasks.ts          # Zod schemas for task validation
-│   └── features.ts       # Zod schemas for feature validation
+│   ├── features.ts       # Zod schemas for feature validation
+│   └── workspaces.ts     # Zod schemas for workspace validation
 ├── services/
 │   ├── project.service.ts
 │   ├── workstream.service.ts
+│   ├── workspace.service.ts
 │   ├── feature.service.ts
 │   ├── agent.service.ts
 │   └── orchestrator-client.ts  # BullMQ job enqueuing

@@ -3,6 +3,7 @@ export type FeatureType = "feature" | "bug" | "improvement" | "refactor";
 
 export interface Feature {
   id: string;
+  workspaceId: string | null;
   title: string;
   description: string | null;
   status: FeatureStatus;

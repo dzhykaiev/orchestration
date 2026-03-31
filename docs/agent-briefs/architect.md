@@ -61,6 +61,10 @@ Types already exist in `packages/shared/src/types/`:
 | `workstream.ts` | Workstream, WorkstreamStatus, ValidationStatus, CreateWorkstreamInput, UpdateWorkstreamInput |
 | `agent-task.ts` | AgentTask, AgentTaskStatus, AgentRole, CreateAgentTaskInput, AgentTaskResult |
 | `feature.ts` | Feature, FeatureStatus, FeatureType, CreateFeatureInput, UpdateFeatureInput |
+| `workspace.ts` | Workspace, CreateWorkspaceInput, UpdateWorkspaceInput |
+| `artifact.ts` | Artifact, ArtifactType, CreateArtifactInput |
+| `audit-log.ts` | AuditLog, AuditAction, ActorType, CreateAuditLogInput |
+| `agent-definition.ts` | AgentDefinition, AgentTier |
 | `events.ts` | OrchestratorEvent (union type), EventType, EVENTS_CHANNEL |
 | `llm-provider.ts` | LLMProvider interface, RunOptions, RunResult |
 | `env.ts` | EnvContract |

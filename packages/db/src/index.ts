@@ -1,3 +1,14 @@
 export { db, client, schema } from "./client.js";
 export type { schema as SchemaType } from "./client.js";
-export { projectRepo, workstreamRepo, taskRepo, featureRepo } from "./repositories/index.js";
+export {
+  workspaceRepo,
+  projectRepo,
+  workstreamRepo,
+  taskRepo,
+  featureRepo,
+  auditLogRepo,
+  artifactRepo,
+  agentDefinitionRepo,
+  escalationRepo,
+  reviewRepo,
+} from "./repositories/index.js";

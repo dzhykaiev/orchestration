@@ -35,10 +35,14 @@ packages/db/
 │   ├── client.ts            # PostgreSQL connection (postgres.js driver)
 │   ├── index.ts             # Barrel export (db client, schema, repositories)
 │   └── repositories/
-│       ├── projects.ts      # CRUD + getProjectById, updateProject, deleteProject
-│       ├── workstreams.ts   # CRUD + dependencies, validation status tracking
-│       ├── tasks.ts         # CRUD + markTaskStarted/Completed/Failed
-│       └── features.ts     # CRUD for feature board
+│       ├── index.ts          # Barrel export for all repositories
+│       ├── projects.ts      # CRUD + status transitions, cost calculation
+│       ├── workstreams.ts   # CRUD + dependencies, validation status, bulk cancel
+│       ├── tasks.ts         # CRUD + markTaskStarted/Completed/Failed, retry, counting
+│       ├── features.ts      # CRUD + filters, bulk reorder
+│       ├── workspaces.ts    # CRUD + slug generation, uniqueness validation
+│       ├── artifacts.ts     # CRUD + list by project/task/workstream
+│       └── audit-logs.ts    # Create + list by entity/project
 ├── drizzle/                 # Generated migration SQL files
 ├── drizzle.config.ts        # Drizzle Kit configuration
 ├── package.json
@@ -79,18 +83,28 @@ packages/db/
 The schema (`packages/db/src/schema.ts`) currently defines:
 
 **Enums:**
-- `projectStatus`: draft, planning, in_progress, completed, failed, archived
+- `projectStatus`: draft, planning, in_progress, completed, failed, cancelled, archived
 - `workstreamStatus`: pending, blocked, in_progress, completed, failed
 - `taskStatus`: queued, running, completed, failed, cancelled
-- `agentRole`: architect, backend, frontend, data, devops, qa
-- `featureStatus`: backlog, planned, in_progress, done, cancelled
+- `agentRole`: ceo, planner, architect, lead, backend, frontend, data, devops, qa, reviewer
+- `agentTier`: strategic, tactical, operational
+- `validationStatus`: pass, fail, error
+- `featureStatus`: backlog, todo, in_progress, done, rejected
 - `featureType`: feature, bug, improvement, task
+- `artifactType`: code_diff, test_result, document, architecture, config, log, review_report
+- `auditAction`: created, updated, status_changed, delegated, escalated, reviewed, completed, failed
+- `actorType`: user, agent, system
+- `provider`: claude, opencode
 
 **Tables:**
-- `projects` — id, name, goal, status, mode, llmProvider, repoUrl, projectDir, costUsd, ...
+- `workspaces` — id, name, slug(unique), description, ...
+- `projects` — id, workspaceId(FK), name, goal, status, mode, llmProvider, repoUrl, projectDir, costUsd, ...
 - `workstreams` — id, projectId(FK), name, description, role, status, validationStatus, dependencies(JSONB), deliverables(JSONB), ownedPaths(JSONB), ...
-- `agentTasks` — id, workstreamId(FK), projectId(FK), role, status, prompt, output, costUsd, filesModified(JSONB), ...
+- `agentTasks` — id, workstreamId(FK), projectId(FK), role, status, prompt, output, error, costUsd, filesModified(JSONB), ...
 - `features` — id, projectId(FK), title, description, type, status, priority, ...
+- `artifacts` — id, projectId(FK), workstreamId(FK), taskId(FK), type, name, content, metadata(JSONB), ...
+- `auditLogs` — id, projectId(FK), entityType, entityId, action, actorType, actorId, details(JSONB), ...
+- `agentDefinitions` — id, role, tier, name, description, capabilities(JSONB), ...
 
 ## Required Inputs
 

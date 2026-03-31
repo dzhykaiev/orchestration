@@ -15,6 +15,7 @@ export const projectModeValues = ["greenfield", "existing"] as const;
 
 export const ProjectDtoSchema = z.object({
   id: z.string().uuid(),
+  workspaceId: z.string().uuid().nullable(),
   name: z.string(),
   goal: z.string(),
   status: z.enum(projectStatusValues),
@@ -34,6 +35,7 @@ export type ProjectDto = z.infer<typeof ProjectDtoSchema>;
 export const CreateProjectSchema = z.object({
   name: z.string().min(1).max(200),
   goal: z.string().min(1).max(5000),
+  workspaceId: z.string().uuid().optional(),
   provider: z.enum(providerValues).default("opencode"),
   repoUrl: z.string().url().optional(),
   repoPath: z.string().optional(),

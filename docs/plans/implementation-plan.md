@@ -2,7 +2,7 @@
 
 This plan is divided into six phases. Each phase builds on the previous one and produces a testable increment. The phases are sequential at the macro level, but within each phase, work across packages can proceed in parallel following the workstream structure defined in `workstreams.md`.
 
-## Phase 1: Foundation
+## Phase 1: Foundation ✅ COMPLETED
 
 **Goal:** Establish the monorepo structure, database schema, shared types, and basic API scaffolding. At the end of this phase, you can create a project via the API and see it in the database.
 
@@ -58,7 +58,7 @@ This plan is divided into six phases. Each phase builds on the previous one and 
 
 ---
 
-## Phase 2: Orchestrator Core
+## Phase 2: Orchestrator Core ✅ COMPLETED
 
 **Goal:** Build the orchestrator's planning pipeline and task dispatching system. At the end of this phase, submitting a project goal triggers the architect agent, produces a plan, and creates workstreams and tasks in the database.
 
@@ -105,7 +105,7 @@ This plan is divided into six phases. Each phase builds on the previous one and 
 
 ---
 
-## Phase 3: Agent Runtime
+## Phase 3: Agent Runtime ✅ COMPLETED
 
 **Goal:** Build the implementation agent runtime that executes tasks by calling Claude API and writing files to disk. At the end of this phase, agents can generate code files for a project.
 
@@ -155,7 +155,7 @@ This plan is divided into six phases. Each phase builds on the previous one and 
 
 ---
 
-## Phase 4: Web Dashboard
+## Phase 4: Web Dashboard ✅ COMPLETED
 
 **Goal:** Build the Next.js web dashboard for project creation and progress monitoring. At the end of this phase, users can create projects and watch agents work through the browser.
 
@@ -192,12 +192,18 @@ This plan is divided into six phases. Each phase builds on the previous one and 
    - Task status indicators (queued, running, completed, failed)
    - Task detail: prompt sent, agent response, files generated, error messages
    - Expandable file tree showing generated output
+   - Dependency graph visualization (dagre-based DAG)
 
 6. **Real-time updates**
-   - Polling mechanism (every 2-3 seconds while project is active)
+   - SSE subscription to `/api/events` for live events
+   - Polling mechanism (10s interval while projects are active)
    - Status badge updates without full page reload
-   - Progress bar animation
-   - Auto-stop polling when project reaches terminal state (completed/failed)
+   - Auto-stop polling when project reaches terminal state
+
+7. **Additional pages (beyond original scope)**
+   - Feature board (`/board`) — Kanban-style feature tracking
+   - Workspace management (`/workspaces`) — list and detail views
+   - Artifact list and audit timeline components
 
 ### Exit Criteria
 
@@ -209,11 +215,13 @@ This plan is divided into six phases. Each phase builds on the previous one and 
 
 ---
 
-## Phase 5: Integration
+## Phase 5: Integration 🔶 MOSTLY COMPLETE
 
 **Goal:** Wire everything together into a working end-to-end flow. Handle edge cases, failures, and error states gracefully. At the end of this phase, the system works reliably for the happy path and degrades gracefully for error paths.
 
 **Duration estimate:** 4-6 days
+
+> **Note:** E2E flow works. SSE events, status management, retry logic, and error handling are implemented. Outstanding: timeout handling for long-running tasks, comprehensive observability (correlation IDs, structured logging), and some data integrity checks.
 
 ### Deliverables
 
@@ -260,11 +268,13 @@ This plan is divided into six phases. Each phase builds on the previous one and 
 
 ---
 
-## Phase 6: Polish
+## Phase 6: Polish 🔶 PARTIALLY COMPLETE
 
 **Goal:** Improve developer experience, add observability, and document everything. At the end of this phase, the system is ready for demonstration and iteration.
 
 **Duration estimate:** 3-4 days
+
+> **Note:** `pnpm dev` script exists, Biome/Vitest configured, base documentation written. Outstanding: comprehensive test coverage, `.env.example`, production Dockerfiles, CI pipeline, setup scripts.
 
 ### Deliverables
 

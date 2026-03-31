@@ -21,25 +21,27 @@ export async function listProjects(opts: {
   limit: number;
   offset: number;
   includeArchived: boolean;
+  workspaceId?: string;
 }) {
-  const base = db.select().from(schema.projects);
-  const countBase = db.select({ count: sql<number>`count(*)::int` }).from(schema.projects);
-
+  const conditions = [];
   if (!opts.includeArchived) {
-    const [items, countResult] = await Promise.all([
-      base
-        .where(ne(schema.projects.status, "archived"))
-        .orderBy(desc(schema.projects.createdAt))
-        .limit(opts.limit)
-        .offset(opts.offset),
-      countBase.where(ne(schema.projects.status, "archived")),
-    ]);
-    return { projects: items, total: countResult[0]?.count ?? 0 };
+    conditions.push(ne(schema.projects.status, "archived"));
+  }
+  if (opts.workspaceId) {
+    conditions.push(eq(schema.projects.workspaceId, opts.workspaceId));
   }
 
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
   const [items, countResult] = await Promise.all([
-    base.orderBy(desc(schema.projects.createdAt)).limit(opts.limit).offset(opts.offset),
-    countBase,
+    db
+      .select()
+      .from(schema.projects)
+      .where(where)
+      .orderBy(desc(schema.projects.createdAt))
+      .limit(opts.limit)
+      .offset(opts.offset),
+    db.select({ count: sql<number>`count(*)::int` }).from(schema.projects).where(where),
   ]);
 
   return { projects: items, total: countResult[0]?.count ?? 0 };
@@ -57,6 +59,7 @@ export async function createProject(input: CreateProjectInput) {
     .values({
       name: input.name,
       goal: input.goal,
+      workspaceId: input.workspaceId,
       provider: input.provider || "opencode",
       repoUrl: input.repoUrl,
       repoPath: input.repoPath,

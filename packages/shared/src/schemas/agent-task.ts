@@ -9,12 +9,25 @@ export const agentTaskStatusValues = [
 ] as const;
 
 export const agentRoleValues = [
+  "ceo",
+  "planner",
   "architect",
+  "lead",
   "backend",
   "frontend",
   "data",
   "devops",
   "qa",
+  "reviewer",
+] as const;
+
+export const agentTierValues = [
+  "ceo",
+  "planner",
+  "architect",
+  "lead",
+  "specialist",
+  "reviewer",
 ] as const;
 
 export const AgentTaskDtoSchema = z.object({
@@ -22,6 +35,10 @@ export const AgentTaskDtoSchema = z.object({
   workstreamId: z.string().uuid(),
   projectId: z.string().uuid(),
   role: z.enum(agentRoleValues),
+  tier: z.enum(agentTierValues).nullable().optional(),
+  parentTaskId: z.string().uuid().nullable().optional(),
+  rootTaskId: z.string().uuid().nullable().optional(),
+  depth: z.number().int(),
   prompt: z.string(),
   status: z.enum(agentTaskStatusValues),
   output: z.string().nullable(),
@@ -42,6 +59,8 @@ export const CreateAgentTaskSchema = z.object({
   workstreamId: z.string().uuid(),
   projectId: z.string().uuid(),
   role: z.enum(agentRoleValues),
+  tier: z.enum(agentTierValues).optional(),
+  parentTaskId: z.string().uuid().optional(),
   prompt: z.string().min(1),
   maxAttempts: z.number().int().min(1).max(10).optional(),
 });

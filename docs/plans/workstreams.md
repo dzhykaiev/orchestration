@@ -18,7 +18,7 @@ Workstreams run in parallel. Within a workstream, tasks run sequentially. Coordi
 
 ---
 
-## WS-1: Data Layer
+## WS-1: Data Layer ✅ COMPLETED
 
 ### Objective
 
@@ -26,30 +26,31 @@ Establish the persistent data foundation: database schema, migrations, connectio
 
 ### Scope
 
-- PostgreSQL schema design and migration scripts
+- PostgreSQL schema design via Drizzle ORM
 - Database connection pool configuration
-- Repository modules (one per entity: projects, workstreams, tasks, contracts, logs)
+- Repository modules (one per entity: projects, workstreams, tasks, features, workspaces, artifacts, audit-logs)
 - Seed data for development and testing
-- Query utilities for common access patterns (get project with workstreams, get workstream with tasks)
 
 ### Deliverables
 
-| Deliverable | Path | Description |
+| Deliverable | Path | Status |
 |---|---|---|
-| Migration scripts | `packages/shared/migrations/` | SQL migration files for all tables |
-| Database client | `packages/shared/src/db/client.ts` | Connection pool setup and configuration |
-| Project repository | `packages/shared/src/db/repositories/projects.ts` | CRUD + status queries for projects |
-| Workstream repository | `packages/shared/src/db/repositories/workstreams.ts` | CRUD + status queries for workstreams |
-| Task repository | `packages/shared/src/db/repositories/tasks.ts` | CRUD + dependency-aware queries |
-| Contract repository | `packages/shared/src/db/repositories/contracts.ts` | CRUD + lookup by project and type |
-| Log repository | `packages/shared/src/db/repositories/logs.ts` | Append-only log insertion and querying |
-| Seed script | `packages/shared/src/db/seed.ts` | Development data for all tables |
-| Repository tests | `packages/shared/src/__tests__/db/` | Integration tests against a test database |
+| Schema (Drizzle ORM) | `packages/db/src/schema.ts` | ✅ 9 tables, 12 enums |
+| Database client | `packages/db/src/client.ts` | ✅ postgres.js + Drizzle |
+| Project repository | `packages/db/src/repositories/projects.ts` | ✅ |
+| Workstream repository | `packages/db/src/repositories/workstreams.ts` | ✅ |
+| Task repository | `packages/db/src/repositories/tasks.ts` | ✅ |
+| Feature repository | `packages/db/src/repositories/features.ts` | ✅ |
+| Workspace repository | `packages/db/src/repositories/workspaces.ts` | ✅ |
+| Artifact repository | `packages/db/src/repositories/artifacts.ts` | ✅ |
+| Audit log repository | `packages/db/src/repositories/audit-logs.ts` | ✅ |
+| Migrations | `packages/db/drizzle/` | ✅ Drizzle Kit |
+| Seed script | `apps/api/src/db/seed.ts` | ✅ |
 
 ### Owned Folders
 
-- `packages/shared/migrations/`
-- `packages/shared/src/db/`
+- `packages/db/src/`
+- `packages/db/drizzle/`
 
 ### Dependencies
 
@@ -72,13 +73,13 @@ Establish the persistent data foundation: database schema, migrations, connectio
 
 The following are stable and can be depended on by other workstreams:
 
-- **Entity types** (`Project`, `Workstream`, `AgentTask`, `Contract`): field names, types, and required/optional status will not change without coordinated updates.
+- **Entity types** (`Project`, `Workstream`, `AgentTask`, `Feature`, `Workspace`, `Artifact`, `AuditLog`): field names, types, and required/optional status will not change without coordinated updates.
 - **Repository function signatures**: the parameters and return types of repository functions will not change without notice.
 - **Table names and column names**: these are fixed after the initial migration. New columns may be added but existing columns will not be renamed or removed.
 
 ---
 
-## WS-2: API Server
+## WS-2: API Server ✅ COMPLETED
 
 ### Objective
 
@@ -100,16 +101,20 @@ Build the REST API that serves as the external interface for the platform. The A
 |---|---|---|
 | Fastify app | `apps/api/src/app.ts` | Application factory with plugin registration |
 | Server entry | `apps/api/src/server.ts` | Server startup and shutdown |
-| Project routes | `apps/api/src/routes/projects.ts` | CRUD + start orchestration |
-| Workstream routes | `apps/api/src/routes/workstreams.ts` | List and detail views |
-| Task routes | `apps/api/src/routes/tasks.ts` | List, detail, and log views |
-| Contract routes | `apps/api/src/routes/contracts.ts` | List and detail views |
-| Health routes | `apps/api/src/routes/health.ts` | Health and readiness checks |
-| SSE plugin | `apps/api/src/plugins/sse.ts` | Server-Sent Events for progress |
-| DB plugin | `apps/api/src/plugins/database.ts` | Database connection lifecycle |
-| Queue plugin | `apps/api/src/plugins/queue.ts` | BullMQ connection and job enqueue |
-| Error handler | `apps/api/src/plugins/errors.ts` | Centralized error formatting |
-| Route tests | `apps/api/src/__tests__/` | Route-level integration tests |
+| Project routes | `apps/api/src/routes/projects.ts` | ✅ CRUD + plan/stop/archive/detail |
+| Workstream routes | `apps/api/src/routes/workstreams.ts` | ✅ CRUD + tasks listing |
+| Task routes | `apps/api/src/routes/tasks.ts` | ✅ Create, retry, complete |
+| Feature routes | `apps/api/src/routes/features.ts` | ✅ CRUD + reorder + kickoff |
+| Workspace routes | `apps/api/src/routes/workspaces.ts` | ✅ CRUD + project listing |
+| Artifact routes | `apps/api/src/routes/artifacts.ts` | ✅ List by project, get, delete |
+| Audit log routes | `apps/api/src/routes/audit-logs.ts` | ✅ List by project |
+| File routes | `apps/api/src/routes/files.ts` | ✅ File listing + content |
+| Health routes | `apps/api/src/routes/health.ts` | ✅ Health check |
+| SSE events | `apps/api/src/routes/events.ts` | ✅ SSE via Redis Pub/Sub |
+| DB plugin | `apps/api/src/plugins/database.ts` | ✅ |
+| Redis plugin | `apps/api/src/plugins/redis.ts` | ✅ BullMQ + Pub/Sub |
+| Error handler | `apps/api/src/plugins/error-handler.ts` | ✅ |
+| Route tests | `apps/api/src/routes/__tests__/` | ✅ Partial |
 
 ### Owned Folders
 
@@ -144,7 +149,7 @@ The following are stable:
 
 ---
 
-## WS-3: Orchestrator Engine
+## WS-3: Orchestrator Engine ✅ COMPLETED
 
 ### Objective
 
@@ -217,7 +222,7 @@ The following are stable:
 
 ---
 
-## WS-4: Web Dashboard
+## WS-4: Web Dashboard ✅ COMPLETED
 
 ### Objective
 
@@ -277,11 +282,13 @@ The web dashboard is a leaf node --- no other workstream depends on it. There is
 
 ---
 
-## WS-5: DevOps and Quality
+## WS-5: DevOps and Quality 🔶 PARTIALLY COMPLETE
 
 ### Objective
 
 Establish the infrastructure, tooling, and quality guardrails that support all other workstreams. This workstream is cross-cutting: it provides the foundation that other workstreams build on and the checks that keep the codebase healthy.
+
+> **Note:** Docker Compose, Biome, Vitest, TypeScript configs, and dev scripts are done. Missing: production Dockerfiles, GitHub Actions CI, `.env.example`, setup/reset scripts.
 
 ### Scope
 

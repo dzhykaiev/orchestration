@@ -29,8 +29,8 @@ Current structure:
 ```
 apps/web/src/
 ├── app/                          # Next.js App Router pages
-│   ├── layout.tsx                # Root layout, theme script, header
-│   ├── page.tsx                  # Dashboard — project list
+│   ├── layout.tsx                # Root layout, theme script, header, navigation
+│   ├── page.tsx                  # Dashboard — project list with search/filter/sort + activity feed
 │   ├── globals.css               # CSS variables, dark mode theming
 │   ├── error.tsx                 # Error boundary
 │   ├── loading.tsx               # Loading state
@@ -38,10 +38,15 @@ apps/web/src/
 │   ├── projects/
 │   │   ├── new/page.tsx          # Create project form
 │   │   └── [id]/page.tsx         # Project detail (workstreams, tasks, files)
+│   ├── workspaces/
+│   │   ├── page.tsx              # Workspace list
+│   │   └── [id]/page.tsx         # Workspace detail with projects
 │   └── board/
 │       └── page.tsx              # Feature board (Kanban-style)
 ├── components/
 │   ├── ActivityFeed.tsx          # Task/workstream activity timeline
+│   ├── ArtifactList.tsx          # Project artifact viewer
+│   ├── AuditTimeline.tsx         # Audit log timeline view
 │   ├── DependencyGraph.tsx       # Dagre-based workstream dependency visualization
 │   ├── FileTree.tsx              # File explorer tree view
 │   ├── FileViewer.tsx            # File content viewer
@@ -98,9 +103,11 @@ Before you start, these must exist:
 
 | Route | Purpose |
 |---|---|
-| `/` | Dashboard — overview of all projects with status summary |
+| `/` | Dashboard — project list with search/filter/sort + activity feed sidebar |
 | `/projects/new` | Create project form (goal, name, mode, LLM provider) |
 | `/projects/[id]` | Project detail — workstreams, tasks, files, activity feed |
+| `/workspaces` | Workspace list |
+| `/workspaces/[id]` | Workspace detail with project listing |
 | `/board` | Feature board — Kanban-style feature tracking |
 
 ### 2. Components (`apps/web/src/components/`)

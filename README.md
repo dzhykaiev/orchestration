@@ -48,15 +48,23 @@ apps/
   api/
     src/
   orchestrator/
+    projects/
     src/
   web/
     src/
 docs/
+  .vitepress/
+    cache/
   agent-briefs/
+  agents/
+  api/
   contracts/
   decisions/
+  design/
+  guide/
   plans/
   runbooks/
+logs/
 packages/
   db/
     drizzle/

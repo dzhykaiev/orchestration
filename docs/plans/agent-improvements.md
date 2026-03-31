@@ -1,6 +1,6 @@
 # Plan: Оновлення агентів та додавання reviewer
 
-> Статус: заплановано, не імплементовано
+> Статус: **частково імплементовано** (роль reviewer додана до enum, briefs розширення ще не зроблено)
 
 ## Context
 
@@ -8,18 +8,14 @@
 
 ## Зміни
 
-### 1. Додати роль `reviewer`
+### 1. ~~Додати роль `reviewer`~~ ✅ DONE
 
-Новий агент, який запускається як фінальний workstream з залежностями на всі інші. Перевіряє:
-- Крос-воркстрім інтеграцію (імпорти, типи, контракти)
-- Відповідність архітектурі
-- Стандарти коду
-- Виводить виправлені файли через `<file>` теги або `<review-result>APPROVED</review-result>`
+Роль `reviewer` додана до:
+- `packages/db/src/schema.ts` — `agentRoleEnum` тепер має 10 ролей: ceo, planner, architect, lead, backend, frontend, data, devops, qa, **reviewer**
+- `packages/shared/src/types/agent-task.ts` — `AgentRole` тип оновлений
+- Також додані нові ролі: `ceo`, `planner`, `lead` та ієрархія агентів через `agentTierEnum` (strategic, tactical, operational) і таблицю `agent_definitions`
 
-**Файли для типу:**
-- `contracts/types/agent-task.ts` — додати `"reviewer"` до `AgentRole`
-- `packages/shared/src/types/agent-task.ts` — те саме
-- `packages/db/src/schema.ts` — додати `"reviewer"` до `agentRoleEnum`
+**Що ще не зроблено:** workflow для reviewer в implementation worker (завантаження всіх файлів, парсинг APPROVED).
 
 ### 2. Збагатити briefs усіх агентів (`briefs.ts`)
 
@@ -72,10 +68,10 @@
 
 ## Порядок виконання
 
-1. Типи + схема (3 файли) — додати `reviewer`
-2. `briefs.ts` — збагачені briefs + OUTPUT_FORMAT
-3. `architect.ts` — оновлений промпт
-4. `implementation.ts` + `implementation worker` — reviewer workflow
+1. ~~Типи + схема (3 файли) — додати `reviewer`~~ ✅ DONE
+2. `briefs.ts` — збагачені briefs + OUTPUT_FORMAT — **TODO**
+3. `architect.ts` — оновлений промпт — **TODO**
+4. `implementation.ts` + `implementation worker` — reviewer workflow — **TODO**
 
 ## Верифікація
 

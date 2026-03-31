@@ -1,4 +1,9 @@
 export type {
+  Workspace,
+  CreateWorkspaceInput,
+  UpdateWorkspaceInput,
+} from "./workspace.js";
+export type {
   Project,
   ProjectStatus,
   ProjectMode,
@@ -24,9 +29,28 @@ export type {
   AgentTask,
   AgentTaskStatus,
   AgentRole,
+  AgentTier,
   CreateAgentTaskInput,
   AgentTaskResult,
 } from "./agent-task.js";
+export type {
+  AuditLog,
+  AuditAction,
+  ActorType,
+  CreateAuditLogInput,
+} from "./audit-log.js";
+export type { Artifact, ArtifactType, CreateArtifactInput } from "./artifact.js";
+export type {
+  AgentDefinition,
+  CreateAgentDefinitionInput,
+  UpdateAgentDefinitionInput,
+} from "./agent-definition.js";
+export type {
+  Escalation,
+  EscalationStatus,
+  CreateEscalationInput,
+} from "./escalation.js";
+export type { Review, ReviewVerdict, CreateReviewInput } from "./review.js";
 export type { OrchestratorEvent, EventType, EventPayload } from "./events.js";
 export { EVENTS_CHANNEL } from "./events.js";
 export type { EnvContract } from "./env.js";

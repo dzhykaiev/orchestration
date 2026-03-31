@@ -29,18 +29,49 @@ export async function getTaskById(id: string) {
 }
 
 export async function createTask(input: CreateAgentTaskInput) {
+  let depth = 0;
+  let rootTaskId: string | undefined;
+
+  if (input.parentTaskId) {
+    const parent = await getTaskById(input.parentTaskId);
+    if (parent) {
+      depth = (parent.depth ?? 0) + 1;
+      rootTaskId = parent.rootTaskId ?? parent.id;
+    }
+  }
+
   const [task] = await db
     .insert(schema.agentTasks)
     .values({
       workstreamId: input.workstreamId,
       projectId: input.projectId,
       role: input.role,
+      tier: input.tier,
+      parentTaskId: input.parentTaskId,
+      rootTaskId,
+      depth,
       prompt: input.prompt,
       maxAttempts: input.maxAttempts ?? 3,
     })
     .returning();
 
   return task ?? null;
+}
+
+export async function listChildTasks(parentTaskId: string) {
+  return db
+    .select()
+    .from(schema.agentTasks)
+    .where(eq(schema.agentTasks.parentTaskId, parentTaskId))
+    .orderBy(asc(schema.agentTasks.createdAt));
+}
+
+export async function getTaskTree(rootTaskId: string) {
+  return db
+    .select()
+    .from(schema.agentTasks)
+    .where(eq(schema.agentTasks.rootTaskId, rootTaskId))
+    .orderBy(asc(schema.agentTasks.depth), asc(schema.agentTasks.createdAt));
 }
 
 export async function markTaskStarted(id: string) {

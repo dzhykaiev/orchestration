@@ -1,4 +1,10 @@
+export * as workspaceRepo from "./workspaces.js";
 export * as projectRepo from "./projects.js";
 export * as workstreamRepo from "./workstreams.js";
 export * as taskRepo from "./tasks.js";
 export * as featureRepo from "./features.js";
+export * as auditLogRepo from "./audit-logs.js";
+export * as artifactRepo from "./artifacts.js";
+export * as agentDefinitionRepo from "./agent-definitions.js";
+export * as escalationRepo from "./escalations.js";
+export * as reviewRepo from "./reviews.js";
