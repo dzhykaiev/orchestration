@@ -129,17 +129,19 @@
 
 ### P0
 
-- [ ] Виправити `typecheck` у `health.test.ts` через типобезпечні mocks.
-- [ ] Виправити `lint`-конфіг (ігнор build/cache артефактів docs).
+- [x] Виправити `typecheck` у `health.test.ts` через типобезпечні mocks.
+- [x] Виправити `lint`-конфіг (ігнор build/cache артефактів docs).
 
 ### P1
 
-- [ ] Додати guard для `checkProjectCompletion` на порожній список воркстрімів + тест.
-- [ ] Зробити `feature kickoff` стійким до partial failure (queue/DB консистентність).
+- [x] Додати guard для `checkProjectCompletion` на порожній список воркстрімів + тест.
+- [x] Зробити `feature kickoff` стійким до partial failure (queue/DB консистентність).
 
 ### P2
 
-- [ ] Винести єдиний utility для резолву LLM provider.
-- [ ] Прибрати зайві status-касти через сильніші типи.
-- [ ] Мігрувати з `vitest.workspace.ts` на `test.projects`.
+- [x] Винести єдиний utility для резолву LLM provider.
+- [x] Прибрати зайві status-касти через сильніші типи.
+- [x] Мігрувати з `vitest.workspace.ts` на `test.projects`.
 
+<!-- DONE by Codex at 2026-03-31 -->
+<!-- DONE by Codex at 2026-03-31 (follow-up) -->

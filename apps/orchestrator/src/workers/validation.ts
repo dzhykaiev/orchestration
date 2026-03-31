@@ -7,8 +7,9 @@ import {
   taskRepo,
   workstreamRepo,
 } from "@orchestration/db";
-import type { ValidationStatus, WorkstreamStatus } from "@orchestration/shared";
+import type { ValidationStatus } from "@orchestration/shared";
 import { WORKSTREAM_TRANSITIONS, canTransition } from "@orchestration/shared";
+import { resolveProvider } from "@orchestration/shared";
 import type { Job } from "bullmq";
 import { eventBus } from "../events/index.js";
 import { createLLMProvider } from "../llm/index.js";
@@ -93,11 +94,7 @@ export async function handleValidationJob(job: Job<ValidationJobData>) {
     }
 
     // Create QA LLM provider (use project-level provider if available)
-    const providerName =
-      ((project as Record<string, unknown>)?.provider as string) ||
-      process.env.LLM_PROVIDER ||
-      undefined;
-    const llmProvider = createLLMProvider("qa", providerName);
+    const llmProvider = createLLMProvider("qa", resolveProvider(project.provider));
 
     const systemPrompt = `${AGENT_BRIEFS.qa}
 
@@ -170,7 +167,7 @@ ${project.architecture || "No architecture document available."}
     if (validationStatus === "fail") {
       // Validation failed — mark workstream as failed
       const ws = await workstreamRepo.getWorkstreamById(workstreamId);
-      if (ws && canTransition(WORKSTREAM_TRANSITIONS, ws.status as WorkstreamStatus, "failed")) {
+      if (ws && canTransition(WORKSTREAM_TRANSITIONS, ws.status, "failed")) {
         await workstreamRepo.updateWorkstream(workstreamId, { status: "failed" });
         eventBus.emitTyped("workstream.failed", {
           workstreamId,

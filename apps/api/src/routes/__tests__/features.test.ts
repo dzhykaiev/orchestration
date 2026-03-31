@@ -19,6 +19,16 @@ const createFeature = vi.fn().mockImplementation((input: Record<string, unknown>
 const updateFeature = vi.fn().mockResolvedValue(null);
 const deleteFeature = vi.fn().mockResolvedValue(undefined);
 const reorderFeatures = vi.fn().mockResolvedValue(undefined);
+const createProject = vi.fn().mockResolvedValue({
+  id: "proj-uuid",
+  name: "Test",
+  goal: "Test",
+  status: "draft",
+  provider: "opencode",
+  createdAt: new Date(),
+  updatedAt: new Date(),
+});
+const deleteProject = vi.fn().mockResolvedValue(undefined);
 
 vi.mock("@orchestration/db", () => ({
   featureRepo: {
@@ -30,15 +40,8 @@ vi.mock("@orchestration/db", () => ({
     reorderFeatures,
   },
   projectRepo: {
-    createProject: vi.fn().mockResolvedValue({
-      id: "proj-uuid",
-      name: "Test",
-      goal: "Test",
-      status: "draft",
-      provider: "opencode",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }),
+    createProject,
+    deleteProject,
   },
 }));
 
@@ -74,7 +77,18 @@ const UUID = "00000000-0000-0000-0000-000000000000";
 describe("Feature Routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.SELF_REPO_PATH = "/tmp/repo";
     getFeatureById.mockResolvedValue(null);
+    createProject.mockResolvedValue({
+      id: "proj-uuid",
+      name: "Test",
+      goal: "Test",
+      status: "draft",
+      provider: "opencode",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    mockQueues.planning.add.mockResolvedValue(undefined);
   });
 
   it("GET /api/features returns list", async () => {
@@ -191,5 +205,30 @@ describe("Feature Routes", () => {
     const app = await buildApp();
     const res = await app.inject({ method: "POST", url: `/api/features/${UUID}/kickoff` });
     expect(res.statusCode).toBe(400);
+  });
+
+  it("POST /api/features/:id/kickoff rolls back project+feature when queue enqueue fails", async () => {
+    getFeatureById.mockResolvedValueOnce({
+      id: UUID,
+      title: "Queue Failure Feature",
+      description: "desc",
+      status: "backlog",
+      workspaceId: "00000000-0000-0000-0000-000000000001",
+      orchestrationProjectId: null,
+    });
+    mockQueues.planning.add.mockRejectedValueOnce(new Error("queue offline"));
+
+    const app = await buildApp();
+    const res = await app.inject({ method: "POST", url: `/api/features/${UUID}/kickoff` });
+
+    expect(res.statusCode).toBe(400);
+    expect(updateFeature).toHaveBeenNthCalledWith(1, UUID, {
+      status: "in_progress",
+      orchestrationProjectId: "proj-uuid",
+    });
+    expect(updateFeature).toHaveBeenNthCalledWith(2, UUID, {
+      status: "backlog",
+    });
+    expect(deleteProject).toHaveBeenCalledWith("proj-uuid");
   });
 });

@@ -6,7 +6,8 @@ import {
   workstreamRepo,
 } from "@orchestration/db";
 import { PROJECT_TRANSITIONS, assertTransition } from "@orchestration/shared";
-import type { CreateProjectInput, ProjectStatus, UpdateProjectInput } from "@orchestration/shared";
+import type { CreateProjectInput, UpdateProjectInput } from "@orchestration/shared";
+import { resolveProvider } from "@orchestration/shared";
 import type { Queue } from "bullmq";
 
 export class ProjectService {
@@ -59,7 +60,7 @@ export class ProjectService {
     await planningQueue.add("plan", {
       projectId: id,
       goal: project.goal,
-      provider: project.provider || process.env.LLM_PROVIDER || "opencode",
+      provider: resolveProvider(project.provider),
     });
 
     try {
@@ -87,7 +88,7 @@ export class ProjectService {
   ) {
     const project = await this.getById(id);
 
-    assertTransition(PROJECT_TRANSITIONS, project.status as ProjectStatus, "cancelled", "project");
+    assertTransition(PROJECT_TRANSITIONS, project.status, "cancelled", "project");
 
     // Cancel all queued/running tasks
     await taskRepo.cancelTasksByProject(id);
@@ -143,7 +144,7 @@ export class ProjectService {
   async archive(id: string) {
     const project = await this.getById(id);
 
-    assertTransition(PROJECT_TRANSITIONS, project.status as ProjectStatus, "archived", "project");
+    assertTransition(PROJECT_TRANSITIONS, project.status, "archived", "project");
 
     const updated = await projectRepo.updateProject(id, { status: "archived" });
     if (!updated) throw new NotFoundError("Project not found");

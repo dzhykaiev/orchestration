@@ -3,6 +3,8 @@ import type { CreateWorkstreamInput, UpdateWorkstreamInput } from "@orchestratio
 import { NotFoundError } from "./project.service.js";
 
 export class ValidationError extends Error {
+  statusCode = 400;
+
   constructor(message: string) {
     super(message);
     this.name = "ValidationError";

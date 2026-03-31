@@ -64,13 +64,11 @@ apps/
   api/
     src/
   orchestrator/
-    projects/
     src/
   web/
     src/
 docs/
   .vitepress/
-    cache/
   agent-briefs/
   agents/
   api/
@@ -81,7 +79,6 @@ docs/
   improvements/
   plans/
   runbooks/
-logs/
 packages/
   db/
     drizzle/

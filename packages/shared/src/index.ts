@@ -125,3 +125,5 @@ export {
   InvalidTransitionError,
   assertTransition,
 } from "./state-machine.js";
+
+export { resolveProvider } from "./provider.js";

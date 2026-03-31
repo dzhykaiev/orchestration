@@ -100,6 +100,7 @@ describe("Project Routes", () => {
     vi.clearAllMocks();
     getProjectById.mockResolvedValue(null);
     listProjects.mockResolvedValue({ data: [], total: 0 });
+    mockQueues.planning.add.mockResolvedValue(undefined);
   });
 
   it("GET /api/projects returns empty list", async () => {
@@ -116,7 +117,11 @@ describe("Project Routes", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/projects",
-      payload: { name: "Test Project", goal: "Build something", workspaceId: "00000000-0000-0000-0000-000000000001" },
+      payload: {
+        name: "Test Project",
+        goal: "Build something",
+        workspaceId: "00000000-0000-0000-0000-000000000001",
+      },
     });
     expect(res.statusCode).toBe(201);
     const body = JSON.parse(res.payload);
@@ -166,6 +171,47 @@ describe("Project Routes", () => {
     expect(res.statusCode).toBe(201);
     const body = JSON.parse(res.payload);
     expect(body.workstream.name).toBe("Backend API");
+  });
+
+  it("POST /api/projects/:id/workstreams returns 400 for invalid dependencies", async () => {
+    const projectId = "00000000-0000-0000-0000-000000000000";
+    getProjectById.mockResolvedValueOnce({
+      id: projectId,
+      name: "Test",
+      goal: "Test",
+      status: "in_progress",
+      provider: "opencode",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    listWorkstreamsByProject.mockResolvedValueOnce([
+      {
+        id: "11111111-1111-1111-1111-111111111111",
+        projectId,
+        name: "Existing WS",
+        objective: "existing",
+        status: "pending",
+        dependencies: [],
+        deliverables: [],
+        ownedPaths: [],
+        order: 0,
+      },
+    ]);
+
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/projects/${projectId}/workstreams`,
+      payload: {
+        name: "Dependent WS",
+        objective: "build",
+        dependencies: ["22222222-2222-2222-2222-222222222222"],
+      },
+    });
+
+    expect(res.statusCode).toBe(400);
+    const body = JSON.parse(res.payload);
+    expect(body.error).toContain("Invalid dependencies");
   });
 
   it("PATCH /api/projects/:id returns 404 for non-existent", async () => {
