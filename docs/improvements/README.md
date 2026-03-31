@@ -14,6 +14,7 @@
 ### P0 — Критичні (зламаний флоу)
 - [01-unified-entity-flow.md](./01-unified-entity-flow.md) — Уніфікація флоу Workspace → Project → Feature
 - [02-feature-workspace-binding.md](./02-feature-workspace-binding.md) — Прив'язка фіч до воркспейсів
+- [11-code-health-audit-2026-03-31.md](./11-code-health-audit-2026-03-31.md) — Виправлення зламаних quality gates (`typecheck`, `lint`) і стабілізація critical-path
 
 ### P1 — Важливі (консистентність)
 - [03-api-consistency.md](./03-api-consistency.md) — Консистентність API (пагінація, фільтри, ендпоінти)
