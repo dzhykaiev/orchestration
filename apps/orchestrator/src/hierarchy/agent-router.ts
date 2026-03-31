@@ -1,53 +1,28 @@
-import { agentDefinitionRepo } from "@orchestration/db";
 import type { AgentRole, AgentTier } from "@orchestration/shared";
+import { createHierarchyService } from "../application/hierarchy/hierarchy-use-cases.js";
+import type { AgentHierarchy } from "../application/hierarchy/ports.js";
+import { defaultHierarchyDependencies } from "../infrastructure/hierarchy/hierarchy-dependencies.js";
 
-const TIER_ORDER: AgentTier[] = ["ceo", "planner", "architect", "lead", "specialist", "reviewer"];
-
-const DEFAULT_ROLE_TO_TIER: Record<string, AgentTier> = {
-  ceo: "ceo",
-  planner: "planner",
-  architect: "architect",
-  lead: "lead",
-  backend: "specialist",
-  frontend: "specialist",
-  data: "specialist",
-  devops: "specialist",
-  qa: "specialist",
-  reviewer: "reviewer",
-};
+const hierarchyService = createHierarchyService(defaultHierarchyDependencies);
 
 export function roleToTier(role: AgentRole): AgentTier {
-  return DEFAULT_ROLE_TO_TIER[role] ?? "specialist";
+  return hierarchyService.roleToTier(role);
 }
 
 export function getTierOrder(tier: AgentTier): number {
-  return TIER_ORDER.indexOf(tier);
+  return hierarchyService.getTierOrder(tier);
 }
 
 export function getParentTier(tier: AgentTier): AgentTier | null {
-  const idx = TIER_ORDER.indexOf(tier);
-  if (idx <= 0) return null;
-  return TIER_ORDER[idx - 1] ?? null;
+  return hierarchyService.getParentTier(tier);
 }
 
 export async function getWorkspaceHierarchy(workspaceId: string) {
-  const definitions = await agentDefinitionRepo.listByWorkspace(workspaceId);
-  if (definitions.length === 0) return null;
-
-  const byRole = new Map(definitions.map((d) => [d.role, d]));
-  const byTier = new Map<string, typeof definitions>();
-
-  for (const def of definitions) {
-    const existing = byTier.get(def.tier) ?? [];
-    existing.push(def);
-    byTier.set(def.tier, existing);
-  }
-
-  return { definitions, byRole, byTier };
+  return hierarchyService.getWorkspaceHierarchy(workspaceId);
 }
 
 export function isHierarchicalWorkspace(
-  hierarchy: Awaited<ReturnType<typeof getWorkspaceHierarchy>>,
-): hierarchy is NonNullable<typeof hierarchy> {
-  return hierarchy !== null;
+  hierarchy: Awaited<ReturnType<typeof getWorkspaceHierarchy>> | AgentHierarchy | null,
+): hierarchy is AgentHierarchy {
+  return hierarchyService.isHierarchicalWorkspace(hierarchy);
 }
