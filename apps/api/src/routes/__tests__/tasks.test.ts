@@ -24,6 +24,8 @@ const markTaskCompleted = vi.fn().mockResolvedValue(null);
 const markTaskFailed = vi.fn().mockResolvedValue(null);
 const retryTask = vi.fn().mockResolvedValue(null);
 const updateTotalCost = vi.fn().mockResolvedValue(null);
+const listChildTasks = vi.fn().mockResolvedValue([]);
+const getTaskTree = vi.fn().mockResolvedValue([]);
 
 vi.mock("@orchestration/db", () => ({
   taskRepo: {
@@ -32,6 +34,8 @@ vi.mock("@orchestration/db", () => ({
     markTaskCompleted,
     markTaskFailed,
     retryTask,
+    listChildTasks,
+    getTaskTree,
   },
   projectRepo: {
     updateTotalCost,
@@ -110,5 +114,38 @@ describe("Task Routes", () => {
       },
     });
     expect(res.statusCode).toBe(404);
+  });
+
+  it("GET /api/tasks/:id/children returns list", async () => {
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/tasks/00000000-0000-0000-0000-000000000001/children",
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body.tasks).toEqual([]);
+    expect(listChildTasks).toHaveBeenCalledWith("00000000-0000-0000-0000-000000000001");
+  });
+
+  it("GET /api/tasks/:id/tree returns task tree", async () => {
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/tasks/00000000-0000-0000-0000-000000000001/tree",
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body.tasks).toEqual([]);
+    expect(getTaskTree).toHaveBeenCalledWith("00000000-0000-0000-0000-000000000001");
+  });
+
+  it("GET /api/tasks/:id/children with invalid UUID returns 400", async () => {
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/tasks/not-a-uuid/children",
+    });
+    expect(res.statusCode).toBe(400);
   });
 });

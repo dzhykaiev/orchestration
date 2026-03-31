@@ -19,8 +19,10 @@ const createProject = vi.fn().mockImplementation((input: { name: string; goal: s
 );
 const updateProject = vi.fn().mockResolvedValue(null);
 const deleteProject = vi.fn().mockResolvedValue(undefined);
+const transitionStatus = vi.fn().mockResolvedValue(null);
 const listWorkstreamsByProject = vi.fn().mockResolvedValue([]);
 const cancelWorkstreamsByProject = vi.fn().mockResolvedValue([]);
+const listTasksByProject = vi.fn().mockResolvedValue([]);
 const createWorkstream = vi.fn().mockImplementation((input: Record<string, unknown>) =>
   Promise.resolve({
     id: "ws-uuid",
@@ -45,6 +47,7 @@ vi.mock("@orchestration/db", () => ({
     createProject,
     updateProject,
     deleteProject,
+    transitionStatus,
   },
   workstreamRepo: {
     listWorkstreamsByProject,
@@ -54,6 +57,7 @@ vi.mock("@orchestration/db", () => ({
   },
   taskRepo: {
     cancelTasksByProject: vi.fn().mockResolvedValue([]),
+    listTasksByProject,
   },
 }));
 
@@ -156,5 +160,214 @@ describe("Project Routes", () => {
     expect(res.statusCode).toBe(201);
     const body = JSON.parse(res.payload);
     expect(body.workstream.name).toBe("Backend API");
+  });
+
+  it("PATCH /api/projects/:id returns 404 for non-existent", async () => {
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "PATCH",
+      url: "/api/projects/00000000-0000-0000-0000-000000000000",
+      payload: { name: "Updated" },
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("PATCH /api/projects/:id updates when found", async () => {
+    updateProject.mockResolvedValueOnce({
+      id: "00000000-0000-0000-0000-000000000000",
+      name: "Updated",
+      status: "draft",
+    });
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "PATCH",
+      url: "/api/projects/00000000-0000-0000-0000-000000000000",
+      payload: { name: "Updated" },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body.project.name).toBe("Updated");
+  });
+
+  it("DELETE /api/projects/:id returns 404 for non-existent", async () => {
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "DELETE",
+      url: "/api/projects/00000000-0000-0000-0000-000000000000",
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("DELETE /api/projects/:id returns 400 for active project", async () => {
+    getProjectById.mockResolvedValueOnce({
+      id: "00000000-0000-0000-0000-000000000000",
+      name: "Test",
+      goal: "Test",
+      status: "in_progress",
+      provider: "opencode",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "DELETE",
+      url: "/api/projects/00000000-0000-0000-0000-000000000000",
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("POST /api/projects/:id/plan returns 404 for non-existent", async () => {
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/projects/00000000-0000-0000-0000-000000000000/plan",
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("POST /api/projects/:id/plan returns 400 if not draft", async () => {
+    getProjectById.mockResolvedValueOnce({
+      id: "00000000-0000-0000-0000-000000000000",
+      name: "Test",
+      goal: "Test",
+      status: "in_progress",
+      provider: "opencode",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/projects/00000000-0000-0000-0000-000000000000/plan",
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("POST /api/projects/:id/plan succeeds for draft project", async () => {
+    getProjectById.mockResolvedValueOnce({
+      id: "00000000-0000-0000-0000-000000000000",
+      name: "Test",
+      goal: "Build it",
+      status: "draft",
+      provider: "opencode",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    transitionStatus.mockResolvedValueOnce({
+      id: "00000000-0000-0000-0000-000000000000",
+      name: "Test",
+      goal: "Build it",
+      status: "planning",
+    });
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/projects/00000000-0000-0000-0000-000000000000/plan",
+    });
+    expect(res.statusCode).toBe(200);
+    expect(mockQueues.planning.add).toHaveBeenCalled();
+  });
+
+  it("POST /api/projects/:id/stop returns 404 for non-existent", async () => {
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/projects/00000000-0000-0000-0000-000000000000/stop",
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("POST /api/projects/:id/stop returns 400 for completed project", async () => {
+    getProjectById.mockResolvedValueOnce({
+      id: "00000000-0000-0000-0000-000000000000",
+      name: "Test",
+      goal: "Test",
+      status: "completed",
+      provider: "opencode",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/projects/00000000-0000-0000-0000-000000000000/stop",
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("POST /api/projects/:id/archive returns 404 for non-existent", async () => {
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/projects/00000000-0000-0000-0000-000000000000/archive",
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("POST /api/projects/:id/archive returns 400 for running project", async () => {
+    getProjectById.mockResolvedValueOnce({
+      id: "00000000-0000-0000-0000-000000000000",
+      name: "Test",
+      goal: "Test",
+      status: "in_progress",
+      provider: "opencode",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/projects/00000000-0000-0000-0000-000000000000/archive",
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("GET /api/projects/:id/detail returns 404 for non-existent", async () => {
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/projects/00000000-0000-0000-0000-000000000000/detail",
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("GET /api/projects/:id/detail returns aggregated data", async () => {
+    getProjectById.mockResolvedValueOnce({
+      id: "00000000-0000-0000-0000-000000000000",
+      name: "Test",
+      goal: "Test",
+      status: "in_progress",
+      provider: "opencode",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/projects/00000000-0000-0000-0000-000000000000/detail",
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body.project).toBeDefined();
+    expect(body.workstreams).toBeDefined();
+    expect(body.tasks).toBeDefined();
+  });
+
+  it("GET /api/projects/:id/workstreams returns 404 for non-existent", async () => {
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/projects/00000000-0000-0000-0000-000000000000/workstreams",
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("GET /api/projects with invalid UUID returns 400", async () => {
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/projects/not-a-uuid",
+    });
+    expect(res.statusCode).toBe(400);
   });
 });
