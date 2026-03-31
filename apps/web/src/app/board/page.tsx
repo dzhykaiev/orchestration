@@ -5,12 +5,13 @@ import { FeatureModal } from "../../components/board/FeatureModal";
 import { KanbanColumn } from "../../components/board/KanbanColumn";
 import { useToast } from "../../hooks/useToast";
 import { api } from "../../lib/api";
-import type { Feature } from "../../lib/api";
+import type { Feature, Workspace } from "../../lib/api";
 
 const STATUSES = ["backlog", "todo", "in_progress", "done", "rejected"] as const;
 
 export default function BoardPage() {
   const [features, setFeatures] = useState<Feature[]>([]);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingFeature, setEditingFeature] = useState<Feature | null>(null);
@@ -20,8 +21,12 @@ export default function BoardPage() {
 
   const fetchFeatures = useCallback(async () => {
     try {
-      const { features: data } = await api.features.list();
-      setFeatures(data);
+      const [featuresData, workspacesData] = await Promise.all([
+        api.features.list(),
+        api.workspaces.list(100, 0),
+      ]);
+      setFeatures(featuresData.features);
+      setWorkspaces(workspacesData.workspaces);
     } catch (err) {
       toastRef.current.error(err instanceof Error ? err.message : "Failed to load features");
     } finally {
@@ -70,6 +75,7 @@ export default function BoardPage() {
   }
 
   async function handleSave(data: {
+    workspaceId?: string;
     title: string;
     description?: string;
     type: string;
@@ -78,10 +84,21 @@ export default function BoardPage() {
   }) {
     try {
       if (editingFeature) {
-        await api.features.update(editingFeature.id, data);
+        const { workspaceId: _, ...updateData } = data;
+        await api.features.update(editingFeature.id, updateData);
         toast.success("Feature updated");
       } else {
-        await api.features.create(data);
+        if (!data.workspaceId) {
+          toast.error("Workspace is required");
+          return;
+        }
+        await api.features.create({
+          workspaceId: data.workspaceId,
+          title: data.title,
+          description: data.description,
+          type: data.type,
+          priority: data.priority,
+        });
         toast.success("Feature created");
       }
       setModalOpen(false);
@@ -174,6 +191,7 @@ export default function BoardPage() {
         }}
         onSave={handleSave}
         feature={editingFeature}
+        workspaces={workspaces}
       />
     </div>
   );

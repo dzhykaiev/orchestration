@@ -9,7 +9,7 @@ import { StatusBadge } from "../components/ui/StatusBadge";
 import { usePolling } from "../hooks/usePolling";
 import { useSSE } from "../hooks/useSSE";
 import { type ActivityItem, eventToActivity } from "../lib/activity";
-import { type Project, api } from "../lib/api";
+import { type Project, type Workspace, api } from "../lib/api";
 import { getProviderStyle, timeAgo } from "../lib/utils";
 
 const STATUS_ICONS: Record<string, string> = {
@@ -49,6 +49,7 @@ type SortOption = "newest" | "oldest" | "name_asc" | "name_desc";
 
 export default function HomePage() {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -60,9 +61,13 @@ export default function HomePage() {
 
   const fetchProjects = useCallback(async () => {
     try {
-      const data = await api.projects.list(20, 0, showArchived);
+      const [data, wsData] = await Promise.all([
+        api.projects.list(20, 0, showArchived),
+        api.workspaces.list(100, 0),
+      ]);
       setProjects(data.projects);
       setTotal(data.total);
+      setWorkspaces(wsData.workspaces);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load projects");
@@ -222,12 +227,21 @@ export default function HomePage() {
         {filteredProjects.length === 0 ? (
           <div className="card" style={{ textAlign: "center", padding: "3rem" }}>
             {projects.length === 0 ? (
-              <>
-                <p className="text-muted mb-2">No projects yet.</p>
-                <Link href="/projects/new" className="btn btn-primary">
-                  Create your first project
-                </Link>
-              </>
+              workspaces.length === 0 ? (
+                <>
+                  <p className="text-muted mb-2">No workspaces yet. Create a workspace first.</p>
+                  <Link href="/workspaces" className="btn btn-primary">
+                    Create Workspace
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <p className="text-muted mb-2">No projects yet.</p>
+                  <Link href="/projects/new" className="btn btn-primary">
+                    Create your first project
+                  </Link>
+                </>
+              )
             ) : (
               <>
                 <p className="text-muted mb-2">No projects match your filters.</p>

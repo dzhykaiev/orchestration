@@ -6,6 +6,7 @@ export const featureTypeValues = ["feature", "bug", "improvement", "refactor"] a
 
 export const FeatureDtoSchema = z.object({
   id: z.string().uuid(),
+  workspaceId: z.string().uuid(),
   title: z.string(),
   description: z.string().nullable(),
   status: z.enum(featureStatusValues),
@@ -20,6 +21,7 @@ export const FeatureDtoSchema = z.object({
 export type FeatureDto = z.infer<typeof FeatureDtoSchema>;
 
 export const CreateFeatureSchema = z.object({
+  workspaceId: z.string().uuid(),
   title: z.string().min(1).max(500),
   description: z.string().max(5000).optional(),
   type: z.enum(featureTypeValues).default("feature"),

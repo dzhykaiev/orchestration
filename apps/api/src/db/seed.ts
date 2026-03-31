@@ -3,9 +3,22 @@ import { db, schema } from "@orchestration/db";
 async function seed() {
   console.log("Seeding database...");
 
+  // Create a default workspace for seed data
+  const [workspace] = await db
+    .insert(schema.workspaces)
+    .values({
+      name: "Seed Workspace",
+      slug: "seed",
+      description: "Default workspace for seed data",
+    })
+    .returning();
+  if (!workspace) throw new Error("Failed to create seed workspace");
+  console.log("Created seed workspace:", workspace.id);
+
   const [draftProject] = await db
     .insert(schema.projects)
     .values({
+      workspaceId: workspace.id,
       name: "Todo App",
       goal: "Build a full-stack todo application with React frontend and REST API",
       status: "draft",
@@ -16,6 +29,7 @@ async function seed() {
   const [activeProject] = await db
     .insert(schema.projects)
     .values({
+      workspaceId: workspace.id,
       name: "E-Commerce API",
       goal: "Build a REST API for an e-commerce platform with products, orders, and user accounts",
       status: "in_progress",

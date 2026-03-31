@@ -43,6 +43,13 @@
       "when": 1774960357599,
       "tag": "0005_slippery_squadron_supreme",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1775145600000,
+      "tag": "0006_workspace_id_required",
+      "breakpoints": true
     }
   ]
 }

@@ -40,6 +40,7 @@ export async function createFeature(input: CreateFeatureInput) {
   const [feature] = await db
     .insert(schema.features)
     .values({
+      workspaceId: input.workspaceId,
       title: input.title,
       description: input.description,
       type: input.type || "feature",

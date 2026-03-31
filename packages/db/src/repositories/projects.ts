@@ -1,6 +1,7 @@
 import type { CreateProjectInput, ProjectStatus, UpdateProjectInput } from "@orchestration/shared";
 import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { db, schema } from "../client.js";
+import { getWorkspaceById } from "./workspaces.js";
 
 export async function updateTotalCost(projectId: string) {
   const [result] = await db
@@ -54,6 +55,11 @@ export async function getProjectById(id: string) {
 }
 
 export async function createProject(input: CreateProjectInput) {
+  const workspace = await getWorkspaceById(input.workspaceId);
+  if (!workspace) {
+    throw new Error(`Workspace not found: ${input.workspaceId}`);
+  }
+
   const [project] = await db
     .insert(schema.projects)
     .values({

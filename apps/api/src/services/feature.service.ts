@@ -49,9 +49,14 @@ export class FeatureService {
       throw new BusinessError("SELF_REPO_PATH is not configured");
     }
 
+    if (!feature.workspaceId) {
+      throw new BusinessError("Feature must belong to a workspace before kickoff");
+    }
+
     const project = await projectRepo.createProject({
       name: feature.title,
       goal: feature.description || feature.title,
+      workspaceId: feature.workspaceId,
       projectMode: "existing",
       repoPath: selfRepoPath,
     });

@@ -11,7 +11,7 @@ export type ProjectMode = "greenfield" | "existing";
 
 export interface Project {
   id: string;
-  workspaceId: string | null;
+  workspaceId: string;
   name: string;
   goal: string;
   status: ProjectStatus;
@@ -29,7 +29,7 @@ export interface Project {
 export interface CreateProjectInput {
   name: string;
   goal: string;
-  workspaceId?: string;
+  workspaceId: string;
   provider?: LLMProviderType;
   repoUrl?: string;
   repoPath?: string;

@@ -141,7 +141,9 @@ export const projects = pgTable(
   "projects",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    workspaceId: uuid("workspace_id").references(() => workspaces.id, { onDelete: "cascade" }),
+    workspaceId: uuid("workspace_id")
+      .references(() => workspaces.id, { onDelete: "cascade" })
+      .notNull(),
     name: text("name").notNull(),
     goal: text("goal").notNull(),
     status: projectStatusEnum("status").default("draft").notNull(),
@@ -224,7 +226,9 @@ export const features = pgTable(
   "features",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    workspaceId: uuid("workspace_id").references(() => workspaces.id, { onDelete: "cascade" }),
+    workspaceId: uuid("workspace_id")
+      .references(() => workspaces.id, { onDelete: "cascade" })
+      .notNull(),
     title: text("title").notNull(),
     description: text("description"),
     status: featureStatusEnum("status").default("backlog").notNull(),

@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Feature } from "../../lib/api";
+import type { Feature, Workspace } from "../../lib/api";
 import { Modal } from "../ui/Modal";
 
 interface FeatureModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: {
+    workspaceId?: string;
     title: string;
     description?: string;
     type: string;
@@ -15,9 +16,19 @@ interface FeatureModalProps {
     status?: string;
   }) => void;
   feature?: Feature | null;
+  workspaces: Workspace[];
+  defaultWorkspaceId?: string;
 }
 
-export function FeatureModal({ isOpen, onClose, onSave, feature }: FeatureModalProps) {
+export function FeatureModal({
+  isOpen,
+  onClose,
+  onSave,
+  feature,
+  workspaces,
+  defaultWorkspaceId,
+}: FeatureModalProps) {
+  const [workspaceId, setWorkspaceId] = useState(defaultWorkspaceId || "");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [type, setType] = useState("feature");
@@ -33,19 +44,22 @@ export function FeatureModal({ isOpen, onClose, onSave, feature }: FeatureModalP
       setType(feature.type);
       setPriority(feature.priority);
       setStatus(feature.status);
+      setWorkspaceId(feature.workspaceId || defaultWorkspaceId || "");
     } else {
       setTitle("");
       setDescription("");
       setType("feature");
       setPriority(0);
       setStatus("backlog");
+      setWorkspaceId(defaultWorkspaceId || "");
     }
-  }, [feature]);
+  }, [feature, defaultWorkspaceId]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim() || (!isEditing && !workspaceId)) return;
     onSave({
+      ...(!isEditing ? { workspaceId } : {}),
       title: title.trim(),
       description: description.trim() || undefined,
       type,
@@ -57,6 +71,32 @@ export function FeatureModal({ isOpen, onClose, onSave, feature }: FeatureModalP
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={isEditing ? "Edit Feature" : "New Feature"}>
       <form onSubmit={handleSubmit}>
+        {!isEditing && (
+          <div className="mb-2">
+            <label
+              htmlFor="feat-workspace"
+              style={{ display: "block", fontWeight: 500, marginBottom: 4 }}
+            >
+              Workspace
+            </label>
+            <select
+              id="feat-workspace"
+              className="input"
+              value={workspaceId}
+              onChange={(e) => setWorkspaceId(e.target.value)}
+              required
+              style={{ width: "100%", padding: "0.5rem" }}
+            >
+              <option value="">Select workspace...</option>
+              {workspaces.map((ws) => (
+                <option key={ws.id} value={ws.id}>
+                  {ws.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div className="mb-2">
           <label
             htmlFor="feat-title"
@@ -160,7 +200,11 @@ export function FeatureModal({ isOpen, onClose, onSave, feature }: FeatureModalP
         )}
 
         <div className="flex gap-1" style={{ marginTop: "1rem" }}>
-          <button type="submit" className="btn btn-primary" disabled={!title.trim()}>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={!title.trim() || (!isEditing && !workspaceId)}
+          >
             {isEditing ? "Save" : "Create"}
           </button>
           <button type="button" className="btn btn-secondary" onClick={onClose}>

@@ -78,6 +78,7 @@ docs/
   decisions/
   design/
   guide/
+  improvements/
   plans/
   runbooks/
 logs/

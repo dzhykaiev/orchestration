@@ -99,6 +99,7 @@ export const api = {
       ),
     get: (id: string) => fetchAPI<{ project: Project }>(`/api/projects/${id}`),
     create: (body: {
+      workspaceId: string;
       name: string;
       goal: string;
       provider?: string;
@@ -166,7 +167,13 @@ export const api = {
       return fetchAPI<{ features: Feature[]; total: number }>(`/api/features${query}`);
     },
     get: (id: string) => fetchAPI<{ feature: Feature }>(`/api/features/${id}`),
-    create: (body: { title: string; description?: string; type?: string; priority?: number }) =>
+    create: (body: {
+      workspaceId: string;
+      title: string;
+      description?: string;
+      type?: string;
+      priority?: number;
+    }) =>
       fetchAPI<{ feature: Feature }>("/api/features", {
         method: "POST",
         body: JSON.stringify(body),

@@ -1,13 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { api } from "../../../lib/api";
+import { useEffect, useState } from "react";
+import { type Workspace, api } from "../../../lib/api";
 
 type ProjectMode = "greenfield" | "existing";
 
 export default function NewProjectPage() {
   const router = useRouter();
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [workspaceId, setWorkspaceId] = useState("");
   const [name, setName] = useState("");
   const [goal, setGoal] = useState("");
   const [provider, setProvider] = useState<"claude" | "opencode">("opencode");
@@ -17,15 +19,23 @@ export default function NewProjectPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    api.workspaces.list(100, 0).then(({ workspaces: ws }) => {
+      setWorkspaces(ws);
+      if (ws.length === 1 && ws[0]) setWorkspaceId(ws[0].id);
+    });
+  }, []);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || !goal.trim()) return;
+    if (!name.trim() || !goal.trim() || !workspaceId) return;
 
     setSubmitting(true);
     setError(null);
 
     try {
       const { project } = await api.projects.create({
+        workspaceId,
         name: name.trim(),
         goal: goal.trim(),
         provider,
@@ -68,7 +78,41 @@ export default function NewProjectPage() {
           : "Link an existing repository. The architect agent will analyze the codebase and plan changes to achieve your goal."}
       </p>
 
+      {workspaces.length === 0 && (
+        <div className="card mb-2" style={{ textAlign: "center", padding: "2rem" }}>
+          <p className="text-muted mb-2">No workspaces yet. Create a workspace first.</p>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => router.push("/workspaces")}
+          >
+            Create Workspace
+          </button>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit}>
+        <div className="mb-2">
+          <label htmlFor="workspace" style={{ display: "block", fontWeight: 500, marginBottom: 4 }}>
+            Workspace
+          </label>
+          <select
+            id="workspace"
+            className="input"
+            value={workspaceId}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setWorkspaceId(e.target.value)}
+            required
+            style={{ width: "100%", padding: "0.5rem" }}
+          >
+            <option value="">Select workspace...</option>
+            {workspaces.map((ws) => (
+              <option key={ws.id} value={ws.id}>
+                {ws.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <div className="mb-2">
           <label htmlFor="name" style={{ display: "block", fontWeight: 500, marginBottom: 4 }}>
             Project Name
@@ -176,7 +220,7 @@ export default function NewProjectPage() {
           <button
             type="submit"
             className="btn btn-primary"
-            disabled={submitting || !name.trim() || !goal.trim()}
+            disabled={submitting || !workspaceId || !name.trim() || !goal.trim()}
           >
             {submitting ? "Creating..." : "Create Project"}
           </button>
