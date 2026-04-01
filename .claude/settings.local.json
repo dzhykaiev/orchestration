@@ -46,7 +46,9 @@
       "Bash(curl:*)",
       "Bash(docker exec:*)",
       "Bash(find /Users/yevhenii.dzhykaiev/Documents/study/orchestration/apps/orchestrator -name *launch* -o -name *preview* -o -name *serve*)",
-      "Bash(head:*)"
+      "Bash(head:*)",
+      "Bash(cat:*)",
+      "Bash(sed:*)"
     ]
   }
 }

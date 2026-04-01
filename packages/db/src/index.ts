@@ -11,4 +11,5 @@ export {
   agentDefinitionRepo,
   escalationRepo,
   reviewRepo,
+  todoRepo,
 } from "./repositories/index.js";
