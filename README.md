@@ -48,6 +48,7 @@ AI-driven software development orchestration platform. Provide a high-level soft
     frontend-design/
     frontend-ux-review/
     product-design-review/
+    product-flow-redesign/
     project-architect-review/
     ux-improvement-plan/
 .opencode/
