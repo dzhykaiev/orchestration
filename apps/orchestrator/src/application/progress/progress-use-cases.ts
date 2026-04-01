@@ -1,6 +1,6 @@
-import { resolve } from "node:path";
-import type { AgentRole, ReviewVerdict } from "@orchestration/shared";
+import { type AgentRole, type ReviewVerdict } from "@orchestration/shared";
 import type { ProgressDependencies, ProgressService } from "./ports.js";
+import { resolveCompanyProjectRoot } from "../../runtime/company-paths.js";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -164,7 +164,11 @@ export function createProgressService(deps: ProgressDependencies): ProgressServi
           continue;
         }
 
-        deps.eventBus.emitTyped("task.queued", { taskId: task.id, workstreamId: ws.id });
+        deps.eventBus.emitTyped("task.queued", {
+          taskId: task.id,
+          projectId,
+          workstreamId: ws.id,
+        });
 
         await deps.implementationQueue.add(
           "implement",
@@ -232,9 +236,7 @@ export function createProgressService(deps: ProgressDependencies): ProgressServi
 
         project = await deps.projectRepo.getProjectById(projectId);
         if (project?.projectMode === "existing" && project.workBranch) {
-          const projectDir = project.repoPath
-            ? resolve(project.repoPath)
-            : resolve(deps.projectsDir, projectId);
+          const projectDir = resolveCompanyProjectRoot(project.workspaceId, projectId);
 
           try {
             await deps.runGit(projectDir, ["add", "-A"]);
@@ -365,7 +367,7 @@ export function createProgressService(deps: ProgressDependencies): ProgressServi
       { jobId: `review-${workstreamId}` },
     );
 
-    deps.eventBus.emitTyped("task.queued", { taskId: reviewerTask.id, workstreamId });
+    deps.eventBus.emitTyped("task.queued", { taskId: reviewerTask.id, projectId, workstreamId });
     console.log(
       `[Progress] Created reviewer task ${reviewerTask.id} for workstream ${workstreamId}`,
     );

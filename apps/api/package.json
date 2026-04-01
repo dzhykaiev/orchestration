@@ -10,7 +10,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:migrate": "tsx src/db/migrate.ts",
-    "db:seed": "tsx src/db/seed.ts"
+    "db:seed": "tsx src/db/seed.ts",
+    "db:backfill:sandboxes": "tsx src/db/backfill-project-sandboxes.ts",
+    "db:backfill:sandboxes:apply": "tsx src/db/backfill-project-sandboxes.ts --apply"
   },
   "dependencies": {
     "@fastify/cors": "^11.0.0",

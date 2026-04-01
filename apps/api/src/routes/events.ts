@@ -17,6 +17,14 @@ interface SSEClient {
   write: (data: string) => void;
 }
 
+function extractProjectId(payload: unknown): string | undefined {
+  if (!payload || typeof payload !== "object") {
+    return undefined;
+  }
+  const value = (payload as Record<string, unknown>).projectId;
+  return typeof value === "string" ? value : undefined;
+}
+
 class SSEHub {
   private subscriber: IORedis.default;
   private clients = new Map<string, SSEClient>();
@@ -42,8 +50,11 @@ class SSEHub {
       const event: OrchestratorEvent = JSON.parse(message);
 
       for (const [, client] of this.clients) {
-        if (client.projectId && event.payload && "projectId" in event.payload) {
-          if ((event.payload as Record<string, unknown>).projectId !== client.projectId) continue;
+        if (client.projectId) {
+          const payloadProjectId = extractProjectId(event.payload);
+          if (!payloadProjectId || payloadProjectId !== client.projectId) {
+            continue;
+          }
         }
         client.write(
           `id: ${Date.now()}\nevent: ${event.type}\ndata: ${JSON.stringify(event.payload)}\n\n`,

@@ -133,6 +133,7 @@ async function createInitialWorkstreamTasks(
     });
     deps.eventBus.emitTyped("task.queued", {
       taskId: task.id,
+      projectId: input.projectId,
       workstreamId: workstream.id,
     });
   }

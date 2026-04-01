@@ -79,6 +79,7 @@ vi.mock("@orchestration/db", () => ({
 
 const { featureRoutes } = await import("../features.js");
 const { ticketRoutes } = await import("../tickets.js");
+const { resetApiAliasUsageMetrics } = await import("../alias-lifecycle.js");
 
 const mockQueues = {
   planning: { add: vi.fn() },
@@ -111,7 +112,7 @@ const UUID = "00000000-0000-0000-0000-000000000000";
 describe("Feature Routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.SELF_REPO_PATH = "/tmp/repo";
+    resetApiAliasUsageMetrics();
     getFeatureById.mockResolvedValue(null);
     createProject.mockResolvedValue({
       id: "proj-uuid",
@@ -129,6 +130,10 @@ describe("Feature Routes", () => {
     const app = await buildApp();
     const res = await app.inject({ method: "GET", url: "/api/features" });
     expect(res.statusCode).toBe(200);
+    expect(res.headers.deprecation).toBe("true");
+    expect(res.headers.sunset).toBe("Wed, 30 Sep 2026 23:59:59 GMT");
+    expect(res.headers["x-api-alias-legacy"]).toBe("/api/features");
+    expect(res.headers["x-api-alias-canonical"]).toBe("/api/tickets");
     const body = JSON.parse(res.payload);
     expect(body.data).toEqual([]);
   });
@@ -137,6 +142,8 @@ describe("Feature Routes", () => {
     const app = await buildApp();
     const res = await app.inject({ method: "GET", url: "/api/tickets" });
     expect(res.statusCode).toBe(200);
+    expect(res.headers.deprecation).toBeUndefined();
+    expect(res.headers.sunset).toBeUndefined();
     const body = JSON.parse(res.payload);
     expect(body.tickets).toEqual([]);
     expect(body.total).toBe(0);
@@ -157,6 +164,29 @@ describe("Feature Routes", () => {
     expect(body.feature.title).toBe("Auth");
   });
 
+  it("GET /api/tickets/:id returns ticket when found", async () => {
+    getFeatureById.mockResolvedValueOnce({ id: UUID, title: "Auth", status: "backlog" });
+    const app = await buildApp();
+    const res = await app.inject({ method: "GET", url: `/api/tickets/${UUID}` });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body.ticket.title).toBe("Auth");
+  });
+
+  it("GET /api/features/:id and /api/tickets/:id return equivalent entity payload", async () => {
+    const entity = { id: UUID, title: "Parity", status: "backlog" };
+    getFeatureById.mockResolvedValue(entity);
+    const app = await buildApp();
+    const legacyRes = await app.inject({ method: "GET", url: `/api/features/${UUID}` });
+    const canonicalRes = await app.inject({ method: "GET", url: `/api/tickets/${UUID}` });
+    expect(legacyRes.statusCode).toBe(200);
+    expect(canonicalRes.statusCode).toBe(200);
+    const legacyBody = JSON.parse(legacyRes.payload);
+    const canonicalBody = JSON.parse(canonicalRes.payload);
+    expect(canonicalBody.ticket).toEqual(legacyBody.feature);
+    expect(canonicalRes.headers.deprecation).toBeUndefined();
+  });
+
   it("POST /api/features creates feature", async () => {
     const app = await buildApp();
     const res = await app.inject({
@@ -167,6 +197,45 @@ describe("Feature Routes", () => {
     expect(res.statusCode).toBe(201);
     const body = JSON.parse(res.payload);
     expect(body.feature.title).toBe("New Feature");
+  });
+
+  it("POST /api/tickets creates ticket", async () => {
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/tickets",
+      payload: { title: "New Ticket", workspaceId: "00000000-0000-0000-0000-000000000001" },
+    });
+    expect(res.statusCode).toBe(201);
+    const body = JSON.parse(res.payload);
+    expect(body.ticket.title).toBe("New Ticket");
+  });
+
+  it("POST /api/features and /api/tickets create equivalent entity payload", async () => {
+    const app = await buildApp();
+    const payload = { title: "Parity Ticket", workspaceId: "00000000-0000-0000-0000-000000000001" };
+    const legacyRes = await app.inject({
+      method: "POST",
+      url: "/api/features",
+      payload,
+    });
+    const canonicalRes = await app.inject({
+      method: "POST",
+      url: "/api/tickets",
+      payload,
+    });
+    expect(legacyRes.statusCode).toBe(201);
+    expect(canonicalRes.statusCode).toBe(201);
+    const legacyBody = JSON.parse(legacyRes.payload);
+    const canonicalBody = JSON.parse(canonicalRes.payload);
+    expect(canonicalBody.ticket).toMatchObject({
+      id: legacyBody.feature.id,
+      title: legacyBody.feature.title,
+      status: legacyBody.feature.status,
+      description: legacyBody.feature.description,
+      orchestrationProjectId: legacyBody.feature.orchestrationProjectId,
+      sortOrder: legacyBody.feature.sortOrder,
+    });
   });
 
   it("POST /api/features with empty title returns 400", async () => {
@@ -211,6 +280,28 @@ describe("Feature Routes", () => {
     expect(body.feature.title).toBe("Updated");
   });
 
+  it("PATCH /api/tickets/:id updates when found", async () => {
+    getFeatureById.mockResolvedValueOnce({
+      id: UUID,
+      title: "Current",
+      status: "backlog",
+      workspaceId: "00000000-0000-0000-0000-000000000001",
+      assigneeMode: "orchestrator",
+      assigneeAgentDefinitionId: null,
+      orchestrationProjectId: null,
+    });
+    updateFeature.mockResolvedValueOnce({ id: UUID, title: "Updated Ticket", status: "backlog" });
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/api/tickets/${UUID}`,
+      payload: { title: "Updated Ticket" },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body.ticket.title).toBe("Updated Ticket");
+  });
+
   it("DELETE /api/features/:id returns 404 for non-existent", async () => {
     const app = await buildApp();
     const res = await app.inject({ method: "DELETE", url: `/api/features/${UUID}` });
@@ -229,6 +320,23 @@ describe("Feature Routes", () => {
     const res = await app.inject({
       method: "PATCH",
       url: "/api/features/reorder",
+      payload: {
+        updates: [
+          { id: UUID, sortOrder: 1 },
+          { id: "00000000-0000-0000-0000-000000000001", sortOrder: 2 },
+        ],
+      },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body.ok).toBe(true);
+  });
+
+  it("PATCH /api/tickets/reorder bulk reorders", async () => {
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "PATCH",
+      url: "/api/tickets/reorder",
       payload: {
         updates: [
           { id: UUID, sortOrder: 1 },
@@ -288,6 +396,14 @@ describe("Feature Routes", () => {
       goal: "Test",
       provider: "opencode",
     });
+    expect(createProject).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspaceId: "00000000-0000-0000-0000-000000000001",
+        repoPath: expect.stringContaining(
+          "companies/00000000-0000-0000-0000-000000000001/projects/00000000-0000-0000-0000-000000000000",
+        ),
+      }),
+    );
   });
 
   it("POST /api/features/:id/kickoff rolls back project+feature when queue enqueue fails", async () => {

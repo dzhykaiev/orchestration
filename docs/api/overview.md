@@ -92,6 +92,26 @@ Base URL: `http://localhost:3001/api`
 | **Events** | | |
 | `GET` | `/events` | SSE stream for real-time updates |
 
+## Canonical vs Legacy Aliases
+
+Canonical API surface:
+- `companies` (instead of `workspaces`)
+- `tickets` (instead of `features`)
+
+Legacy compatibility aliases remain available during migration:
+- `/workspaces*` and `/features*`
+
+Migration policy:
+1. New frontend and API integrations must use canonical `companies/tickets` routes.
+2. Legacy aliases are compatibility-only and should not be used in new code.
+3. Client-side wrappers `api.workspaces` and `api.features` are deprecated in favor of `api.companies` and `api.tickets`.
+4. Legacy alias endpoints emit deprecation lifecycle headers:
+   - `Deprecation: true`
+   - `Sunset: Wed, 30 Sep 2026 23:59:59 GMT`
+   - `X-API-Alias-Legacy` and `X-API-Alias-Canonical`
+   - `X-API-Alias-Usage` (process-local usage counter for observability)
+   - `Warning: 299 - "... is deprecated; use ..."`
+
 ## Request Validation
 
 All endpoints use Zod schemas for request validation. Schemas are in `apps/api/src/schemas/`.

@@ -53,10 +53,15 @@ AI-driven software development orchestration platform. Provide a high-level soft
     product-designer-jira/
     product-flow-redesign/
     project-architect-review/
+    system-ux-architect/
     ux-improvement-plan/
 .opencode/
   plans/
 .pnpm-store/
+  v10/
+    files/
+    index/
+    projects/
   v3/
 apps/
   api/
@@ -66,6 +71,9 @@ apps/
     src/
   web/
     src/
+companies/
+  3896512c-f846-42f9-8186-160ea3670538/
+    projects/
 contracts/
   api/
   events/

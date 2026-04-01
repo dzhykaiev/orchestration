@@ -24,6 +24,8 @@ Contract index and operational specs:
 1. API boundary
 - API routes in `apps/api/src/routes/*` parse/validate input via schemas re-exported from `@orchestration/shared`.
 - Web client (`apps/web/src/lib/api.ts`) consumes these response DTOs.
+- Canonical domain naming is `company/ticket`; `workspace/feature` names are legacy compatibility aliases.
+- Legacy aliases (`/api/workspaces*`, `/api/features*`) emit explicit lifecycle headers (`Deprecation`, `Sunset`, `Warning`, alias metadata) to make deprecation state machine-readable for clients.
 
 2. Queue and orchestration boundary
 - BullMQ job payload shapes are defined in orchestrator worker code and shared types.

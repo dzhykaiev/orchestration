@@ -1,8 +1,22 @@
-import { isAbsolute, relative, resolve, join } from "node:path";
+import { existsSync } from "node:fs";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const defaultCompaniesDir = resolve(
-  process.env.COMPANIES_DIR || join(process.cwd(), "..", "orchestrator", "companies"),
-);
+function resolveDefaultCompaniesDir(): string {
+  if (process.env.COMPANIES_DIR?.trim()) {
+    return resolve(process.env.COMPANIES_DIR);
+  }
+
+  const moduleDir = dirname(fileURLToPath(import.meta.url));
+  const repoRootCompaniesDir = resolve(moduleDir, "../../../../../companies");
+  if (existsSync(repoRootCompaniesDir)) {
+    return repoRootCompaniesDir;
+  }
+
+  return resolve(join(process.cwd(), "companies"));
+}
+
+const defaultCompaniesDir = resolveDefaultCompaniesDir();
 
 export function getCompaniesBaseDir(): string {
   return defaultCompaniesDir;

@@ -21,11 +21,11 @@ export function getDefaultFeaturesDependencies(): FeaturesDependencies {
     "projectRepo" in db
       ? db.projectRepo
       : {
-          createProject: async () => {
-            throw new Error("projectRepo is not available");
-          },
-          deleteProject: async () => undefined,
-        };
+        createProject: async () => {
+          throw new Error("projectRepo is not available");
+        },
+        deleteProject: async () => undefined,
+      };
 
   const agentDefinitionRepo =
     "agentDefinitionRepo" in db

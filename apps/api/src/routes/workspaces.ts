@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
+import { API_ALIAS_LIFECYCLE, markDeprecatedAliasUsage } from "./alias-lifecycle.js";
 import { createFeatureSchema, featureListQuerySchema } from "../schemas/features.js";
 import {
   createWorkspaceSchema,
@@ -11,6 +12,10 @@ import { featureService } from "../services/feature.service.js";
 import { workspaceService } from "../services/workspace.service.js";
 
 export const workspaceRoutes: FastifyPluginAsync = async (app) => {
+  app.addHook("onRequest", async (request, reply) => {
+    markDeprecatedAliasUsage(request, reply, API_ALIAS_LIFECYCLE.workspaceToCompany);
+  });
+
   // GET / — list workspaces
   app.get("/", async (request) => {
     const query = workspaceListQuerySchema.parse(request.query);

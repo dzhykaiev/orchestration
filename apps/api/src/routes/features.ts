@@ -7,8 +7,13 @@ import {
   updateFeatureSchema,
 } from "../schemas/features.js";
 import { featureService } from "../services/feature.service.js";
+import { API_ALIAS_LIFECYCLE, markDeprecatedAliasUsage } from "./alias-lifecycle.js";
 
 export const featureRoutes: FastifyPluginAsync = async (app) => {
+  app.addHook("onRequest", async (request, reply) => {
+    markDeprecatedAliasUsage(request, reply, API_ALIAS_LIFECYCLE.featureToTicket);
+  });
+
   // GET / — list features
   app.get("/", async (request) => {
     const query = featureListQuerySchema.parse(request.query);

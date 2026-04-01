@@ -78,6 +78,7 @@ export function createEscalationHandler(
 
     deps.eventBus.emitTyped("task.queued", {
       taskId: parentTask.id,
+      projectId,
       workstreamId: task.workstreamId,
     });
     console.log(

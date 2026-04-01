@@ -11,6 +11,7 @@ export interface ValidationLlmProvider {
 }
 
 export interface ValidationProject {
+  workspaceId: string;
   repoPath?: string | null;
   provider?: string | null;
   architecture?: string | null;

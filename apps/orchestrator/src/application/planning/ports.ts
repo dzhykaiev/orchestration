@@ -9,6 +9,7 @@ export interface PlanningJobData {
 
 export interface PlanningProject {
   id: string;
+  workspaceId: string;
   status: string;
   projectMode?: string | null;
   repoPath?: string | null;

@@ -91,6 +91,7 @@ export function createRecoveryJobHandler(
 
           deps.eventBus.emitTyped("task.failed", {
             taskId: task.id,
+            projectId: task.projectId,
             error: `Timed out after >${config.staleRunningMinutes}min`,
           });
 
