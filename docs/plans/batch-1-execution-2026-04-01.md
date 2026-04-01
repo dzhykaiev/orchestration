@@ -133,3 +133,6 @@ Cross-stream checks after merge:
 - C1: `docs/agent-briefs/batch1-c1-orchestrator-planning.md`
 - D1: `docs/agent-briefs/batch1-d1-shared-transitions.md`
 - Launch checklist: `docs/plans/batch-1-launch-checklist-2026-04-01.md`
+- Operations tracker: `docs/plans/batch-1-operations-tracker-2026-04-01.md`
+- Coordination protocol: `docs/parallel-execution/agent-playbooks/batch1-coordination-protocol.md`
+- Next-step sequence: `docs/plans/batch-1-next-steps-2026-04-01.md`

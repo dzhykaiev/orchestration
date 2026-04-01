@@ -17,6 +17,8 @@
     "format": "biome format --write .",
     "format:check": "biome format .",
     "typecheck": "tsc --build --force",
+    "check:boundaries": "bash scripts/check-boundaries.sh",
+    "test:contracts": "pnpm run check:boundaries && pnpm --filter @orchestration/api exec vitest run src/contracts/planning-queue.contract.test.ts && pnpm --filter @orchestration/orchestrator exec vitest run src/contracts/event-bus.contract.test.ts src/contracts/queues-runtime.contract.test.ts",
     "db:migrate": "pnpm --filter @orchestration/api run db:migrate",
     "db:generate": "pnpm --filter @orchestration/db run generate",
     "db:push": "pnpm --filter @orchestration/db run push",

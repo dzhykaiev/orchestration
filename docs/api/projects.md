@@ -48,6 +48,16 @@ GET /api/projects/:id
 
 Returns project with workstream summary and cost breakdown.
 
+## List Project Issues
+
+Returns issue tickets (bug-type board items) reported from this project.
+
+```http
+GET /api/projects/:id/issues
+GET /api/projects/:id/issues?status=todo
+GET /api/projects/:id/issues?limit=50&offset=0
+```
+
 ## Start Planning
 
 Triggers the orchestration pipeline. Enqueues a planning job to BullMQ.

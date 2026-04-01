@@ -61,4 +61,11 @@ Run incremental architecture refactor in parallel with minimal merge conflicts a
   - `docs/ownership/module-owners.md`
   - `docs/parallel-execution/agent-playbooks/README.md`
   - `.github/CODEOWNERS`
+- Batch 1 operations docs completed:
+  - `docs/plans/batch-1-operations-tracker-2026-04-01.md`
+  - `docs/parallel-execution/agent-playbooks/batch1-coordination-protocol.md`
+  - `docs/plans/batch-1-next-steps-2026-04-01.md`
+- E1 prep docs completed:
+  - `docs/agent-briefs/e1-contracts-ci.md`
+  - `docs/plans/e1-scope-2026-04-01.md`
 - Next critical path: run B1 + C1 + D1 in parallel on top of these guardrails.

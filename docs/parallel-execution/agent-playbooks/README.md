@@ -2,6 +2,10 @@
 
 Operational runbook for parallel coding agents.
 
+Batch-specific protocol:
+- `docs/parallel-execution/agent-playbooks/batch1-coordination-protocol.md`
+- PR template: `.github/PULL_REQUEST_TEMPLATE/batch-stream.md`
+
 ## Preconditions
 
 1. Pull latest mainline and re-check ownership map.

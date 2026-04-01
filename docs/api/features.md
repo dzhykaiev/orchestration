@@ -1,13 +1,15 @@
 # Features API
 
-Kanban-style feature board for tracking capabilities within a project.
+Kanban-style work board items (features and issues) scoped to a workspace.
 
 ## List Features
 
 ```http
 GET /api/features
-GET /api/features?projectId=uuid
+GET /api/features?workspaceId=uuid
 GET /api/features?status=in_progress
+GET /api/features?sourceProjectId=uuid
+GET /api/features?assigneeMode=agent&assigneeAgentDefinitionId=uuid
 ```
 
 ## Create Feature
@@ -17,23 +19,27 @@ POST /api/features
 Content-Type: application/json
 
 {
-  "projectId": "uuid",
+  "workspaceId": "uuid",
   "title": "User authentication",
   "description": "Add JWT-based auth to API endpoints",
-  "type": "feature",
-  "status": "backlog",
-  "priority": 1
+  "type": "bug",
+  "priority": 2,
+  "sourceProjectId": "uuid",
+  "assigneeMode": "agent",
+  "assigneeAgentDefinitionId": "uuid"
 }
 ```
 
 ## Update Feature
 
 ```http
-PUT /api/features/:id
+PATCH /api/features/:id
 Content-Type: application/json
 
 {
-  "status": "in_progress"
+  "status": "in_progress",
+  "assigneeMode": "orchestrator",
+  "assigneeAgentDefinitionId": null
 }
 ```
 
@@ -50,8 +56,15 @@ DELETE /api/features/:id
 | `feature` | New functionality |
 | `bug` | Bug fix |
 | `improvement` | Enhancement to existing feature |
-| `task` | Technical task |
+| `refactor` | Internal cleanup/refactor |
 
 ## Feature Statuses
 
 `backlog` → `todo` → `in_progress` → `done` / `rejected`
+
+## Assignee Modes
+
+| Mode | Behavior |
+|------|----------|
+| `orchestrator` | Main orchestrator owns triage and routing |
+| `agent` | Work item is assigned to a specific workspace agent |
