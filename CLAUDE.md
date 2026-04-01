@@ -71,6 +71,7 @@ pnpm db:seed      # Seed data
     execution-plan/
     frontend-design/
     frontend-ux-review/
+    jira-state-sync/
     jira-task-captain/
     product-design-review/
     product-designer-jira/

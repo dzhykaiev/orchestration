@@ -48,6 +48,7 @@ AI-driven software development orchestration platform. Provide a high-level soft
     execution-plan/
     frontend-design/
     frontend-ux-review/
+    jira-state-sync/
     jira-task-captain/
     product-design-review/
     product-designer-jira/
