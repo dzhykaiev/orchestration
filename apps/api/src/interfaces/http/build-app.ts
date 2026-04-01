@@ -13,6 +13,7 @@ import { eventRoutes } from "../../routes/events.js";
 import { featureRoutes } from "../../routes/features.js";
 import { fileRoutes } from "../../routes/files.js";
 import { healthRoutes } from "../../routes/health.js";
+import { launchRoutes } from "../../routes/launch.js";
 import { projectRoutes } from "../../routes/projects.js";
 import { taskReviewRoutes, workstreamReviewRoutes } from "../../routes/reviews.js";
 import { taskRoutes } from "../../routes/tasks.js";
@@ -69,6 +70,7 @@ export async function buildHttpApp(opts: ApiAppOptions = {}): Promise<FastifyIns
   await app.register(workstreamReviewRoutes, { prefix: "/api/workstreams" });
   await app.register(eventRoutes, { prefix: "/api/events" });
   await app.register(fileRoutes, { prefix: "/api/projects" });
+  await app.register(launchRoutes, { prefix: "/api/projects" });
   await app.register(featureRoutes, { prefix: "/api/features" });
 
   return app;
