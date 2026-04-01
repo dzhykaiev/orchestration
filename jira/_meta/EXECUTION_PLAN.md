@@ -1,5 +1,8 @@
 # Execution Plan: Jira-like Zero Human Company
 
+> Current UX architecture execution is tracked separately in:
+> `jira/_meta/EXECUTION_PLAN_UX_PHASE2_JIRA012-020.md` (Apr 1, 2026).
+
 ## 1. Execution Strategy
 - Рухаємось contract-first: спочатку фіксуємо домен (`Company`, `Ticket`), потім адаптери/alias, потім UI/UX і runtime.
 - Робимо boundary-first refactor: API контракти + shared schema на межі, далі реалізації.
