@@ -45,6 +45,7 @@ export default defineConfig({
           text: "Architecture",
           items: [
             { text: "System Overview", link: "/architecture" },
+            { text: "Zero-Human Company Flow", link: "/product-flow-zero-human-company" },
             { text: "Database Schema", link: "/database" },
             { text: "Queue System", link: "/queues" },
             { text: "Event System", link: "/events" },
@@ -56,6 +57,7 @@ export default defineConfig({
           text: "API Reference",
           items: [
             { text: "Overview", link: "/api/overview" },
+            { text: "Tickets", link: "/api/tickets" },
             { text: "Projects", link: "/api/projects" },
             { text: "Workstreams", link: "/api/workstreams" },
             { text: "Tasks", link: "/api/tasks" },
@@ -86,6 +88,10 @@ export default defineConfig({
             { text: "Implementation Plan", link: "/design/implementation-plan" },
             { text: "Workstreams", link: "/design/workstreams" },
           ],
+        },
+        {
+          text: "Runbooks",
+          items: [{ text: "Agent Company Operations", link: "/runbooks/agent-company-operations" }],
         },
       ],
     },

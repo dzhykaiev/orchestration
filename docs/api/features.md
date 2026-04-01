@@ -2,6 +2,8 @@
 
 Kanban-style work board items (features and issues) scoped to a workspace.
 
+For company-oriented usage, prefer [Tickets API](/api/tickets) which exposes the same entity with ticket-first naming.
+
 ## List Features
 
 ```http

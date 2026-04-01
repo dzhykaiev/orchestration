@@ -37,12 +37,19 @@ Base URL: `http://localhost:3001/api`
 | `GET` | `/tasks/:id/tree` | Task subtree |
 | **Workspaces** | | |
 | `GET` | `/workspaces` | List all workspaces |
+| `GET` | `/companies` | List all companies (alias of workspaces) |
 | `POST` | `/workspaces` | Create a workspace |
+| `POST` | `/companies` | Create a company (alias of workspaces) |
 | `GET` | `/workspaces/:id` | Get workspace details |
+| `GET` | `/companies/:id` | Get company details |
 | `PATCH` | `/workspaces/:id` | Update a workspace |
+| `PATCH` | `/companies/:id` | Update a company |
 | `DELETE` | `/workspaces/:id` | Delete a workspace |
+| `DELETE` | `/companies/:id` | Delete a company |
 | `GET` | `/workspaces/:id/projects` | List workspace projects |
 | `GET` | `/workspaces/:id/features` | List workspace features |
+| `GET` | `/companies/:id/tickets` | List company tickets |
+| `POST` | `/companies/:id/tickets` | Create company ticket |
 | `GET` | `/workspaces/:id/agents` | List workspace agents |
 | `POST` | `/workspaces/:id/agents` | Create workspace agent definition |
 | **Features** | | |
@@ -52,6 +59,21 @@ Base URL: `http://localhost:3001/api`
 | `PATCH` | `/features/:id` | Update a feature |
 | `DELETE` | `/features/:id` | Delete a feature |
 | `POST` | `/features/:id/kickoff` | Create orchestration project from feature |
+| **Tickets** | | |
+| `GET` | `/tickets` | List tickets (alias of features) |
+| `GET` | `/tickets/:id` | Get ticket details |
+| `POST` | `/tickets` | Create ticket |
+| `PATCH` | `/tickets/reorder` | Reorder tickets |
+| `PATCH` | `/tickets/:id` | Update ticket |
+| `DELETE` | `/tickets/:id` | Delete ticket |
+| `POST` | `/tickets/:id/kickoff` | Kick off ticket execution project |
+| `GET` | `/tickets/:id/log` | Ticket communication/audit log |
+| `POST` | `/tickets/:id/log` | Append ticket communication entry |
+| `POST` | `/tickets/:id/hire` | Hire agent from ticket context |
+| `GET` | `/tickets/runner/status` | Auto-runner status |
+| `POST` | `/tickets/runner/start` | Start auto-runner loop |
+| `POST` | `/tickets/runner/stop` | Stop auto-runner loop |
+| `POST` | `/tickets/runner/tick` | Execute one runner cycle |
 | **Artifacts** | | |
 | `GET` | `/projects/:id/artifacts` | List project artifacts |
 | `GET` | `/artifacts/:id` | Get artifact details |

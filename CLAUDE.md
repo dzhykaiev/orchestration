@@ -64,7 +64,9 @@ pnpm db:seed      # Seed data
     execution-plan/
     frontend-design/
     frontend-ux-review/
+    jira-task-captain/
     product-design-review/
+    product-designer-jira/
     product-flow-redesign/
     project-architect-review/
     ux-improvement-plan/
@@ -100,6 +102,12 @@ docs/
     agent-playbooks/
   plans/
   runbooks/
+jira/
+  _meta/
+  blocked/
+  done/
+  inprogress/
+  todo/
 logs/
 packages/
   db/
