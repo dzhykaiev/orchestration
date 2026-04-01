@@ -5,8 +5,8 @@ import type { Feature, Project } from "../../lib/api";
 import { StatusBadge } from "../ui/StatusBadge";
 
 const TYPE_LABELS: Record<string, string> = {
-  feature: "Feature",
-  bug: "Bug",
+  feature: "Ticket",
+  bug: "Issue",
   improvement: "Improvement",
   refactor: "Refactor",
 };
@@ -18,6 +18,17 @@ const PRIORITY_LABELS: Record<number, string> = {
   3: "Critical",
 };
 
+const STATUS_ACTIONS: Record<
+  Feature["status"],
+  { label: string; status: Feature["status"] }
+> = {
+  backlog: { label: "Move to Todo", status: "todo" },
+  todo: { label: "Start", status: "in_progress" },
+  in_progress: { label: "Done", status: "done" },
+  done: { label: "Reopen", status: "todo" },
+  rejected: { label: "Reopen", status: "backlog" },
+};
+
 interface FeatureCardProps {
   feature: Feature;
   linkedProject?: Pick<Project, "id" | "name" | "status">;
@@ -25,6 +36,7 @@ interface FeatureCardProps {
   assigneeLabel?: string;
   onEdit: (feature: Feature) => void;
   onKickoff?: (feature: Feature) => void;
+  onStatusChange?: (feature: Feature, newStatus: Feature["status"]) => void;
   onDelete: (feature: Feature) => void;
 }
 
@@ -35,8 +47,11 @@ export function FeatureCard({
   assigneeLabel,
   onEdit,
   onKickoff,
+  onStatusChange,
   onDelete,
 }: FeatureCardProps) {
+  const quickAction = STATUS_ACTIONS[feature.status];
+
   function handleDragStart(e: React.DragEvent) {
     e.dataTransfer.setData("text/plain", feature.id);
     e.dataTransfer.effectAllowed = "move";
@@ -59,19 +74,24 @@ export function FeatureCard({
         </span>
       </div>
       <h4 className="feature-card-title">{feature.title}</h4>
-      <p className="feature-card-desc" style={{ marginBottom: "0.4rem" }}>
-        Assignee: {assigneeLabel ?? "Main orchestrator"}
-      </p>
-      {feature.sourceProjectId && (
-        <Link
-          href={`/projects/${feature.sourceProjectId}`}
-          onClick={(e) => e.stopPropagation()}
-          className="feature-project-link"
-          style={{ marginBottom: "0.4rem" }}
-        >
-          Reported from: {sourceProject?.name ?? "Project"}
-        </Link>
-      )}
+      <div className="feature-card-meta">
+        <div className="feature-card-meta-row">
+          <span className="feature-card-meta-label">Assignee</span>
+          <span className="feature-card-meta-value">{assigneeLabel ?? "Main orchestrator"}</span>
+        </div>
+        {feature.sourceProjectId && (
+          <div className="feature-card-meta-row">
+            <span className="feature-card-meta-label">Source</span>
+            <Link
+              href={`/projects/${feature.sourceProjectId}`}
+              onClick={(e) => e.stopPropagation()}
+              className="feature-project-link"
+            >
+              {sourceProject?.name ?? "Project"}
+            </Link>
+          </div>
+        )}
+      </div>
       {feature.description && (
         <p className="feature-card-desc">
           {feature.description.length > 120
@@ -82,7 +102,7 @@ export function FeatureCard({
       {feature.orchestrationProjectId && (
         <div className="feature-project-meta">
           <div className="feature-project-meta-top">
-            <span className="feature-project-label">Linked project</span>
+            <span className="feature-project-label">Execution project</span>
             {linkedProject && <StatusBadge status={linkedProject.status} />}
           </div>
           <Link
@@ -95,29 +115,43 @@ export function FeatureCard({
         </div>
       )}
       <div className="feature-card-footer">
-        {feature.orchestrationProjectId ? (
-          <Link
-            href={`/projects/${feature.orchestrationProjectId}`}
-            className="feature-project-link"
-            onClick={(e) => e.stopPropagation()}
-          >
-            View Project
-          </Link>
-        ) : (
-          onKickoff &&
-          feature.status === "todo" && (
+        <div className="feature-card-actions">
+          {feature.orchestrationProjectId ? (
+            <Link
+              href={`/projects/${feature.orchestrationProjectId}`}
+              className="btn btn-sm btn-secondary"
+              onClick={(e) => e.stopPropagation()}
+            >
+              Open project
+            </Link>
+          ) : (
+            onKickoff &&
+            feature.status === "todo" && (
+              <button
+                type="button"
+                className="btn btn-sm btn-primary"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onKickoff(feature);
+                }}
+              >
+                Kickoff
+              </button>
+            )
+          )}
+          {onStatusChange && quickAction && (
             <button
               type="button"
-              className="btn btn-sm btn-primary"
+              className="btn btn-sm btn-secondary"
               onClick={(e) => {
                 e.stopPropagation();
-                onKickoff(feature);
+                onStatusChange(feature, quickAction.status);
               }}
             >
-              Kickoff
+              {quickAction.label}
             </button>
-          )
-        )}
+          )}
+        </div>
         <button
           type="button"
           className="btn btn-danger-sm"

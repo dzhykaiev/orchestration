@@ -134,13 +134,13 @@ export function FeatureModal({
     }
   }
 
-  const createLabel = defaultType === "bug" ? "Issue" : "Feature";
+  const createLabel = "Ticket";
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={isEditing ? "Edit Feature" : `New ${createLabel}`}
+      title={isEditing ? "Edit Ticket" : `New ${createLabel}`}
     >
       <form onSubmit={handleSubmit} className="feature-modal-form">
         <div className="feature-modal-intro">
@@ -150,13 +150,13 @@ export function FeatureModal({
           <p className="feature-modal-copy">
             {isEditing
               ? "Keep the title outcome-focused, update the status only when the team is ready to change execution state, and use the description for acceptance criteria."
-              : "Create one clear unit of work. Good features describe the user problem, expected result, and any constraints the agents need to respect."}
+              : "Create one clear unit of work. Good tickets describe the user problem, expected result, and any constraints the agents need to respect."}
           </p>
         </div>
 
         {formError && (
           <div className="error-banner" role="alert">
-            <strong>{isEditing ? "Feature update failed" : "Feature creation failed"}</strong>
+            <strong>{isEditing ? "Ticket update failed" : "Ticket creation failed"}</strong>
             <div>{formError}</div>
             {formErrorDetails && <pre className="error-banner-details">{formErrorDetails}</pre>}
           </div>
@@ -165,7 +165,7 @@ export function FeatureModal({
         {!isEditing && (
           <div className="mb-2">
             <label htmlFor="feat-workspace" className="feature-modal-label">
-              Workspace
+              Company
             </label>
             <select
               id="feat-workspace"
@@ -177,7 +177,7 @@ export function FeatureModal({
               }}
               required
             >
-              <option value="">Select workspace...</option>
+              <option value="">Select company...</option>
               {workspaces.map((ws) => (
                 <option key={ws.id} value={ws.id}>
                   {ws.name}
@@ -187,8 +187,8 @@ export function FeatureModal({
             <div className="field-meta-row">
               <p className="field-hint">
                 {selectedWorkspace
-                  ? `This feature will be added to ${selectedWorkspace.name}.`
-                  : "Choose the workspace where this feature should be prioritized and launched."}
+                  ? `This ticket will be added to ${selectedWorkspace.name}.`
+                  : "Choose the company where this ticket should be prioritized and launched."}
               </p>
             </div>
             {getFieldError("workspaceId") && (
@@ -262,7 +262,7 @@ export function FeatureModal({
               value={type}
               onChange={(e) => setType(e.target.value)}
             >
-              <option value="feature">Feature</option>
+              <option value="feature">Ticket</option>
               <option value="bug">Bug</option>
               <option value="improvement">Improvement</option>
               <option value="refactor">Refactor</option>
@@ -312,9 +312,7 @@ export function FeatureModal({
                 </option>
               ))}
             </select>
-            <p className="field-hint">
-              Use this to move the ticket to another project context.
-            </p>
+            <p className="field-hint">Use this to move the ticket to another project context.</p>
           </div>
         )}
 
@@ -353,7 +351,9 @@ export function FeatureModal({
               disabled={assigneeMode !== "agent"}
               required={assigneeMode === "agent"}
             >
-              <option value="">{agents.length > 0 ? "Select agent..." : "No agents available"}</option>
+              <option value="">
+                {agents.length > 0 ? "Select agent..." : "No agents available"}
+              </option>
               {agents.map((agent) => (
                 <option key={agent.id} value={agent.id}>
                   {agent.name} ({agent.role})
@@ -362,7 +362,7 @@ export function FeatureModal({
             </select>
             <p className="field-hint">
               {assigneeMode === "agent"
-                ? "The selected agent must belong to this workspace."
+                ? "The selected agent must belong to this company."
                 : "Direct assignment is disabled when orchestrator owns triage."}
             </p>
           </div>
@@ -380,13 +380,13 @@ export function FeatureModal({
               onChange={(e) => setStatus(e.target.value)}
             >
               <option value="backlog">Backlog</option>
-              <option value="todo">Todo</option>
+              <option value="todo">Ready</option>
               <option value="in_progress">In Progress</option>
               <option value="done">Done</option>
               <option value="rejected">Rejected</option>
             </select>
             <p className="field-hint">
-              Move to `Todo` only when the brief is clear enough to kick off execution without extra
+              Move to `Ready` only when the brief is clear enough to kick off execution without extra
               clarification.
             </p>
           </div>
@@ -396,10 +396,10 @@ export function FeatureModal({
           <span className="feature-modal-summary-label">Ready for board</span>
           <p className="feature-modal-summary-copy">
             {isEditing
-              ? `This feature stays in ${selectedWorkspace?.name ?? "the current workspace"} and will keep its linked execution context if a project already exists.`
+              ? `This ticket stays in ${selectedWorkspace?.name ?? "the current company"} and will keep its linked execution context if a project already exists.`
               : selectedWorkspace
-                ? `This will create a new backlog item in ${selectedWorkspace.name}.`
-                : "Select a workspace and add a concise title to create the backlog item."}
+                ? `This will create a new backlog ticket in ${selectedWorkspace.name}.`
+                : "Select a company and add a concise title to create the backlog ticket."}
           </p>
           <p className="feature-modal-summary-meta">
             {titleCount > 0 ? `${titleCount} characters in title` : "Add a title"}

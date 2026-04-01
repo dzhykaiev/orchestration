@@ -235,7 +235,14 @@ export const api = {
         `/api/workspaces?limit=${limit}&offset=${offset}`,
       ),
     get: (id: string) => fetchAPI<{ workspace: Workspace }>(`/api/workspaces/${id}`),
-    create: (body: { name: string; slug?: string; description?: string }) =>
+    create: (body: {
+      name: string;
+      slug?: string;
+      description?: string;
+      mission?: string;
+      bootstrapAgentRole?: "ceo" | "orchestrator";
+      bootstrapAgentProvider?: "claude" | "codex" | "opencode";
+    }) =>
       fetchAPI<{ workspace: Workspace }>("/api/workspaces", {
         method: "POST",
         body: JSON.stringify(body),
@@ -266,9 +273,82 @@ export const api = {
         name: string;
         parentRole?: string;
         systemPrompt?: string;
+        capabilities?: string[];
+        maxConcurrentTasks?: number;
+        provider?: string;
       },
     ) =>
       fetchAPI<{ agent: AgentDefinition }>(`/api/workspaces/${id}/agents`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+  },
+  companies: {
+    list: (limit = 20, offset = 0) =>
+      fetchAPI<{ data: Workspace[]; total: number; limit: number; offset: number }>(
+        `/api/companies?limit=${limit}&offset=${offset}`,
+      ),
+    get: (id: string) => fetchAPI<{ workspace: Workspace }>(`/api/companies/${id}`),
+    create: (body: {
+      name: string;
+      slug?: string;
+      description?: string;
+      mission?: string;
+      bootstrapAgentRole?: "ceo" | "orchestrator";
+      bootstrapAgentProvider?: "claude" | "codex" | "opencode";
+    }) =>
+      fetchAPI<{ workspace: Workspace }>("/api/companies", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    update: (id: string, body: Record<string, unknown>) =>
+      fetchAPI<{ workspace: Workspace }>(`/api/companies/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }),
+    delete: (id: string) =>
+      fetchAPI<void>(`/api/companies/${id}`, {
+        method: "DELETE",
+      }),
+    projects: (id: string, limit = 20, offset = 0, includeArchived = false) =>
+      fetchAPI<{ data: Project[]; total: number; limit: number; offset: number }>(
+        `/api/companies/${id}/projects?limit=${limit}&offset=${offset}&includeArchived=${includeArchived}`,
+      ),
+    agents: (id: string) => fetchAPI<{ agents: AgentDefinition[] }>(`/api/companies/${id}/agents`),
+    tickets: (id: string, limit = 100, offset = 0) =>
+      fetchAPI<{ tickets: Feature[]; total: number; limit: number; offset: number }>(
+        `/api/companies/${id}/tickets?limit=${limit}&offset=${offset}`,
+      ),
+    createTicket: (
+      id: string,
+      body: {
+        title: string;
+        description?: string;
+        status?: string;
+        type?: string;
+        sourceProjectId?: string;
+        assigneeMode?: "orchestrator" | "agent";
+        assigneeAgentDefinitionId?: string;
+      },
+    ) =>
+      fetchAPI<{ ticket: Feature }>(`/api/companies/${id}/tickets`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    createAgent: (
+      id: string,
+      body: {
+        role: string;
+        tier: string;
+        name: string;
+        parentRole?: string;
+        systemPrompt?: string;
+        capabilities?: string[];
+        maxConcurrentTasks?: number;
+        provider?: string;
+      },
+    ) =>
+      fetchAPI<{ agent: AgentDefinition }>(`/api/companies/${id}/agents`, {
         method: "POST",
         body: JSON.stringify(body),
       }),
@@ -395,6 +475,88 @@ export const api = {
       }),
     reorder: (updates: { id: string; sortOrder: number }[]) =>
       fetchAPI<{ ok: boolean }>("/api/features/reorder", {
+        method: "PATCH",
+        body: JSON.stringify({ updates }),
+      }),
+  },
+  tickets: {
+    list: (status?: string) => {
+      const query = status ? `?status=${status}&limit=100` : "?limit=100";
+      return fetchAPI<{ tickets: Feature[]; total: number; limit: number; offset: number }>(
+        `/api/tickets${query}`,
+      );
+    },
+    get: (id: string) => fetchAPI<{ ticket: Feature }>(`/api/tickets/${id}`),
+    create: (body: {
+      workspaceId: string;
+      title: string;
+      description?: string;
+      type?: string;
+      priority?: number;
+      sourceProjectId?: string;
+      assigneeMode?: "orchestrator" | "agent";
+      assigneeAgentDefinitionId?: string | null;
+    }) =>
+      fetchAPI<{ ticket: Feature }>("/api/tickets", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    update: (id: string, body: Record<string, unknown>) =>
+      fetchAPI<{ ticket: Feature }>(`/api/tickets/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }),
+    delete: (id: string) =>
+      fetchAPI<void>(`/api/tickets/${id}`, {
+        method: "DELETE",
+      }),
+    kickoff: (id: string) =>
+      fetchAPI<{ ticket: Feature; project: Project }>(`/api/tickets/${id}/kickoff`, {
+        method: "POST",
+      }),
+    logs: (id: string, limit = 50, offset = 0) =>
+      fetchAPI<{ logs: AuditLog[]; total: number; limit: number; offset: number }>(
+        `/api/tickets/${id}/log?limit=${limit}&offset=${offset}`,
+      ),
+    addLog: (
+      id: string,
+      body: {
+        message: string;
+        channel?: "comment" | "question" | "handoff" | "note";
+        actorType?: "user" | "agent" | "system";
+        actorId?: string;
+        projectId?: string;
+        metadata?: Record<string, unknown>;
+      },
+    ) =>
+      fetchAPI<{ log: AuditLog | null }>(`/api/tickets/${id}/log`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    hire: (
+      id: string,
+      body: {
+        role: string;
+        tier: string;
+        name: string;
+        parentRole?: string;
+        systemPrompt?: string;
+        capabilities?: string[];
+        maxConcurrentTasks?: number;
+        provider?: string;
+        createFollowupTicket?: boolean;
+        followupTitle?: string;
+        followupDescription?: string;
+        requestedByActorType?: "user" | "agent" | "system";
+        requestedByActorId?: string;
+      },
+    ) =>
+      fetchAPI<{ agent: AgentDefinition; delegatedTicket: Feature | null }>(`/api/tickets/${id}/hire`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    reorder: (updates: { id: string; sortOrder: number }[]) =>
+      fetchAPI<{ ok: boolean }>("/api/tickets/reorder", {
         method: "PATCH",
         body: JSON.stringify({ updates }),
       }),

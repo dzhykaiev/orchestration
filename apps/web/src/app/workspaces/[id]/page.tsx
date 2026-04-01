@@ -66,7 +66,7 @@ function getWorkspaceGuidance({
           label: "Review Feature Board",
           variant: "primary" as const,
         },
-        { href: "/workspaces", label: "All Workspaces", variant: "secondary" as const },
+        { href: "/companies", label: "All Companies", variant: "secondary" as const },
       ],
     };
   }
@@ -139,6 +139,7 @@ export default function WorkspaceDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editName, setEditName] = useState("");
+  const [editMission, setEditMission] = useState("");
   const [editDesc, setEditDesc] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [actionError, setActionError] = useState<{ message: string; details?: string } | null>(
@@ -149,19 +150,20 @@ export default function WorkspaceDetailPage() {
     if (!id) return;
 
     try {
-      const [wsRes, projRes, featureRes, agentRes] = await Promise.all([
-        api.workspaces.get(id),
-        api.workspaces.projects(id, 100, 0, false),
-        api.workspaces.features(id, 100, 0),
-        api.workspaces.agents(id),
+      const [wsRes, projRes, ticketRes, agentRes] = await Promise.all([
+        api.companies.get(id),
+        api.companies.projects(id, 100, 0, false),
+        api.companies.tickets(id, 100, 0),
+        api.companies.agents(id),
       ]);
 
       setWorkspace(wsRes.workspace);
       setProjects(projRes.data);
       setTotal(projRes.total);
-      setFeatures(featureRes.data);
+      setFeatures(ticketRes.tickets);
       setAgents(agentRes.agents);
       setEditName(wsRes.workspace.name);
+      setEditMission(wsRes.workspace.mission || "");
       setEditDesc(wsRes.workspace.description || "");
       setLoadError(null);
       setLoadErrorDetails(undefined);
@@ -185,12 +187,14 @@ export default function WorkspaceDetailPage() {
     setFieldErrors({});
 
     try {
-      const { workspace: updated } = await api.workspaces.update(id, {
+      const { workspace: updated } = await api.companies.update(id, {
         name: editName,
+        mission: editMission || undefined,
         description: editDesc || undefined,
       });
       setWorkspace(updated);
       setEditName(updated.name);
+      setEditMission(updated.mission || "");
       setEditDesc(updated.description || "");
       setEditing(false);
       toast.success("Workspace updated");
@@ -212,9 +216,9 @@ export default function WorkspaceDetailPage() {
     setActionError(null);
 
     try {
-      await api.workspaces.delete(id);
+      await api.companies.delete(id);
       toast.success("Workspace deleted");
-      router.push("/workspaces");
+      router.push("/companies");
     } catch (error) {
       setActionError({
         message: getErrorMessage(error, "Failed to delete workspace"),
@@ -248,7 +252,7 @@ export default function WorkspaceDetailPage() {
           <button
             type="button"
             className="btn btn-secondary"
-            onClick={() => router.push("/workspaces")}
+            onClick={() => router.push("/companies")}
           >
             Back to Workspaces
           </button>
@@ -276,13 +280,16 @@ export default function WorkspaceDetailPage() {
   return (
     <div className="workspace-shell">
       <Breadcrumbs
-        items={[{ label: "Workspaces", href: "/workspaces" }, { label: workspace.name }]}
+        items={[{ label: "Companies", href: "/companies" }, { label: workspace.name }]}
       />
 
       <section className="workspace-overview card">
         <div className="workspace-overview-copy">
           <p className="workspace-overview-eyebrow">{workspaceGuidance.eyebrow}</p>
           <h1 className="workspace-detail-title">{workspace.name}</h1>
+          <p className="workspace-detail-desc" style={{ marginBottom: "0.5rem" }}>
+            Mission: {workspace.mission}
+          </p>
           <p className="workspace-detail-desc">
             {workspace.description ||
               "This workspace does not have a description yet. Add one so the team understands what kind of work belongs here."}
@@ -304,7 +311,7 @@ export default function WorkspaceDetailPage() {
                 {action.label}
               </Link>
             ))}
-            <Link href={`/workspaces/${id}/agents`} className="btn btn-secondary">
+            <Link href={`/companies/${id}/agents`} className="btn btn-secondary">
               Agents
             </Link>
             <button type="button" className="btn btn-secondary" onClick={() => setEditing(true)}>
@@ -371,6 +378,27 @@ export default function WorkspaceDetailPage() {
               )}
             </div>
             <div>
+              <label className="label" htmlFor="edit-mission">
+                Mission
+              </label>
+              <textarea
+                id="edit-mission"
+                className="textarea"
+                value={editMission}
+                onChange={(e) => {
+                  setEditMission(e.target.value);
+                  setFieldErrors((prev) => ({ ...prev, mission: [] }));
+                }}
+                rows={4}
+                placeholder="Describe the company objective and direction."
+                required
+              />
+              {getFieldError(fieldErrors, "mission") && (
+                <p className="field-error">{getFieldError(fieldErrors, "mission")}</p>
+              )}
+            </div>
+
+            <div>
               <label className="label" htmlFor="edit-desc">
                 Description
               </label>
@@ -409,6 +437,7 @@ export default function WorkspaceDetailPage() {
                   setActionError(null);
                   setFieldErrors({});
                   setEditName(workspace.name);
+                  setEditMission(workspace.mission || "");
                   setEditDesc(workspace.description || "");
                 }}
               >

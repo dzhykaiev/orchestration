@@ -34,11 +34,11 @@ export function AppHeaderNav() {
   return (
     <nav className="app-nav">
       <ThemeToggle />
-      <Link href="/workspaces" className="btn btn-secondary">
-        Workspaces
+      <Link href="/companies" className="btn btn-secondary">
+        Companies
       </Link>
       <Link href={boardHref} className="btn btn-secondary">
-        Board
+        Tickets
       </Link>
       <Link href="/projects/new" className="btn btn-primary">
         New Project

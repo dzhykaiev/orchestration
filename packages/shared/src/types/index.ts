@@ -3,6 +3,7 @@ export type {
   CreateWorkspaceInput,
   UpdateWorkspaceInput,
 } from "./workspace.js";
+export type { CompanyRuntimeContext } from "./runtime.js";
 export type {
   Project,
   ProjectStatus,
@@ -52,6 +53,7 @@ export type {
   CreateEscalationInput,
 } from "./escalation.js";
 export type { Review, ReviewVerdict, CreateReviewInput } from "./review.js";
+export type { Todo, TodoStatus, CreateTodoInput, UpdateTodoInput } from "./todo.js";
 export type { PaginatedResponse } from "./pagination.js";
 export type { OrchestratorEvent, EventType, EventPayload } from "./events.js";
 export { EVENTS_CHANNEL } from "./events.js";

@@ -24,6 +24,7 @@ export interface CostBreakdown {
 
 export interface ProjectRecord {
   id: string;
+  workspaceId: string;
   goal: string;
   status: ProjectStatus;
   provider: string | null;

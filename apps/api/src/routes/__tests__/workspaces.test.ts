@@ -60,6 +60,7 @@ async function buildApp() {
     return reply.status(statusCode).send({ error: error.message, statusCode });
   });
   await app.register(workspaceRoutes, { prefix: "/api/workspaces" });
+  await app.register(workspaceRoutes, { prefix: "/api/companies" });
   return app;
 }
 
@@ -74,6 +75,15 @@ describe("Workspace Routes", () => {
   it("GET /api/workspaces returns list", async () => {
     const app = await buildApp();
     const res = await app.inject({ method: "GET", url: "/api/workspaces" });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body.data).toEqual([]);
+    expect(body.total).toBe(0);
+  });
+
+  it("GET /api/companies returns list via workspace alias", async () => {
+    const app = await buildApp();
+    const res = await app.inject({ method: "GET", url: "/api/companies" });
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.payload);
     expect(body.data).toEqual([]);

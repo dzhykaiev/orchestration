@@ -11,7 +11,7 @@ export const projectStatusValues = [
   "archived",
 ] as const;
 
-export const providerValues = ["claude", "opencode"] as const;
+export const providerValues = ["claude", "codex", "opencode"] as const;
 export const projectModeValues = ["greenfield", "existing"] as const;
 
 export const ProjectDtoSchema = z.object({

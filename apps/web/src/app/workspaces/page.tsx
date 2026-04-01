@@ -11,7 +11,7 @@ export default function WorkspacesPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.workspaces.list(100).then((data) => {
+    api.companies.list(100).then((data) => {
       setWorkspaces(data.data);
       setLoading(false);
     });
@@ -20,7 +20,7 @@ export default function WorkspacesPage() {
   if (loading) {
     return (
       <div className="ws-page-header">
-        <h2 className="ws-page-title">Workspaces</h2>
+        <h2 className="ws-page-title">Companies</h2>
         <div className="skeleton" style={{ height: 200, marginTop: "1.5rem" }} />
       </div>
     );
@@ -31,11 +31,11 @@ export default function WorkspacesPage() {
       <div className="ws-page-header">
         <div className="ws-page-header-row">
           <div>
-            <h2 className="ws-page-title">Workspaces</h2>
-            <p className="ws-page-subtitle">Organize your projects and AI agents</p>
+            <h2 className="ws-page-title">Companies</h2>
+            <p className="ws-page-subtitle">Manage autonomous companies and their projects</p>
           </div>
-          <Link href="/workspaces/new" className="btn btn-primary">
-            New Workspace
+          <Link href="/companies/new" className="btn btn-primary">
+            New Company
           </Link>
         </div>
       </div>
@@ -44,6 +44,7 @@ export default function WorkspacesPage() {
         <div className="workspace-empty">
           <div className="workspace-empty-icon">
             <svg
+              aria-hidden="true"
               width="24"
               height="24"
               viewBox="0 0 24 24"
@@ -56,12 +57,12 @@ export default function WorkspacesPage() {
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
             </svg>
           </div>
-          <h3 className="workspace-empty-title">No workspaces yet</h3>
+          <h3 className="workspace-empty-title">No companies yet</h3>
           <p className="workspace-empty-desc">
-            Create your first workspace to organize projects and features.
+            Create your first company to launch projects, tickets, and agent teams.
           </p>
-          <Link href="/workspaces/new" className="btn btn-primary">
-            Create Workspace
+          <Link href="/companies/new" className="btn btn-primary">
+            Create Company
           </Link>
         </div>
       ) : (
@@ -71,7 +72,7 @@ export default function WorkspacesPage() {
               key={ws.id}
               type="button"
               className="workspace-card"
-              onClick={() => router.push(`/workspaces/${ws.id}`)}
+              onClick={() => router.push(`/companies/${ws.id}`)}
             >
               <div className="workspace-card-top">
                 <div className="workspace-card-icon">{ws.name.charAt(0).toUpperCase()}</div>
@@ -83,6 +84,7 @@ export default function WorkspacesPage() {
               {ws.description && <p className="workspace-card-desc">{ws.description}</p>}
               <div className="workspace-card-arrow">
                 <svg
+                  aria-hidden="true"
                   width="14"
                   height="14"
                   viewBox="0 0 24 24"

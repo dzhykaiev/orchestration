@@ -30,6 +30,7 @@ const STATUS_ICONS: Record<string, string> = {
 
 const PROVIDER_LABELS: Record<string, string> = {
   claude: "Claude",
+  codex: "Codex",
   opencode: "OpenCode",
 };
 

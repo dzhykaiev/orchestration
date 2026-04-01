@@ -1,11 +1,9 @@
 import { readFile, readdir, stat } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
-
-const PROJECTS_DIR = resolve(
-  process.env.PROJECTS_DIR || join(process.cwd(), "..", "orchestrator", "projects"),
-);
+import { resolveCompanyRuntimeContext } from "../services/orchestration/company-runtime.js";
+import { resolveWithinRoot } from "../services/runtime/company-paths.js";
 const MAX_FILE_SIZE = 100 * 1024; // 100KB
 
 const fileParamsSchema = z.object({
@@ -37,17 +35,17 @@ export const fileRoutes: FastifyPluginAsync = async (app) => {
       const { id } = fileParamsSchema.parse(request.params);
       const { path: queryPath } = fileListQuerySchema.parse(request.query);
       const subPath = queryPath || "";
-      const projectDir = resolve(PROJECTS_DIR, id);
-      const targetDir = resolve(projectDir, subPath);
-
-      // Prevent path traversal
-      if (!targetDir.startsWith(projectDir)) {
+      const { projectRoot } = await resolveCompanyRuntimeContext(id);
+      let targetDir: string;
+      try {
+        targetDir = resolveWithinRoot(projectRoot, subPath);
+      } catch {
         return reply.status(400).send({ error: "Invalid path", statusCode: 400 });
       }
 
       // Check project dir exists
       try {
-        const s = await stat(projectDir);
+        const s = await stat(projectRoot);
         if (!s.isDirectory()) {
           return reply.status(404).send({ error: "Project directory not found", statusCode: 404 });
         }
@@ -98,11 +96,11 @@ export const fileRoutes: FastifyPluginAsync = async (app) => {
       const { id } = fileParamsSchema.parse(request.params);
       const { path: filePath } = fileContentQuerySchema.parse(request.query);
 
-      const projectDir = resolve(PROJECTS_DIR, id);
-      const fullPath = resolve(projectDir, filePath);
-
-      // Prevent path traversal
-      if (!fullPath.startsWith(projectDir)) {
+      const { projectRoot } = await resolveCompanyRuntimeContext(id);
+      let fullPath: string;
+      try {
+        fullPath = resolveWithinRoot(projectRoot, filePath);
+      } catch {
         return reply.status(400).send({ error: "Invalid path", statusCode: 400 });
       }
 

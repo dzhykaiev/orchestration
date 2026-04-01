@@ -1,4 +1,5 @@
-import { and, asc, eq } from "drizzle-orm";
+import type { CreateTodoInput, UpdateTodoInput } from "@orchestration/shared";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { db, schema } from "../client.js";
 
 export async function listTodos(opts: {
@@ -19,15 +20,18 @@ export async function listTodos(opts: {
 
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
-  const items = await db
-    .select()
-    .from(schema.todos)
-    .where(where)
-    .orderBy(asc(schema.todos.order), asc(schema.todos.createdAt))
-    .limit(opts.limit)
-    .offset(opts.offset);
+  const [items, countResult] = await Promise.all([
+    db
+      .select()
+      .from(schema.todos)
+      .where(where)
+      .orderBy(asc(schema.todos.order), asc(schema.todos.createdAt))
+      .limit(opts.limit)
+      .offset(opts.offset),
+    db.select({ count: sql<number>`count(*)::int` }).from(schema.todos).where(where),
+  ]);
 
-  return items;
+  return { data: items, total: countResult[0]?.count ?? 0 };
 }
 
 export async function getTodoById(id: string) {
@@ -36,20 +40,14 @@ export async function getTodoById(id: string) {
   return result[0] ?? null;
 }
 
-export async function createTodo(input: {
-  workspaceId: string;
-  title: string;
-  description?: string;
-  status?: string;
-  order?: number;
-}) {
+export async function createTodo(input: CreateTodoInput) {
   const [todo] = await db
     .insert(schema.todos)
     .values({
       workspaceId: input.workspaceId,
       title: input.title,
       description: input.description,
-      status: (input.status as typeof schema.todos.$inferInsert.status) ?? "pending",
+      status: input.status ?? "pending",
       order: input.order ?? 0,
     })
     .returning();
@@ -58,15 +56,7 @@ export async function createTodo(input: {
   return todo!;
 }
 
-export async function updateTodo(
-  id: string,
-  input: {
-    title?: string;
-    description?: string;
-    status?: string;
-    order?: number;
-  },
-) {
+export async function updateTodo(id: string, input: UpdateTodoInput) {
   const [todo] = await db
     .update(schema.todos)
     .set({

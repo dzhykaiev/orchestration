@@ -41,7 +41,7 @@ export function createLLMProvider(role?: string, provider?: string): LLMProvider
   let delegate: LLMProvider;
 
   if (provider) {
-    delegate = provider === "claude" ? new ClaudeProvider() : new OpenCodeProvider();
+    delegate = resolveProvider(provider);
   } else {
     const roleMapStr = process.env.ROLE_PROVIDER_MAP;
     if (roleMapStr && role) {
@@ -49,7 +49,7 @@ export function createLLMProvider(role?: string, provider?: string): LLMProvider
         const roleMap = JSON.parse(roleMapStr) as Record<string, string>;
         const p = roleMap[role]?.toLowerCase();
         if (p) {
-          delegate = p === "claude" ? new ClaudeProvider() : new OpenCodeProvider();
+          delegate = resolveProvider(p);
         } else {
           delegate = createDefaultProvider();
         }
@@ -68,7 +68,18 @@ export function createLLMProvider(role?: string, provider?: string): LLMProvider
 
 function createDefaultProvider(): LLMProvider {
   const p = process.env.LLM_PROVIDER?.toLowerCase() || "opencode";
-  return p === "claude" ? new ClaudeProvider() : new OpenCodeProvider();
+  return resolveProvider(p);
+}
+
+function resolveProvider(provider: string): LLMProvider {
+  if (provider === "claude") {
+    return new ClaudeProvider();
+  }
+  // Temporary mapping: codex uses OpenCode runtime until a dedicated CodexProvider is introduced.
+  if (provider === "codex") {
+    return new OpenCodeProvider();
+  }
+  return new OpenCodeProvider();
 }
 
 export function resetAllBreakers(): void {

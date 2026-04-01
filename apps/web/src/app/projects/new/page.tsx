@@ -14,7 +14,7 @@ import {
 } from "../../../lib/api";
 
 type ProjectMode = "greenfield" | "existing";
-type ProviderOption = "claude" | "opencode";
+type ProviderOption = "claude" | "codex" | "opencode";
 
 const PROVIDER_OPTIONS: Array<{
   value: ProviderOption;
@@ -33,6 +33,12 @@ const PROVIDER_OPTIONS: Array<{
     label: "Claude Code",
     tagline: "Useful when you want stronger long-context reasoning in planning-heavy tasks.",
     recommendedFor: "Good for architecture-heavy changes and larger codebase analysis.",
+  },
+  {
+    value: "codex",
+    label: "Codex",
+    tagline: "Balanced option for agentic coding and implementation-heavy ticket execution.",
+    recommendedFor: "Use when you want strong implementation throughput with structured planning.",
   },
 ];
 

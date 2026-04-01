@@ -1,10 +1,6 @@
 import { type ChildProcess, spawn } from "node:child_process";
 import { stat } from "node:fs/promises";
-import { join, resolve } from "node:path";
-
-const PROJECTS_DIR = resolve(
-  process.env.PROJECTS_DIR || join(process.cwd(), "..", "orchestrator", "projects"),
-);
+import { resolveCompanyRuntimeContext } from "./orchestration/company-runtime.js";
 
 /** Port range for launched projects */
 const PORT_RANGE_START = 4100;
@@ -45,7 +41,8 @@ export const launchService = {
       return { port: existing.port, url: existing.url, status: existing.status };
     }
 
-    const projectDir = resolve(PROJECTS_DIR, projectId);
+    const runtimeContext = await resolveCompanyRuntimeContext(projectId);
+    const projectDir = runtimeContext.projectRoot;
 
     // Check project directory exists
     try {

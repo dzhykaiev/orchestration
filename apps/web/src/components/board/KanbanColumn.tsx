@@ -4,20 +4,32 @@ import { useState } from "react";
 import type { Feature, Project } from "../../lib/api";
 import { FeatureCard } from "./FeatureCard";
 
-const STATUS_LABELS: Record<string, string> = {
-  backlog: "Backlog",
-  todo: "Todo",
-  in_progress: "In Progress",
-  done: "Done",
-  rejected: "Rejected",
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  backlog: "var(--color-neutral-bg)",
-  todo: "var(--color-blue-bg)",
-  in_progress: "var(--color-yellow-bg)",
-  done: "var(--color-green-bg)",
-  rejected: "var(--color-red-bg)",
+const STATUS_META: Record<Feature["status"], { label: string; subtitle: string; color: string }> = {
+  backlog: {
+    label: "Backlog",
+    subtitle: "Ideas, requests, and work that still needs triage.",
+    color: "var(--color-neutral-bg)",
+  },
+  todo: {
+    label: "Ready",
+    subtitle: "Briefs that are clear enough to start or kickoff.",
+    color: "var(--color-blue-bg)",
+  },
+  in_progress: {
+    label: "In progress",
+    subtitle: "Agents are actively working on the ticket.",
+    color: "var(--color-yellow-bg)",
+  },
+  done: {
+    label: "Done",
+    subtitle: "Completed work that is ready to close out.",
+    color: "var(--color-green-bg)",
+  },
+  rejected: {
+    label: "Rejected",
+    subtitle: "Not moving forward or intentionally parked.",
+    color: "var(--color-red-bg)",
+  },
 };
 
 interface KanbanColumnProps {
@@ -28,6 +40,7 @@ interface KanbanColumnProps {
   onDrop: (featureId: string, newStatus: Feature["status"]) => void;
   onEdit: (feature: Feature) => void;
   onKickoff?: (feature: Feature) => void;
+  onStatusChange?: (feature: Feature, newStatus: Feature["status"]) => void;
   onDelete: (feature: Feature) => void;
 }
 
@@ -39,9 +52,11 @@ export function KanbanColumn({
   onDrop,
   onEdit,
   onKickoff,
+  onStatusChange,
   onDelete,
 }: KanbanColumnProps) {
   const [dragOver, setDragOver] = useState(false);
+  const meta = STATUS_META[status];
 
   function handleDragOver(e: React.DragEvent) {
     e.preventDefault();
@@ -69,8 +84,11 @@ export function KanbanColumn({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <div className="kanban-column-header" style={{ borderTopColor: STATUS_COLORS[status] }}>
-        <span className="kanban-column-title">{STATUS_LABELS[status] || status}</span>
+      <div className="kanban-column-header" style={{ borderTopColor: meta.color }}>
+        <div className="kanban-column-heading">
+          <span className="kanban-column-title">{meta.label}</span>
+          <span className="kanban-column-subtitle">{meta.subtitle}</span>
+        </div>
         <span className="kanban-column-count">{features.length}</span>
       </div>
       <div className="kanban-column-body">
@@ -93,6 +111,7 @@ export function KanbanColumn({
               }
               onEdit={onEdit}
               onKickoff={onKickoff}
+              onStatusChange={onStatusChange}
               onDelete={onDelete}
             />
           ))}
