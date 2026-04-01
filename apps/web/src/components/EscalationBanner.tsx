@@ -59,8 +59,8 @@ export function EscalationBanner({ projectId }: { projectId: string }) {
     <div
       style={{
         padding: "1rem",
-        background: "var(--color-status-orange-bg, #fff7ed)",
-        border: "1px solid var(--color-warning, #f59e0b)",
+        background: "var(--color-status-orange-bg)",
+        border: "1px solid var(--color-warning)",
         borderRadius: "var(--radius, 6px)",
         marginBottom: "1rem",
       }}

@@ -37,7 +37,7 @@ export interface UpdateFeatureInput {
   type?: FeatureType;
   priority?: number;
   sortOrder?: number;
-  sourceProjectId?: string;
+  sourceProjectId?: string | null;
   assigneeMode?: FeatureAssigneeMode;
   assigneeAgentDefinitionId?: string | null;
   orchestrationProjectId?: string;

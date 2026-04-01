@@ -18,13 +18,10 @@ import {
   getErrorMessage,
 } from "../../../lib/api";
 import { timeAgo } from "../../../lib/utils";
+import { buildBoardHref } from "../../../lib/workspaceNavigation";
 
 function getFieldError(fieldErrors: Record<string, string[]>, field: string) {
   return fieldErrors[field]?.[0];
-}
-
-function getBoardHref(workspaceId: string) {
-  return `/board?workspaceId=${workspaceId}`;
 }
 
 function getWorkspaceGuidance({
@@ -48,7 +45,7 @@ function getWorkspaceGuidance({
         "Start on the feature board if you want a prioritized backlog, or create a project directly if the scope is already clear.",
       actions: [
         {
-          href: getBoardHref(workspaceId),
+          href: buildBoardHref(workspaceId),
           label: "Open Feature Board",
           variant: "primary" as const,
         },
@@ -65,7 +62,7 @@ function getWorkspaceGuidance({
         "Review active runs, unblock failures quickly, and use the board to prepare the next batch of work without interrupting current execution.",
       actions: [
         {
-          href: getBoardHref(workspaceId),
+          href: buildBoardHref(workspaceId),
           label: "Review Feature Board",
           variant: "primary" as const,
         },
@@ -82,7 +79,7 @@ function getWorkspaceGuidance({
         "This workspace already has prioritized features waiting for execution. Use the board to review them and launch the right project next.",
       actions: [
         {
-          href: getBoardHref(workspaceId),
+          href: buildBoardHref(workspaceId),
           label: "Kick Off Features",
           variant: "primary" as const,
         },
@@ -99,7 +96,7 @@ function getWorkspaceGuidance({
         "You already have captured feature work. Move items into the ready state on the board or create a direct project brief for immediate execution.",
       actions: [
         {
-          href: getBoardHref(workspaceId),
+          href: buildBoardHref(workspaceId),
           label: "Prioritize Features",
           variant: "primary" as const,
         },
@@ -115,7 +112,7 @@ function getWorkspaceGuidance({
       "Projects exist, but there is no queued feature work. Add work to the board or define a new project brief for the next execution cycle.",
     actions: [
       {
-        href: getBoardHref(workspaceId),
+        href: buildBoardHref(workspaceId),
         label: "Open Feature Board",
         variant: "primary" as const,
       },
@@ -477,7 +474,7 @@ export default function WorkspaceDetailPage() {
           </p>
         </div>
         <div className="workspace-section-actions">
-          <Link href={getBoardHref(id)} className="btn btn-secondary">
+          <Link href={buildBoardHref(id)} className="btn btn-secondary">
             Feature Board
           </Link>
           <Link href="/projects/new" className="btn btn-primary">
@@ -511,7 +508,7 @@ export default function WorkspaceDetailPage() {
               : "Create a project directly or capture features on the board so the workspace has a queue to execute from."}
           </p>
           <div className="home-empty-actions">
-            <Link href={getBoardHref(id)} className="btn btn-secondary">
+            <Link href={buildBoardHref(id)} className="btn btn-secondary">
               Open Feature Board
             </Link>
             <Link href="/projects/new" className="btn btn-primary">

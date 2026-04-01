@@ -10,6 +10,7 @@ import { Breadcrumbs } from "../../../components/Breadcrumbs";
 import { EscalationBanner } from "../../../components/EscalationBanner";
 import { FileTree } from "../../../components/FileTree";
 import { FileViewer } from "../../../components/FileViewer";
+import { FeatureModal } from "../../../components/board/FeatureModal";
 import { ConfirmModal } from "../../../components/ui/ConfirmModal";
 import { ProgressBar } from "../../../components/ui/ProgressBar";
 import { SkeletonProjectDetail } from "../../../components/ui/SkeletonProjectDetail";
@@ -19,6 +20,7 @@ import { usePolling } from "../../../hooks/usePolling";
 import { useSSE } from "../../../hooks/useSSE";
 import {
   type AgentTask,
+  type AgentDefinition,
   type Feature,
   type Project,
   type Workspace,
@@ -28,6 +30,7 @@ import {
   getErrorMessage,
 } from "../../../lib/api";
 import { getProviderStyle, timeAgo } from "../../../lib/utils";
+import { buildBoardHref, buildWorkspaceHref } from "../../../lib/workspaceNavigation";
 
 const DependencyGraph = dynamic(
   () => import("../../../components/DependencyGraph").then((m) => m.DependencyGraph),
@@ -38,10 +41,6 @@ const PROVIDER_LABELS: Record<string, string> = {
   claude: "Claude Code",
   opencode: "OpenCode",
 };
-
-function getBoardHref(workspaceId?: string | null) {
-  return workspaceId ? `/board?workspaceId=${workspaceId}` : "/board";
-}
 
 function summarizeTaskPrompt(prompt: string) {
   return prompt.length > 180 ? `${prompt.slice(0, 180)}...` : prompt;
@@ -137,7 +136,9 @@ export default function ProjectDetailPage() {
   const [workstreams, setWorkstreams] = useState<Workstream[]>([]);
   const [tasksByWorkstream, setTasksByWorkstream] = useState<Record<string, AgentTask[]>>({});
   const [linkedFeature, setLinkedFeature] = useState<Feature | null>(null);
+  const [issues, setIssues] = useState<Feature[]>([]);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
+  const [workspaceAgents, setWorkspaceAgents] = useState<AgentDefinition[]>([]);
   const [costBreakdown, setCostBreakdown] = useState<{
     total: number;
     byWorkstream: { workstreamId: string; name: string; cost: number }[];
@@ -158,7 +159,17 @@ export default function ProjectDetailPage() {
   const [expandedWs, setExpandedWs] = useState<Set<string>>(new Set());
   const [expandedTaskOutput, setExpandedTaskOutput] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<null | "stop" | "archive" | "delete">(null);
+  const [issueModalOpen, setIssueModalOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [launchStatus, setLaunchStatus] = useState<{
+    running: boolean;
+    port?: number;
+    url?: string;
+    status?: string;
+    logs?: string[];
+  } | null>(null);
+  const [launching, setLaunching] = useState(false);
+  const [stoppingLaunch, setStoppingLaunch] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -181,11 +192,18 @@ export default function ProjectDetailPage() {
       }
       setTasksByWorkstream(grouped);
 
+      api.projects
+        .issues(projectId, 100, 0)
+        .then((result) => setIssues(result.data))
+        .catch(() => setIssues([]));
+
       // Fetch workspace info for breadcrumbs
       if (proj.workspaceId) {
-        api.workspaces
-          .get(proj.workspaceId)
-          .then((res) => setWorkspace(res.workspace))
+        Promise.all([api.workspaces.get(proj.workspaceId), api.workspaces.agents(proj.workspaceId)])
+          .then(([workspaceRes, agentsRes]) => {
+            setWorkspace(workspaceRes.workspace);
+            setWorkspaceAgents(agentsRes.agents);
+          })
           .catch(() => {});
       }
 
@@ -297,13 +315,54 @@ export default function ProjectDetailPage() {
     try {
       await api.projects.delete(projectId);
       toast.success("Project deleted");
-      router.push("/");
+      router.push(buildWorkspaceHref(project?.workspaceId));
     } catch (err) {
       const message = getErrorMessage(err, "Failed to delete project");
       const details = getErrorDetails(err);
       setActionError({ message, details });
       toast.error({ title: "Delete failed", message, details });
       setDeleting(false);
+    }
+  }
+
+  async function handleIssueSave(data: {
+    workspaceId?: string;
+    title: string;
+    description?: string;
+    type: string;
+    priority: number;
+    status?: string;
+    sourceProjectId?: string | null;
+    assigneeMode?: "orchestrator" | "agent";
+    assigneeAgentDefinitionId?: string | null;
+  }) {
+    if (!project?.workspaceId) {
+      toast.error("Workspace is required");
+      return;
+    }
+
+    try {
+      await api.features.create({
+        workspaceId: project.workspaceId,
+        title: data.title,
+        description: data.description,
+        type: data.type,
+        priority: data.priority,
+        sourceProjectId: projectId,
+        assigneeMode: data.assigneeMode,
+        assigneeAgentDefinitionId: data.assigneeAgentDefinitionId,
+      });
+      toast.success("Issue created on board");
+      setIssueModalOpen(false);
+      const issueResult = await api.projects.issues(projectId, 100, 0);
+      setIssues(issueResult.data);
+    } catch (err) {
+      toast.error({
+        title: "Couldn't create issue",
+        message: getErrorMessage(err, "Failed to create issue"),
+        details: getErrorDetails(err),
+      });
+      throw err;
     }
   }
 
@@ -344,6 +403,64 @@ export default function ProjectDetailPage() {
         message: getErrorMessage(err, "Failed to change provider"),
         details: getErrorDetails(err),
       });
+    }
+  }
+
+  // Check launch status on mount and when project is completed
+  useEffect(() => {
+    if (project?.status === "completed") {
+      api.launch
+        .status(projectId)
+        .then(setLaunchStatus)
+        .catch(() => {});
+    }
+  }, [project?.status, projectId]);
+
+  async function handleLaunch() {
+    setLaunching(true);
+    setActionError(null);
+    try {
+      const result = await api.launch.start(projectId);
+      setLaunchStatus({ running: true, port: result.port, url: result.url, status: result.status });
+      toast.success({
+        title: "Project launched",
+        message: `Running at ${result.url}`,
+      });
+      // Poll status to detect when it's ready
+      const interval = setInterval(async () => {
+        try {
+          const status = await api.launch.status(projectId);
+          setLaunchStatus(status);
+          if (status.status === "running" || status.status === "failed" || !status.running) {
+            clearInterval(interval);
+          }
+        } catch {
+          clearInterval(interval);
+        }
+      }, 2000);
+    } catch (err) {
+      setActionError({
+        message: getErrorMessage(err, "Failed to launch project"),
+        details: getErrorDetails(err),
+      });
+    } finally {
+      setLaunching(false);
+    }
+  }
+
+  async function handleStopLaunch() {
+    setStoppingLaunch(true);
+    try {
+      await api.launch.stop(projectId);
+      setLaunchStatus(null);
+      toast.success("Project stopped");
+    } catch (err) {
+      toast.error({
+        title: "Stop failed",
+        message: getErrorMessage(err, "Failed to stop launched project"),
+      });
+    } finally {
+      setStoppingLaunch(false);
     }
   }
 
@@ -406,6 +523,10 @@ export default function ProjectDetailPage() {
   const canArchive = ["completed", "failed", "cancelled", "draft"].includes(project.status);
   const canDelete = ["archived", "completed", "failed", "cancelled"].includes(project.status);
   const canChangeProvider = ["draft", "failed", "cancelled"].includes(project.status);
+  const boardHref = buildBoardHref(project.workspaceId);
+  const workspaceHref = buildWorkspaceHref(project.workspaceId);
+  const agentNameById = Object.fromEntries(workspaceAgents.map((agent) => [agent.id, agent.name]));
+  const boardIssuesHref = `${boardHref}${boardHref.includes("?") ? "&" : "?"}type=bug&projectId=${projectId}`;
 
   const completedWs = workstreams.filter((ws) => ws.status === "completed").length;
   const activeWs = workstreams.filter((ws) => ws.status === "in_progress").length;
@@ -469,6 +590,10 @@ export default function ProjectDetailPage() {
         </div>
 
         <div className="project-hero-actions">
+          <button type="button" className="btn btn-secondary" onClick={() => setIssueModalOpen(true)}>
+            Report Issue
+          </button>
+
           {project.status === "draft" && (
             <button
               type="button"
@@ -533,11 +658,53 @@ export default function ProjectDetailPage() {
       {linkedFeature && (
         <p className="text-sm project-source-link">
           Created from feature:{" "}
-          <Link href={getBoardHref(project.workspaceId)} style={{ color: "var(--color-primary)" }}>
+          <Link href={boardHref} style={{ color: "var(--color-primary)" }}>
             {linkedFeature.title}
           </Link>
         </p>
       )}
+
+      <section className="card" style={{ marginBottom: "1rem" }}>
+        <div className="flex justify-between items-center" style={{ gap: "0.75rem", flexWrap: "wrap" }}>
+          <div>
+            <p className="project-card-eyebrow">Issue Tickets</p>
+            <h3 style={{ margin: 0 }}>Reported from this project</h3>
+          </div>
+          <Link href={boardIssuesHref} className="btn btn-secondary">
+            Open Issues On Board
+          </Link>
+        </div>
+        {issues.length === 0 ? (
+          <p className="text-sm text-muted" style={{ marginTop: "0.75rem" }}>
+            No issue tickets yet. Use `Report Issue` when you spot a bug in this run.
+          </p>
+        ) : (
+          <div style={{ marginTop: "0.75rem", display: "grid", gap: "0.5rem" }}>
+            {issues.map((issue) => (
+              <div
+                key={issue.id}
+                style={{
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius)",
+                  padding: "0.65rem 0.75rem",
+                  background: "var(--color-bg)",
+                }}
+              >
+                <div className="flex justify-between items-center" style={{ gap: "0.75rem", flexWrap: "wrap" }}>
+                  <strong>{issue.title}</strong>
+                  <StatusBadge status={issue.status} />
+                </div>
+                <p className="text-sm text-muted" style={{ margin: "0.35rem 0 0" }}>
+                  Assignee:{" "}
+                  {issue.assigneeMode === "orchestrator"
+                    ? "Main orchestrator"
+                    : agentNameById[issue.assigneeAgentDefinitionId ?? ""] || "Assigned agent"}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       {actionError && (
         <div className="error-banner" role="alert">
@@ -555,6 +722,14 @@ export default function ProjectDetailPage() {
           <div className="project-stage-next">
             <strong>Next step</strong>
             <span>{stageSummary.nextStep}</span>
+          </div>
+          <div className="project-stage-actions">
+            <Link href={boardHref} className="btn btn-secondary">
+              Open Workspace Board
+            </Link>
+            <Link href={workspaceHref} className="btn btn-secondary">
+              Open Workspace
+            </Link>
           </div>
         </div>
 
@@ -700,11 +875,77 @@ export default function ProjectDetailPage() {
           className="card"
           style={{ background: "var(--color-status-green-bg)", borderColor: "var(--color-border)" }}
         >
-          <strong>Project completed</strong>
-          <p className="text-sm" style={{ margin: "4px 0 0" }}>
-            All workstreams finished. Output files in{" "}
-            <code>apps/orchestrator/projects/{project.id.slice(0, 8)}...</code>
-          </p>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: 12,
+            }}
+          >
+            <div>
+              <strong>Project completed</strong>
+              <p className="text-sm" style={{ margin: "4px 0 0" }}>
+                All workstreams finished. Output files in{" "}
+                <code>apps/orchestrator/projects/{project.id.slice(0, 8)}...</code>
+              </p>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {launchStatus?.running ? (
+                <>
+                  <a
+                    href={launchStatus.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn btn-primary"
+                    style={{ textDecoration: "none" }}
+                  >
+                    Open {launchStatus.url}
+                  </a>
+                  <button
+                    type="button"
+                    className="btn btn-danger"
+                    onClick={handleStopLaunch}
+                    disabled={stoppingLaunch}
+                  >
+                    {stoppingLaunch ? "Stopping..." : "Stop"}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleLaunch}
+                  disabled={launching}
+                >
+                  {launching ? "Launching..." : "Launch Locally"}
+                </button>
+              )}
+            </div>
+          </div>
+          {launchStatus?.running && launchStatus.logs && launchStatus.logs.length > 0 && (
+            <details style={{ marginTop: 8 }}>
+              <summary className="text-sm" style={{ cursor: "pointer" }}>
+                Server logs
+              </summary>
+              <pre
+                style={{
+                  marginTop: 4,
+                  padding: 8,
+                  background: "var(--color-surface)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 4,
+                  fontSize: "0.75rem",
+                  maxHeight: 200,
+                  overflow: "auto",
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {launchStatus.logs.join("")}
+              </pre>
+            </details>
+          )}
         </div>
       )}
 
@@ -1127,6 +1368,19 @@ export default function ProjectDetailPage() {
         message="This will permanently delete the project, all workstreams, and tasks. This cannot be undone."
         confirmText="Delete"
         variant="danger"
+      />
+
+      <FeatureModal
+        isOpen={issueModalOpen}
+        onClose={() => setIssueModalOpen(false)}
+        onSave={handleIssueSave}
+        feature={null}
+        workspaces={workspace ? [workspace] : []}
+        agents={workspaceAgents}
+        projects={project ? [{ id: project.id, name: project.name, status: project.status }] : []}
+        defaultWorkspaceId={project.workspaceId}
+        defaultType="bug"
+        defaultSourceProjectId={projectId}
       />
 
       {selectedFile && (

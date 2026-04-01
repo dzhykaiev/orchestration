@@ -13,17 +13,18 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  backlog: "var(--color-neutral-bg, #e2e8f0)",
-  todo: "var(--color-blue-bg, #dbeafe)",
-  in_progress: "var(--color-yellow-bg, #fef3c7)",
-  done: "var(--color-green-bg, #d1fae5)",
-  rejected: "var(--color-red-bg, #fee2e2)",
+  backlog: "var(--color-neutral-bg)",
+  todo: "var(--color-blue-bg)",
+  in_progress: "var(--color-yellow-bg)",
+  done: "var(--color-green-bg)",
+  rejected: "var(--color-red-bg)",
 };
 
 interface KanbanColumnProps {
   status: Feature["status"];
   features: Feature[];
   linkedProjects: Record<string, Pick<Project, "id" | "name" | "status">>;
+  assigneeNamesById?: Record<string, string>;
   onDrop: (featureId: string, newStatus: Feature["status"]) => void;
   onEdit: (feature: Feature) => void;
   onKickoff?: (feature: Feature) => void;
@@ -34,6 +35,7 @@ export function KanbanColumn({
   status,
   features,
   linkedProjects,
+  assigneeNamesById = {},
   onDrop,
   onEdit,
   onKickoff,
@@ -82,6 +84,12 @@ export function KanbanColumn({
                 feature.orchestrationProjectId
                   ? linkedProjects[feature.orchestrationProjectId]
                   : undefined
+              }
+              sourceProject={feature.sourceProjectId ? linkedProjects[feature.sourceProjectId] : undefined}
+              assigneeLabel={
+                feature.assigneeMode === "orchestrator"
+                  ? "Main orchestrator"
+                  : assigneeNamesById[feature.assigneeAgentDefinitionId ?? ""] || "Assigned agent"
               }
               onEdit={onEdit}
               onKickoff={onKickoff}

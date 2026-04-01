@@ -11,6 +11,11 @@ import { useSSE } from "../hooks/useSSE";
 import { type ActivityItem, eventToActivity } from "../lib/activity";
 import { type Project, type Workspace, api } from "../lib/api";
 import { getProviderStyle, timeAgo } from "../lib/utils";
+import {
+  buildBoardHref,
+  readStoredBoardWorkspaceId,
+  resolveWorkspaceSelection,
+} from "../lib/workspaceNavigation";
 
 const PROJECT_PAGE_LIMIT = 100;
 
@@ -53,12 +58,14 @@ type GuidanceAction =
   | { kind: "filter"; status: string; label: string; variant: "primary" | "secondary" };
 
 function getHomeGuidance({
+  boardHref,
   workspaceCount,
   projectCount,
   activeCount,
   draftCount,
   failedCount,
 }: {
+  boardHref: string;
   workspaceCount: number;
   projectCount: number;
   activeCount: number;
@@ -94,7 +101,7 @@ function getHomeGuidance({
       description:
         "Add features on the board if you want prioritization, or create a project directly if the goal is already clear.",
       actions: [
-        { kind: "link", href: "/board", label: "Open Feature Board", variant: "primary" as const },
+        { kind: "link", href: boardHref, label: "Open Feature Board", variant: "primary" as const },
         {
           kind: "link",
           href: "/projects/new",
@@ -120,7 +127,7 @@ function getHomeGuidance({
         },
         {
           kind: "link",
-          href: "/board",
+          href: boardHref,
           label: "Check Feature Board",
           variant: "secondary" as const,
         },
@@ -135,7 +142,7 @@ function getHomeGuidance({
       description:
         "Use the project detail pages to inspect workstreams, failed tasks, escalations, and generated artifacts while execution is live.",
       actions: [
-        { kind: "link", href: "/board", label: "Open Feature Board", variant: "primary" as const },
+        { kind: "link", href: boardHref, label: "Open Feature Board", variant: "primary" as const },
         {
           kind: "link",
           href: "/projects/new",
@@ -159,7 +166,12 @@ function getHomeGuidance({
           label: "Create Project",
           variant: "secondary" as const,
         },
-        { kind: "link", href: "/board", label: "Prioritize Features", variant: "primary" as const },
+        {
+          kind: "link",
+          href: boardHref,
+          label: "Prioritize Features",
+          variant: "primary" as const,
+        },
       ],
     };
   }
@@ -170,7 +182,12 @@ function getHomeGuidance({
     description:
       "Your current queue is stable. Use the board to prioritize upcoming work or create a new project brief for the next execution cycle.",
     actions: [
-      { kind: "link", href: "/board", label: "Prioritize Features", variant: "primary" as const },
+      {
+        kind: "link",
+        href: boardHref,
+        label: "Prioritize Features",
+        variant: "primary" as const,
+      },
       {
         kind: "link",
         href: "/projects/new",
@@ -192,6 +209,7 @@ export default function HomePage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [activityEvents, setActivityEvents] = useState<ActivityItem[]>([]);
+  const [storedBoardWorkspaceId, setStoredBoardWorkspaceId] = useState("");
 
   const fetchProjects = useCallback(async () => {
     try {
@@ -213,6 +231,11 @@ export default function HomePage() {
   useEffect(() => {
     fetchProjects();
   }, [fetchProjects]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setStoredBoardWorkspaceId(readStoredBoardWorkspaceId(window.localStorage));
+  }, []);
 
   const hasActive = projects.some((p) => ["planning", "in_progress"].includes(p.status));
   usePolling(fetchProjects, 10000, hasActive);
@@ -275,7 +298,14 @@ export default function HomePage() {
   const draftCount = projects.filter((p) => p.status === "draft").length;
   const failedCount = projects.filter((p) => p.status === "failed").length;
   const completedCount = projects.filter((p) => p.status === "completed").length;
+  const boardWorkspaceId = resolveWorkspaceSelection({
+    requestedWorkspaceId: "",
+    storedWorkspaceId: storedBoardWorkspaceId,
+    availableWorkspaceIds: workspaces.map((workspace) => workspace.id),
+  });
+  const boardHref = buildBoardHref(boardWorkspaceId);
   const homeGuidance = getHomeGuidance({
+    boardHref,
     workspaceCount: workspaces.length,
     projectCount: projects.length,
     activeCount,
@@ -440,7 +470,7 @@ export default function HomePage() {
                     if the brief is ready.
                   </p>
                   <div className="home-empty-actions">
-                    <Link href="/board" className="btn btn-secondary">
+                    <Link href={boardHref} className="btn btn-secondary">
                       Feature Board
                     </Link>
                     <Link href="/projects/new" className="btn btn-primary">

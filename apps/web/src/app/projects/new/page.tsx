@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Breadcrumbs } from "../../../components/Breadcrumbs";
@@ -13,6 +14,27 @@ import {
 } from "../../../lib/api";
 
 type ProjectMode = "greenfield" | "existing";
+type ProviderOption = "claude" | "opencode";
+
+const PROVIDER_OPTIONS: Array<{
+  value: ProviderOption;
+  label: string;
+  tagline: string;
+  recommendedFor: string;
+}> = [
+  {
+    value: "opencode",
+    label: "OpenCode",
+    tagline: "Fast default for most product and frontend iteration loops.",
+    recommendedFor: "Recommended for day-to-day product execution and rapid retry cycles.",
+  },
+  {
+    value: "claude",
+    label: "Claude Code",
+    tagline: "Useful when you want stronger long-context reasoning in planning-heavy tasks.",
+    recommendedFor: "Good for architecture-heavy changes and larger codebase analysis.",
+  },
+];
 
 const GOAL_TEMPLATES: Record<ProjectMode, { label: string; value: string }[]> = {
   greenfield: [
@@ -45,13 +67,17 @@ function getFieldError(fieldErrors: ApiFieldErrors, field: string): string | und
   return fieldErrors[field]?.[0];
 }
 
+function getWorkspaceBoardHref(workspaceId: string): string {
+  return workspaceId ? `/board?workspaceId=${workspaceId}` : "/board";
+}
+
 export default function NewProjectPage() {
   const router = useRouter();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [workspaceId, setWorkspaceId] = useState("");
   const [name, setName] = useState("");
   const [goal, setGoal] = useState("");
-  const [provider, setProvider] = useState<"claude" | "opencode">("opencode");
+  const [provider, setProvider] = useState<ProviderOption>("opencode");
   const [projectMode, setProjectMode] = useState<ProjectMode>("greenfield");
   const [repoUrl, setRepoUrl] = useState("");
   const [repoPath, setRepoPath] = useState("");
@@ -69,6 +95,16 @@ export default function NewProjectPage() {
 
   const activeTemplates = useMemo(() => GOAL_TEMPLATES[projectMode], [projectMode]);
   const selectedWorkspace = workspaces.find((workspace) => workspace.id === workspaceId);
+  const selectedProvider = PROVIDER_OPTIONS.find((option) => option.value === provider);
+  const boardHref = getWorkspaceBoardHref(workspaceId);
+  const repoSourceSummary =
+    projectMode === "greenfield"
+      ? "Not required for greenfield execution."
+      : repoPath.trim()
+        ? `Local path: ${repoPath.trim()}`
+        : repoUrl.trim()
+          ? `Git URL: ${repoUrl.trim()}`
+          : "Not set yet. Add repo URL or local path before planning.";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -328,22 +364,35 @@ export default function NewProjectPage() {
               <label className="label" htmlFor="provider">
                 AI Provider
               </label>
-              <select
-                id="provider"
-                className="input"
-                value={provider}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                  setProvider(e.target.value as "claude" | "opencode")
-                }
-              >
-                <option value="opencode">OpenCode</option>
-                <option value="claude">Claude Code</option>
-              </select>
+              <input type="hidden" id="provider" value={provider} readOnly />
+              <div className="provider-option-grid" role="radiogroup" aria-label="AI provider">
+                {PROVIDER_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={provider === option.value}
+                    className={`provider-option-card ${provider === option.value ? "active" : ""}`}
+                    onClick={() => setProvider(option.value)}
+                  >
+                    <span className="provider-option-title">{option.label}</span>
+                    <span className="provider-option-tagline">{option.tagline}</span>
+                    <span className="provider-option-note">{option.recommendedFor}</span>
+                  </button>
+                ))}
+              </div>
               <p className="field-hint">
                 You can switch provider later while the project is still in draft or after a failed
                 run.
               </p>
             </div>
+
+            {projectMode === "existing" && (
+              <div className="project-source-note">
+                <strong>Repository source</strong>
+                <p>{repoSourceSummary}</p>
+              </div>
+            )}
 
             {error && (
               <div className="error-banner" role="alert">
@@ -368,6 +417,30 @@ export default function NewProjectPage() {
         </div>
 
         <aside className="project-guide-card">
+          <h4>Execution setup</h4>
+          <ul className="project-checklist project-summary-list">
+            <li>
+              Workspace: <strong>{selectedWorkspace?.name ?? "Not selected"}</strong>
+            </li>
+            <li>
+              Mode:{" "}
+              <strong>{projectMode === "greenfield" ? "New project" : "Existing repo"}</strong>
+            </li>
+            <li>
+              Provider: <strong>{selectedProvider?.label ?? "Not selected"}</strong>
+            </li>
+            <li>
+              Repo source: <strong>{repoSourceSummary}</strong>
+            </li>
+          </ul>
+          {selectedWorkspace && (
+            <Link className="btn btn-secondary" href={boardHref}>
+              Open {selectedWorkspace.name} Board
+            </Link>
+          )}
+
+          <div className="project-guide-divider" />
+
           <h3>What happens next</h3>
           <ol className="project-guide-list">
             <li>The project is created in draft inside the selected workspace.</li>

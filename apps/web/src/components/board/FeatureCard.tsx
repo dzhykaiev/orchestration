@@ -21,6 +21,8 @@ const PRIORITY_LABELS: Record<number, string> = {
 interface FeatureCardProps {
   feature: Feature;
   linkedProject?: Pick<Project, "id" | "name" | "status">;
+  sourceProject?: Pick<Project, "id" | "name" | "status">;
+  assigneeLabel?: string;
   onEdit: (feature: Feature) => void;
   onKickoff?: (feature: Feature) => void;
   onDelete: (feature: Feature) => void;
@@ -29,6 +31,8 @@ interface FeatureCardProps {
 export function FeatureCard({
   feature,
   linkedProject,
+  sourceProject,
+  assigneeLabel,
   onEdit,
   onKickoff,
   onDelete,
@@ -55,6 +59,19 @@ export function FeatureCard({
         </span>
       </div>
       <h4 className="feature-card-title">{feature.title}</h4>
+      <p className="feature-card-desc" style={{ marginBottom: "0.4rem" }}>
+        Assignee: {assigneeLabel ?? "Main orchestrator"}
+      </p>
+      {feature.sourceProjectId && (
+        <Link
+          href={`/projects/${feature.sourceProjectId}`}
+          onClick={(e) => e.stopPropagation()}
+          className="feature-project-link"
+          style={{ marginBottom: "0.4rem" }}
+        >
+          Reported from: {sourceProject?.name ?? "Project"}
+        </Link>
+      )}
       {feature.description && (
         <p className="feature-card-desc">
           {feature.description.length > 120

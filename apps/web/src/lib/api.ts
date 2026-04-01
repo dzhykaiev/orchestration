@@ -339,6 +339,12 @@ export const api = {
         `/api/projects/${id}/artifacts${query}`,
       );
     },
+    issues: (id: string, limit = 20, offset = 0, status?: string) => {
+      const statusQuery = status ? `&status=${encodeURIComponent(status)}` : "";
+      return fetchAPI<{ data: Feature[]; total: number; limit: number; offset: number }>(
+        `/api/projects/${id}/issues?limit=${limit}&offset=${offset}${statusQuery}`,
+      );
+    },
   },
   workstreams: {
     get: (id: string) => fetchAPI<{ workstream: Workstream }>(`/api/workstreams/${id}`),
@@ -366,6 +372,9 @@ export const api = {
       description?: string;
       type?: string;
       priority?: number;
+      sourceProjectId?: string;
+      assigneeMode?: "orchestrator" | "agent";
+      assigneeAgentDefinitionId?: string | null;
     }) =>
       fetchAPI<{ feature: Feature }>("/api/features", {
         method: "POST",
@@ -389,6 +398,25 @@ export const api = {
         method: "PATCH",
         body: JSON.stringify({ updates }),
       }),
+  },
+  launch: {
+    start: (projectId: string) =>
+      fetchAPI<{ port: number; url: string; status: string }>(`/api/projects/${projectId}/launch`, {
+        method: "POST",
+      }),
+    stop: (projectId: string) =>
+      fetchAPI<{ stopped: boolean }>(`/api/projects/${projectId}/launch/stop`, {
+        method: "POST",
+      }),
+    status: (projectId: string) =>
+      fetchAPI<{
+        running: boolean;
+        port?: number;
+        url?: string;
+        status?: string;
+        logs?: string[];
+        startedAt?: string;
+      }>(`/api/projects/${projectId}/launch/status`),
   },
   files: {
     list: (projectId: string, path?: string) => {

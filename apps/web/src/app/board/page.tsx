@@ -8,20 +8,14 @@ import { FeatureModal } from "../../components/board/FeatureModal";
 import { KanbanColumn } from "../../components/board/KanbanColumn";
 import { useToastContext } from "../../components/ui/ToastProvider";
 import { api, getErrorDetails, getErrorMessage } from "../../lib/api";
-import type { Feature, Project, Workspace } from "../../lib/api";
+import type { AgentDefinition, Feature, Project, Workspace } from "../../lib/api";
+import {
+  readStoredBoardWorkspaceId,
+  resolveWorkspaceSelection,
+  writeStoredBoardWorkspaceId,
+} from "../../lib/workspaceNavigation";
 
 const STATUSES = ["backlog", "todo", "in_progress", "done", "rejected"] as const;
-
-function getStoredWorkspaceId(): string {
-  if (typeof window === "undefined") return "";
-  return localStorage.getItem("board_workspace_id") || "";
-}
-
-function storeWorkspaceId(id: string) {
-  if (typeof window !== "undefined") {
-    localStorage.setItem("board_workspace_id", id);
-  }
-}
 
 export default function BoardPage() {
   const router = useRouter();
@@ -32,6 +26,10 @@ export default function BoardPage() {
   const [projectsById, setProjectsById] = useState<
     Record<string, Pick<Project, "id" | "name" | "status">>
   >({});
+  const [agents, setAgents] = useState<AgentDefinition[]>([]);
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [projectFilter, setProjectFilter] = useState<string>("all");
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingFeature, setEditingFeature] = useState<Feature | null>(null);
@@ -55,15 +53,18 @@ export default function BoardPage() {
     if (!workspaceId) {
       setFeatures([]);
       setProjectsById({});
+      setAgents([]);
       setLoading(false);
       return;
     }
     try {
-      const [featuresData, projectsData] = await Promise.all([
+      const [featuresData, projectsData, agentsData] = await Promise.all([
         api.workspaces.features(workspaceId),
         api.workspaces.projects(workspaceId, 100, 0, true),
+        api.workspaces.agents(workspaceId),
       ]);
       setFeatures(featuresData.data);
+      setAgents(agentsData.agents);
       setProjectsById(
         Object.fromEntries(
           projectsData.data.map((project) => [
@@ -108,12 +109,27 @@ export default function BoardPage() {
         return;
       }
       const requestedWorkspaceId = searchParams.get("workspaceId") || "";
-      const requestedMatch = ws.find((w) => w.id === requestedWorkspaceId);
-      const stored = getStoredWorkspaceId();
-      const match = ws.find((w) => w.id === stored);
-      const initial = requestedMatch?.id || match?.id || ws[0]?.id || "";
+      const stored = readStoredBoardWorkspaceId(
+        typeof window === "undefined" ? null : window.localStorage,
+      );
+      const initial = resolveWorkspaceSelection({
+        requestedWorkspaceId,
+        storedWorkspaceId: stored,
+        availableWorkspaceIds: ws.map((workspace) => workspace.id),
+      });
       setSelectedWorkspaceId(initial);
-      storeWorkspaceId(initial);
+      const queryType = searchParams.get("type");
+      const queryProjectId = searchParams.get("projectId");
+      if (queryType === "bug") {
+        setTypeFilter("bug");
+      }
+      if (queryProjectId) {
+        setProjectFilter(queryProjectId);
+      }
+      writeStoredBoardWorkspaceId(
+        typeof window === "undefined" ? null : window.localStorage,
+        initial,
+      );
       syncWorkspaceContext(initial);
       fetchBoardData(initial);
     });
@@ -121,7 +137,7 @@ export default function BoardPage() {
 
   function handleWorkspaceChange(wsId: string) {
     setSelectedWorkspaceId(wsId);
-    storeWorkspaceId(wsId);
+    writeStoredBoardWorkspaceId(typeof window === "undefined" ? null : window.localStorage, wsId);
     syncWorkspaceContext(wsId);
     setLoading(true);
     fetchBoardData(wsId);
@@ -133,9 +149,20 @@ export default function BoardPage() {
     }
   }, [selectedWorkspaceId, fetchBoardData]);
 
+  const filteredFeatures = features.filter((feature) => {
+    if (typeFilter !== "all" && feature.type !== typeFilter) return false;
+    if (projectFilter !== "all" && feature.sourceProjectId !== projectFilter) return false;
+    if (assigneeFilter === "orchestrator" && feature.assigneeMode !== "orchestrator") return false;
+    if (assigneeFilter.startsWith("agent:")) {
+      const agentId = assigneeFilter.replace("agent:", "");
+      if (feature.assigneeAgentDefinitionId !== agentId) return false;
+    }
+    return true;
+  });
+
   const featuresByStatus = STATUSES.reduce(
     (acc, status) => {
-      acc[status] = features.filter((f) => f.status === status);
+      acc[status] = filteredFeatures.filter((f) => f.status === status);
       return acc;
     },
     {} as Record<string, Feature[]>,
@@ -180,6 +207,9 @@ export default function BoardPage() {
     type: string;
     priority: number;
     status?: string;
+    sourceProjectId?: string | null;
+    assigneeMode?: "orchestrator" | "agent";
+    assigneeAgentDefinitionId?: string | null;
   }) {
     try {
       if (editingFeature) {
@@ -197,6 +227,9 @@ export default function BoardPage() {
           description: data.description,
           type: data.type,
           priority: data.priority,
+          sourceProjectId: data.sourceProjectId ?? undefined,
+          assigneeMode: data.assigneeMode,
+          assigneeAgentDefinitionId: data.assigneeAgentDefinitionId,
         });
         toast.success("Feature created");
       }
@@ -256,15 +289,19 @@ export default function BoardPage() {
   }
 
   const selectedWorkspace = workspaces.find((w) => w.id === selectedWorkspaceId);
-  const readyToKickoff = features.filter(
+  const issueMode = typeFilter === "bug";
+  const readyToKickoff = filteredFeatures.filter(
     (feature) => feature.status === "todo" && !feature.orchestrationProjectId,
   ).length;
-  const linkedProjectCount = features.filter((feature) => feature.orchestrationProjectId).length;
+  const linkedProjectCount = filteredFeatures.filter((feature) => feature.orchestrationProjectId).length;
   const activeProjectCount = Object.values(projectsById).filter((project) =>
     ["planning", "in_progress"].includes(project.status),
   ).length;
+  const agentNameById = Object.fromEntries(agents.map((agent) => [agent.id, agent.name]));
   const boardTip =
-    readyToKickoff > 0
+    issueMode
+      ? "Issue mode is active. Track bugs, assign owners, and move items toward resolution."
+      : readyToKickoff > 0
       ? `${readyToKickoff} feature${readyToKickoff > 1 ? "s are" : " is"} ready to kick off.`
       : activeProjectCount > 0
         ? `${activeProjectCount} linked project${activeProjectCount > 1 ? "s are" : " is"} currently running.`
@@ -360,17 +397,76 @@ export default function BoardPage() {
               ))}
             </select>
             <button type="button" className="btn btn-primary" onClick={handleNewFeature}>
-              New Feature
+              {issueMode ? "New Issue" : "New Feature"}
             </button>
           </div>
         </div>
       </div>
 
+      <div className="board-mode-toggle">
+        <button
+          type="button"
+          className={`btn ${!issueMode ? "btn-primary" : "btn-secondary"}`}
+          onClick={() => setTypeFilter("all")}
+        >
+          All Work
+        </button>
+        <button
+          type="button"
+          className={`btn ${issueMode ? "btn-primary" : "btn-secondary"}`}
+          onClick={() => setTypeFilter("bug")}
+        >
+          Issues
+        </button>
+      </div>
+
+      <div className="board-filters">
+        <select
+          className="input"
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value)}
+          aria-label="Filter by type"
+        >
+          <option value="all">All types</option>
+          <option value="bug">Bug</option>
+          <option value="feature">Feature</option>
+          <option value="improvement">Improvement</option>
+          <option value="refactor">Refactor</option>
+        </select>
+        <select
+          className="input"
+          value={projectFilter}
+          onChange={(e) => setProjectFilter(e.target.value)}
+          aria-label="Filter by source project"
+        >
+          <option value="all">All projects</option>
+          {Object.values(projectsById).map((project) => (
+            <option key={project.id} value={project.id}>
+              {project.name}
+            </option>
+          ))}
+        </select>
+        <select
+          className="input"
+          value={assigneeFilter}
+          onChange={(e) => setAssigneeFilter(e.target.value)}
+          aria-label="Filter by assignee"
+        >
+          <option value="all">All assignees</option>
+          <option value="orchestrator">Main orchestrator</option>
+          {agents.map((agent) => (
+            <option key={agent.id} value={`agent:${agent.id}`}>
+              {agent.name} ({agent.role})
+            </option>
+          ))}
+        </select>
+      </div>
+
       <div className="board-overview">
         <div className="board-stats">
           <div className="board-stat">
-            <span className="board-stat-value">{features.length}</span>
-            <span className="board-stat-label">Features</span>
+            <span className="board-stat-value">{filteredFeatures.length}</span>
+            <span className="board-stat-label">Visible items</span>
           </div>
           <div className="board-stat">
             <span className="board-stat-value">{readyToKickoff}</span>
@@ -388,7 +484,7 @@ export default function BoardPage() {
         <p className="board-tip">{boardTip}</p>
       </div>
 
-      {features.length === 0 ? (
+      {filteredFeatures.length === 0 ? (
         <div className="workspace-empty">
           <div className="workspace-empty-icon" aria-hidden="true">
             <svg
@@ -412,10 +508,12 @@ export default function BoardPage() {
           </div>
           <h3 className="workspace-empty-title">No features yet</h3>
           <p className="workspace-empty-desc">
-            Add your first feature to the backlog and start organizing.
+            {issueMode
+              ? "No issues match current filters. Create one from this board or from a project page."
+              : "Add your first feature to the backlog and start organizing."}
           </p>
           <button type="button" className="btn btn-primary" onClick={handleNewFeature}>
-            New Feature
+            {issueMode ? "New Issue" : "New Feature"}
           </button>
         </div>
       ) : (
@@ -427,6 +525,7 @@ export default function BoardPage() {
                 status={status}
                 features={featuresByStatus[status] || []}
                 linkedProjects={projectsById}
+                assigneeNamesById={agentNameById}
                 onDrop={handleDrop}
                 onEdit={handleEdit}
                 onKickoff={handleKickoff}
@@ -446,7 +545,10 @@ export default function BoardPage() {
         onSave={handleSave}
         feature={editingFeature}
         workspaces={workspaces}
+        agents={agents}
+        projects={Object.values(projectsById)}
         defaultWorkspaceId={selectedWorkspaceId}
+        defaultType={issueMode ? "bug" : "feature"}
       />
     </div>
   );

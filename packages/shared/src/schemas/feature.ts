@@ -61,7 +61,7 @@ export const UpdateFeatureSchema = z
     type: z.enum(featureTypeValues).optional(),
     priority: z.number().int().min(0).max(3).optional(),
     sortOrder: z.number().int().min(0).optional(),
-    sourceProjectId: z.string().uuid().optional(),
+    sourceProjectId: z.string().uuid().nullable().optional(),
     assigneeMode: z.enum(featureAssigneeModeValues).optional(),
     assigneeAgentDefinitionId: z.string().uuid().nullable().optional(),
   })

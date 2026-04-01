@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getErrorDetails, getErrorFieldErrors, getErrorMessage } from "../../lib/api";
-import type { Feature, Workspace } from "../../lib/api";
+import type { AgentDefinition, Feature, Project, Workspace } from "../../lib/api";
 import { Modal } from "../ui/Modal";
 
 interface FeatureModalProps {
@@ -15,10 +15,17 @@ interface FeatureModalProps {
     type: string;
     priority: number;
     status?: string;
+    sourceProjectId?: string | null;
+    assigneeMode?: "orchestrator" | "agent";
+    assigneeAgentDefinitionId?: string | null;
   }) => Promise<void>;
   feature?: Feature | null;
   workspaces: Workspace[];
+  agents?: AgentDefinition[];
+  projects?: Pick<Project, "id" | "name" | "status">[];
   defaultWorkspaceId?: string;
+  defaultType?: string;
+  defaultSourceProjectId?: string;
 }
 
 export function FeatureModal({
@@ -27,7 +34,11 @@ export function FeatureModal({
   onSave,
   feature,
   workspaces,
+  agents = [],
+  projects = [],
   defaultWorkspaceId,
+  defaultType = "feature",
+  defaultSourceProjectId,
 }: FeatureModalProps) {
   const [workspaceId, setWorkspaceId] = useState(defaultWorkspaceId || "");
   const [title, setTitle] = useState("");
@@ -35,6 +46,9 @@ export function FeatureModal({
   const [type, setType] = useState("feature");
   const [priority, setPriority] = useState(0);
   const [status, setStatus] = useState("backlog");
+  const [sourceProjectId, setSourceProjectId] = useState("");
+  const [assigneeMode, setAssigneeMode] = useState<"orchestrator" | "agent">("orchestrator");
+  const [assigneeAgentDefinitionId, setAssigneeAgentDefinitionId] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -44,7 +58,11 @@ export function FeatureModal({
   const selectedWorkspace = workspaces.find((workspace) => workspace.id === workspaceId);
   const titleCount = title.trim().length;
   const descriptionCount = description.trim().length;
-  const canSubmit = titleCount > 0 && (isEditing || Boolean(workspaceId)) && !submitting;
+  const canSubmit =
+    titleCount > 0 &&
+    (isEditing || Boolean(workspaceId)) &&
+    (assigneeMode === "orchestrator" || Boolean(assigneeAgentDefinitionId)) &&
+    !submitting;
 
   useEffect(() => {
     if (feature) {
@@ -54,19 +72,25 @@ export function FeatureModal({
       setPriority(feature.priority);
       setStatus(feature.status);
       setWorkspaceId(feature.workspaceId || defaultWorkspaceId || "");
+      setSourceProjectId(feature.sourceProjectId ?? defaultSourceProjectId ?? "");
+      setAssigneeMode(feature.assigneeMode ?? "orchestrator");
+      setAssigneeAgentDefinitionId(feature.assigneeAgentDefinitionId ?? "");
     } else {
       setTitle("");
       setDescription("");
-      setType("feature");
+      setType(defaultType);
       setPriority(0);
       setStatus("backlog");
       setWorkspaceId(defaultWorkspaceId || "");
+      setSourceProjectId(defaultSourceProjectId || "");
+      setAssigneeMode("orchestrator");
+      setAssigneeAgentDefinitionId("");
     }
     setSubmitting(false);
     setFieldErrors({});
     setFormError(null);
     setFormErrorDetails(undefined);
-  }, [feature, defaultWorkspaceId]);
+  }, [feature, defaultWorkspaceId, defaultType, defaultSourceProjectId]);
 
   function getFieldError(field: string) {
     return fieldErrors[field]?.[0];
@@ -74,7 +98,13 @@ export function FeatureModal({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim() || (!isEditing && !workspaceId)) return;
+    if (
+      !title.trim() ||
+      (!isEditing && !workspaceId) ||
+      (assigneeMode === "agent" && !assigneeAgentDefinitionId)
+    ) {
+      return;
+    }
 
     setSubmitting(true);
     setFieldErrors({});
@@ -89,6 +119,11 @@ export function FeatureModal({
         type,
         priority,
         ...(isEditing ? { status } : {}),
+        ...(!isEditing
+          ? { sourceProjectId: sourceProjectId || undefined }
+          : { sourceProjectId: sourceProjectId || null }),
+        assigneeMode,
+        assigneeAgentDefinitionId: assigneeMode === "agent" ? assigneeAgentDefinitionId : null,
       });
     } catch (error) {
       setFieldErrors(getErrorFieldErrors(error));
@@ -99,8 +134,14 @@ export function FeatureModal({
     }
   }
 
+  const createLabel = defaultType === "bug" ? "Issue" : "Feature";
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={isEditing ? "Edit Feature" : "New Feature"}>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={isEditing ? "Edit Feature" : `New ${createLabel}`}
+    >
       <form onSubmit={handleSubmit} className="feature-modal-form">
         <div className="feature-modal-intro">
           <span className="feature-modal-eyebrow">
@@ -249,6 +290,80 @@ export function FeatureModal({
             </select>
             <p className="field-hint">
               Use high or critical only when this should displace currently queued work.
+            </p>
+          </div>
+        </div>
+
+        {projects.length > 0 && (
+          <div className="mb-2">
+            <label htmlFor="feat-source-project" className="feature-modal-label">
+              Source project
+            </label>
+            <select
+              id="feat-source-project"
+              className="input"
+              value={sourceProjectId}
+              onChange={(e) => setSourceProjectId(e.target.value)}
+            >
+              <option value="">No linked project</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
+            <p className="field-hint">
+              Use this to move the ticket to another project context.
+            </p>
+          </div>
+        )}
+
+        <div className="feature-modal-grid mb-2">
+          <div>
+            <label htmlFor="feat-assignee-mode" className="feature-modal-label">
+              Assignee
+            </label>
+            <select
+              id="feat-assignee-mode"
+              className="input"
+              value={assigneeMode}
+              onChange={(e) => {
+                const mode = e.target.value as "orchestrator" | "agent";
+                setAssigneeMode(mode);
+                if (mode === "orchestrator") {
+                  setAssigneeAgentDefinitionId("");
+                }
+              }}
+            >
+              <option value="orchestrator">Main orchestrator</option>
+              <option value="agent">Specific agent</option>
+            </select>
+            <p className="field-hint">Choose who should own this ticket first.</p>
+          </div>
+
+          <div>
+            <label htmlFor="feat-assignee-agent" className="feature-modal-label">
+              Assigned agent
+            </label>
+            <select
+              id="feat-assignee-agent"
+              className="input"
+              value={assigneeAgentDefinitionId}
+              onChange={(e) => setAssigneeAgentDefinitionId(e.target.value)}
+              disabled={assigneeMode !== "agent"}
+              required={assigneeMode === "agent"}
+            >
+              <option value="">{agents.length > 0 ? "Select agent..." : "No agents available"}</option>
+              {agents.map((agent) => (
+                <option key={agent.id} value={agent.id}>
+                  {agent.name} ({agent.role})
+                </option>
+              ))}
+            </select>
+            <p className="field-hint">
+              {assigneeMode === "agent"
+                ? "The selected agent must belong to this workspace."
+                : "Direct assignment is disabled when orchestrator owns triage."}
             </p>
           </div>
         </div>

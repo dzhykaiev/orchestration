@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ThemeToggle } from "../components/ui/ThemeToggle";
+import { AppHeaderNav } from "../components/AppHeaderNav";
 import { ToastProvider } from "../components/ui/ToastProvider";
 import "./globals.css";
 
@@ -23,18 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Link href="/" className="app-logo">
             Orchestration
           </Link>
-          <nav className="app-nav">
-            <ThemeToggle />
-            <Link href="/workspaces" className="btn btn-secondary">
-              Workspaces
-            </Link>
-            <Link href="/board" className="btn btn-secondary">
-              Board
-            </Link>
-            <Link href="/projects/new" className="btn btn-primary">
-              New Project
-            </Link>
-          </nav>
+          <AppHeaderNav />
         </header>
         <ToastProvider>
           <main className="app-main">{children}</main>
