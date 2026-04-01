@@ -1,6 +1,6 @@
 {
-  "id": "7989dc8e-32be-4de1-ad2f-861f9483347c",
-  "prevId": "a1b2c3d4-0008-0000-0000-000000000008",
+  "id": "a1b2c3d4-0006-0000-0000-000000000006",
+  "prevId": "471f69f1-34c0-4c19-b647-05fe987287ac",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -880,26 +880,6 @@
           "notNull": true,
           "default": 0
         },
-        "source_project_id": {
-          "name": "source_project_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "assignee_mode": {
-          "name": "assignee_mode",
-          "type": "feature_assignee_mode",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'orchestrator'"
-        },
-        "assignee_agent_definition_id": {
-          "name": "assignee_agent_definition_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "orchestration_project_id": {
           "name": "orchestration_project_id",
           "type": "uuid",
@@ -952,51 +932,6 @@
           "method": "btree",
           "with": {}
         },
-        "idx_features_source_project_id": {
-          "name": "idx_features_source_project_id",
-          "columns": [
-            {
-              "expression": "source_project_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "idx_features_assignee_mode": {
-          "name": "idx_features_assignee_mode",
-          "columns": [
-            {
-              "expression": "assignee_mode",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "idx_features_assignee_agent_definition_id": {
-          "name": "idx_features_assignee_agent_definition_id",
-          "columns": [
-            {
-              "expression": "assignee_agent_definition_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "idx_features_orchestration_project_id": {
           "name": "idx_features_orchestration_project_id",
           "columns": [
@@ -1025,32 +960,6 @@
             "id"
           ],
           "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "features_source_project_id_projects_id_fk": {
-          "name": "features_source_project_id_projects_id_fk",
-          "tableFrom": "features",
-          "tableTo": "projects",
-          "columnsFrom": [
-            "source_project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "features_assignee_agent_definition_id_agent_definitions_id_fk": {
-          "name": "features_assignee_agent_definition_id_agent_definitions_id_fk",
-          "tableFrom": "features",
-          "tableTo": "agent_definitions",
-          "columnsFrom": [
-            "assignee_agent_definition_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
           "onUpdate": "no action"
         },
         "features_orchestration_project_id_projects_id_fk": {
@@ -1256,8 +1165,7 @@
         },
         "verdict": {
           "name": "verdict",
-          "type": "review_verdict",
-          "typeSchema": "public",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
@@ -1361,118 +1269,6 @@
           "tableTo": "projects",
           "columnsFrom": [
             "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.todos": {
-      "name": "todos",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "workspace_id": {
-          "name": "workspace_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "title": {
-          "name": "title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "status": {
-          "name": "status",
-          "type": "todo_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'pending'"
-        },
-        "order": {
-          "name": "order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "idx_todos_workspace": {
-          "name": "idx_todos_workspace",
-          "columns": [
-            {
-              "expression": "workspace_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "idx_todos_status": {
-          "name": "idx_todos_status",
-          "columns": [
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "todos_workspace_id_workspaces_id_fk": {
-          "name": "todos_workspace_id_workspaces_id_fk",
-          "tableFrom": "todos",
-          "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
           ],
           "columnsTo": [
             "id"
@@ -1760,14 +1556,6 @@
         "dismissed"
       ]
     },
-    "public.feature_assignee_mode": {
-      "name": "feature_assignee_mode",
-      "schema": "public",
-      "values": [
-        "orchestrator",
-        "agent"
-      ]
-    },
     "public.feature_status": {
       "name": "feature_status",
       "schema": "public",
@@ -1818,15 +1606,6 @@
         "opencode"
       ]
     },
-    "public.review_verdict": {
-      "name": "review_verdict",
-      "schema": "public",
-      "values": [
-        "approved",
-        "changes_requested",
-        "rejected"
-      ]
-    },
     "public.task_status": {
       "name": "task_status",
       "schema": "public",
@@ -1836,15 +1615,6 @@
         "completed",
         "failed",
         "cancelled"
-      ]
-    },
-    "public.todo_status": {
-      "name": "todo_status",
-      "schema": "public",
-      "values": [
-        "pending",
-        "in_progress",
-        "completed"
       ]
     },
     "public.validation_status": {
