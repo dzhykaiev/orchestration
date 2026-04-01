@@ -68,10 +68,7 @@ export class FeatureUseCases {
       throw new BusinessError("Feature already has an orchestration project");
     }
 
-    const selfRepoPath = process.env.SELF_REPO_PATH;
-    if (!selfRepoPath) {
-      throw new BusinessError("SELF_REPO_PATH is not configured");
-    }
+    const selfRepoPath = process.env.SELF_REPO_PATH?.trim() || process.cwd();
 
     if (!feature.workspaceId) {
       throw new BusinessError("Feature must belong to a workspace before kickoff");

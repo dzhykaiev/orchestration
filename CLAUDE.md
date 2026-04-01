@@ -65,6 +65,7 @@ pnpm db:seed      # Seed data
     frontend-design/
     frontend-ux-review/
     product-design-review/
+    product-flow-redesign/
     project-architect-review/
     ux-improvement-plan/
 .opencode/
