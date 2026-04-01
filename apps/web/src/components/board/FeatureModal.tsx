@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { getErrorDetails, getErrorFieldErrors, getErrorMessage } from "../../lib/api";
-import type { AgentDefinition, Feature, Project, Workspace } from "../../lib/api";
+import type { AgentDefinition, Company, Project, Ticket } from "../../lib/api";
 import { Modal } from "../ui/Modal";
 
 interface FeatureModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: {
-    workspaceId?: string;
+    companyId?: string;
     title: string;
     description?: string;
     type: string;
@@ -19,11 +19,11 @@ interface FeatureModalProps {
     assigneeMode?: "orchestrator" | "agent";
     assigneeAgentDefinitionId?: string | null;
   }) => Promise<void>;
-  feature?: Feature | null;
-  workspaces: Workspace[];
+  feature?: Ticket | null;
+  companies: Company[];
   agents?: AgentDefinition[];
   projects?: Pick<Project, "id" | "name" | "status">[];
-  defaultWorkspaceId?: string;
+  defaultCompanyId?: string;
   defaultType?: string;
   defaultSourceProjectId?: string;
 }
@@ -33,14 +33,14 @@ export function FeatureModal({
   onClose,
   onSave,
   feature,
-  workspaces,
+  companies,
   agents = [],
   projects = [],
-  defaultWorkspaceId,
+  defaultCompanyId,
   defaultType = "feature",
   defaultSourceProjectId,
 }: FeatureModalProps) {
-  const [workspaceId, setWorkspaceId] = useState(defaultWorkspaceId || "");
+  const [companyId, setCompanyId] = useState(defaultCompanyId || "");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [type, setType] = useState("feature");
@@ -55,12 +55,12 @@ export function FeatureModal({
   const [formErrorDetails, setFormErrorDetails] = useState<string | undefined>();
 
   const isEditing = !!feature;
-  const selectedWorkspace = workspaces.find((workspace) => workspace.id === workspaceId);
+  const selectedCompany = companies.find((company) => company.id === companyId);
   const titleCount = title.trim().length;
   const descriptionCount = description.trim().length;
   const canSubmit =
     titleCount > 0 &&
-    (isEditing || Boolean(workspaceId)) &&
+    (isEditing || Boolean(companyId)) &&
     (assigneeMode === "orchestrator" || Boolean(assigneeAgentDefinitionId)) &&
     !submitting;
 
@@ -71,7 +71,7 @@ export function FeatureModal({
       setType(feature.type);
       setPriority(feature.priority);
       setStatus(feature.status);
-      setWorkspaceId(feature.workspaceId || defaultWorkspaceId || "");
+      setCompanyId(feature.workspaceId || defaultCompanyId || "");
       setSourceProjectId(feature.sourceProjectId ?? defaultSourceProjectId ?? "");
       setAssigneeMode(feature.assigneeMode ?? "orchestrator");
       setAssigneeAgentDefinitionId(feature.assigneeAgentDefinitionId ?? "");
@@ -81,7 +81,7 @@ export function FeatureModal({
       setType(defaultType);
       setPriority(0);
       setStatus("backlog");
-      setWorkspaceId(defaultWorkspaceId || "");
+      setCompanyId(defaultCompanyId || "");
       setSourceProjectId(defaultSourceProjectId || "");
       setAssigneeMode("orchestrator");
       setAssigneeAgentDefinitionId("");
@@ -90,17 +90,21 @@ export function FeatureModal({
     setFieldErrors({});
     setFormError(null);
     setFormErrorDetails(undefined);
-  }, [feature, defaultWorkspaceId, defaultType, defaultSourceProjectId]);
+  }, [feature, defaultCompanyId, defaultType, defaultSourceProjectId]);
 
   function getFieldError(field: string) {
     return fieldErrors[field]?.[0];
+  }
+
+  function getCompanyFieldError() {
+    return getFieldError("companyId") || getFieldError("workspaceId");
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (
       !title.trim() ||
-      (!isEditing && !workspaceId) ||
+      (!isEditing && !companyId) ||
       (assigneeMode === "agent" && !assigneeAgentDefinitionId)
     ) {
       return;
@@ -113,7 +117,7 @@ export function FeatureModal({
 
     try {
       await onSave({
-        ...(!isEditing ? { workspaceId } : {}),
+        ...(!isEditing ? { companyId } : {}),
         title: title.trim(),
         description: description.trim() || undefined,
         type,
@@ -127,7 +131,7 @@ export function FeatureModal({
       });
     } catch (error) {
       setFieldErrors(getErrorFieldErrors(error));
-      setFormError(getErrorMessage(error, "Failed to save feature"));
+      setFormError(getErrorMessage(error, "Failed to save ticket"));
       setFormErrorDetails(getErrorDetails(error));
     } finally {
       setSubmitting(false);
@@ -164,36 +168,34 @@ export function FeatureModal({
 
         {!isEditing && (
           <div className="mb-2">
-            <label htmlFor="feat-workspace" className="feature-modal-label">
+            <label htmlFor="feat-company" className="feature-modal-label">
               Company
             </label>
             <select
-              id="feat-workspace"
+              id="feat-company"
               className="input"
-              value={workspaceId}
+              value={companyId}
               onChange={(e) => {
-                setWorkspaceId(e.target.value);
-                setFieldErrors((prev) => ({ ...prev, workspaceId: [] }));
+                setCompanyId(e.target.value);
+                setFieldErrors((prev) => ({ ...prev, companyId: [], workspaceId: [] }));
               }}
               required
             >
               <option value="">Select company...</option>
-              {workspaces.map((ws) => (
-                <option key={ws.id} value={ws.id}>
-                  {ws.name}
+              {companies.map((company) => (
+                <option key={company.id} value={company.id}>
+                  {company.name}
                 </option>
               ))}
             </select>
             <div className="field-meta-row">
               <p className="field-hint">
-                {selectedWorkspace
-                  ? `This ticket will be added to ${selectedWorkspace.name}.`
+                {selectedCompany
+                  ? `This ticket will be added to ${selectedCompany.name}.`
                   : "Choose the company where this ticket should be prioritized and launched."}
               </p>
             </div>
-            {getFieldError("workspaceId") && (
-              <p className="field-error">{getFieldError("workspaceId")}</p>
-            )}
+            {getCompanyFieldError() && <p className="field-error">{getCompanyFieldError()}</p>}
           </div>
         )}
 
@@ -396,9 +398,9 @@ export function FeatureModal({
           <span className="feature-modal-summary-label">Ready for board</span>
           <p className="feature-modal-summary-copy">
             {isEditing
-              ? `This ticket stays in ${selectedWorkspace?.name ?? "the current company"} and will keep its linked execution context if a project already exists.`
-              : selectedWorkspace
-                ? `This will create a new backlog ticket in ${selectedWorkspace.name}.`
+              ? `This ticket stays in ${selectedCompany?.name ?? "the current company"} and will keep its linked execution context if a project already exists.`
+              : selectedCompany
+                ? `This will create a new backlog ticket in ${selectedCompany.name}.`
                 : "Select a company and add a concise title to create the backlog ticket."}
           </p>
           <p className="feature-modal-summary-meta">

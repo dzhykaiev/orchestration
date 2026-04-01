@@ -1,17 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Breadcrumbs } from "../../../components/Breadcrumbs";
+import { PageEmptyState, PageErrorState, PageLoadingState } from "../../../components/ui/PageStates";
 import {
   type ApiFieldErrors,
-  type Workspace,
+  type Company,
   api,
   getErrorDetails,
   getErrorFieldErrors,
   getErrorMessage,
 } from "../../../lib/api";
+import { buildBoardHref } from "../../../lib/companyNavigation";
 
 type ProjectMode = "greenfield" | "existing";
 type ProviderOption = "claude" | "codex" | "opencode";
@@ -73,14 +75,13 @@ function getFieldError(fieldErrors: ApiFieldErrors, field: string): string | und
   return fieldErrors[field]?.[0];
 }
 
-function getWorkspaceBoardHref(workspaceId: string): string {
-  return workspaceId ? `/board?workspaceId=${workspaceId}` : "/board";
-}
-
 export default function NewProjectPage() {
   const router = useRouter();
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [workspaceId, setWorkspaceId] = useState("");
+  const searchParams = useSearchParams();
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [loadingCompanies, setLoadingCompanies] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [companyId, setCompanyId] = useState("");
   const [name, setName] = useState("");
   const [goal, setGoal] = useState("");
   const [provider, setProvider] = useState<ProviderOption>("opencode");
@@ -91,18 +92,53 @@ export default function NewProjectPage() {
   const [error, setError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<string | undefined>();
   const [fieldErrors, setFieldErrors] = useState<ApiFieldErrors>({});
+  const companyIdFromQuery = searchParams.get("companyId") || searchParams.get("workspaceId") || "";
 
   useEffect(() => {
-    api.workspaces.list(100, 0).then(({ data: ws }) => {
-      setWorkspaces(ws);
-      if (ws.length === 1 && ws[0]) setWorkspaceId(ws[0].id);
-    });
-  }, []);
+    let active = true;
+
+    async function loadCompanies() {
+      setLoadingCompanies(true);
+      setLoadError(null);
+
+      try {
+        const { data: list } = await api.companies.list(100, 0);
+        if (!active) return;
+
+        setCompanies(list);
+        if (companyIdFromQuery) {
+          const inList = list.some((company) => company.id === companyIdFromQuery);
+          if (inList) {
+            setCompanyId(companyIdFromQuery);
+            return;
+          }
+        }
+
+        if (list.length === 1 && list[0]) {
+          setCompanyId(list[0].id);
+        }
+      } catch (error) {
+        if (!active) return;
+        setLoadError(getErrorMessage(error, "Failed to load companies"));
+      } finally {
+        if (active) {
+          setLoadingCompanies(false);
+        }
+      }
+    }
+
+    void loadCompanies();
+
+    return () => {
+      active = false;
+    };
+  }, [companyIdFromQuery]);
 
   const activeTemplates = useMemo(() => GOAL_TEMPLATES[projectMode], [projectMode]);
-  const selectedWorkspace = workspaces.find((workspace) => workspace.id === workspaceId);
+  const selectedCompany = companies.find((company) => company.id === companyId);
   const selectedProvider = PROVIDER_OPTIONS.find((option) => option.value === provider);
-  const boardHref = getWorkspaceBoardHref(workspaceId);
+  const boardHref = buildBoardHref(companyId);
+  const cancelHref = companyId ? `/companies/${companyId}/projects` : "/companies";
   const repoSourceSummary =
     projectMode === "greenfield"
       ? "Not required for greenfield execution."
@@ -114,7 +150,7 @@ export default function NewProjectPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || !goal.trim() || !workspaceId) return;
+    if (!name.trim() || !goal.trim() || !companyId) return;
 
     setSubmitting(true);
     setError(null);
@@ -123,7 +159,8 @@ export default function NewProjectPage() {
 
     try {
       const { project } = await api.projects.create({
-        workspaceId,
+        // API contract still expects workspaceId; value is canonical company id.
+        workspaceId: companyId,
         name: name.trim(),
         goal: goal.trim(),
         provider,
@@ -140,9 +177,68 @@ export default function NewProjectPage() {
     }
   }
 
+  if (loadingCompanies) {
+    return <PageLoadingState title="New Project" subtitle="Loading companies..." />;
+  }
+
+  if (loadError) {
+    return (
+      <PageErrorState
+        title="New Project"
+        message={loadError}
+        onRetry={() => router.refresh()}
+        secondaryAction={
+          <Link className="btn btn-secondary" href="/companies">
+            Back to Companies
+          </Link>
+        }
+      />
+    );
+  }
+
+  if (companies.length === 0) {
+    return (
+      <div>
+        <Breadcrumbs
+          items={[{ label: "Companies", href: "/companies" }, { label: "Advanced: New Project" }]}
+        />
+        <div className="ws-page-header">
+          <div className="ws-page-header-row">
+            <div>
+              <h2 className="ws-page-title">New Project</h2>
+              <p className="ws-page-subtitle">
+                Advanced path: create a project brief directly. Ticket-first flow through the board
+                is the default for most work.
+              </p>
+            </div>
+          </div>
+        </div>
+        <PageEmptyState
+          title="No companies found"
+          description="Create a company first to organize your projects."
+          actions={
+            <Link className="btn btn-primary" href="/companies/new">
+              Create Company
+            </Link>
+          }
+        />
+      </div>
+    );
+  }
+
   return (
     <div>
-      <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "New Project" }]} />
+      <Breadcrumbs
+        items={
+          selectedCompany
+            ? [
+                { label: "Companies", href: "/companies" },
+                { label: selectedCompany.name, href: `/companies/${selectedCompany.id}` },
+                { label: "Advanced: New Project" },
+              ]
+            : [{ label: "Companies", href: "/companies" }, { label: "Advanced: New Project" }]
+        }
+      />
 
       <div className="ws-page-header">
         <div className="ws-page-header-row">
@@ -150,46 +246,15 @@ export default function NewProjectPage() {
             <h2 className="ws-page-title">New Project</h2>
             <p className="ws-page-subtitle">
               {projectMode === "greenfield"
-                ? "Describe what you want to build. The architect agent will design the system and create parallel workstreams."
-                : "Link an existing repository. The architect agent will analyze the codebase and plan changes."}
+                ? "Advanced path: create a project brief directly. Ticket-first flow through the board is the default for most work."
+                : "Advanced path: link an existing repository. Ticket-first flow through the board is the default for most work."}
             </p>
           </div>
         </div>
       </div>
 
-      {workspaces.length === 0 && (
-        <div className="workspace-empty" style={{ marginBottom: "1.5rem" }}>
-          <div className="workspace-empty-icon">
-            <svg
-              aria-hidden="true"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-            </svg>
-          </div>
-          <h3 className="workspace-empty-title">No workspaces found</h3>
-          <p className="workspace-empty-desc">
-            Create a workspace first to organize your projects.
-          </p>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => router.push("/workspaces/new")}
-          >
-            Create Workspace
-          </button>
-        </div>
-      )}
-
       <div className="project-create-layout">
-        <div className="workspace-create-card">
+        <div className="company-create-card">
           <div className="project-mode-switch">
             <button
               type="button"
@@ -215,35 +280,37 @@ export default function NewProjectPage() {
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
-              <label className="label" htmlFor="workspace">
-                Workspace
+              <label className="label" htmlFor="company">
+                Company
               </label>
               <select
-                id="workspace"
+                id="company"
                 className="input"
-                value={workspaceId}
+                value={companyId}
                 onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                  setWorkspaceId(e.target.value);
-                  setFieldErrors((prev) => ({ ...prev, workspaceId: [] }));
+                  setCompanyId(e.target.value);
+                  setFieldErrors((prev) => ({ ...prev, companyId: [], workspaceId: [] }));
                 }}
                 required
               >
-                <option value="">Select workspace...</option>
-                {workspaces.map((ws) => (
-                  <option key={ws.id} value={ws.id}>
-                    {ws.name}
+                <option value="">Select company...</option>
+                {companies.map((companyOption) => (
+                  <option key={companyOption.id} value={companyOption.id}>
+                    {companyOption.name}
                   </option>
                 ))}
               </select>
-              {selectedWorkspace ? (
+              {selectedCompany ? (
                 <p className="field-hint">
-                  This project will belong to <strong>{selectedWorkspace.name}</strong>.
+                  This project will belong to <strong>{selectedCompany.name}</strong>.
                 </p>
               ) : (
-                <p className="field-hint">Pick the workspace that should own this project.</p>
+                <p className="field-hint">Pick the company that should own this project.</p>
               )}
-              {getFieldError(fieldErrors, "workspaceId") && (
-                <p className="field-error">{getFieldError(fieldErrors, "workspaceId")}</p>
+              {(getFieldError(fieldErrors, "companyId") || getFieldError(fieldErrors, "workspaceId")) && (
+                <p className="field-error">
+                  {getFieldError(fieldErrors, "companyId") || getFieldError(fieldErrors, "workspaceId")}
+                </p>
               )}
             </div>
 
@@ -411,11 +478,15 @@ export default function NewProjectPage() {
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={submitting || !workspaceId || !name.trim() || !goal.trim()}
+                disabled={submitting || !companyId || !name.trim() || !goal.trim()}
               >
                 {submitting ? "Creating..." : "Create Project"}
               </button>
-              <button type="button" className="btn btn-secondary" onClick={() => router.push("/")}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => router.push(cancelHref)}
+              >
                 Cancel
               </button>
             </div>
@@ -426,7 +497,7 @@ export default function NewProjectPage() {
           <h4>Execution setup</h4>
           <ul className="project-checklist project-summary-list">
             <li>
-              Workspace: <strong>{selectedWorkspace?.name ?? "Not selected"}</strong>
+              Company: <strong>{selectedCompany?.name ?? "Not selected"}</strong>
             </li>
             <li>
               Mode:{" "}
@@ -439,9 +510,9 @@ export default function NewProjectPage() {
               Repo source: <strong>{repoSourceSummary}</strong>
             </li>
           </ul>
-          {selectedWorkspace && (
+          {selectedCompany && (
             <Link className="btn btn-secondary" href={boardHref}>
-              Open {selectedWorkspace.name} Board
+              Open {selectedCompany.name} Board
             </Link>
           )}
 
@@ -449,7 +520,7 @@ export default function NewProjectPage() {
 
           <h3>What happens next</h3>
           <ol className="project-guide-list">
-            <li>The project is created in draft inside the selected workspace.</li>
+            <li>The project is created in draft inside the selected company.</li>
             <li>You start planning when the brief looks correct.</li>
             <li>The architect agent generates the architecture and workstreams.</li>
             <li>Implementation agents run in parallel once planning completes.</li>

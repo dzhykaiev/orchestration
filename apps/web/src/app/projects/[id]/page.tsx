@@ -12,8 +12,8 @@ import { FileTree } from "../../../components/FileTree";
 import { FileViewer } from "../../../components/FileViewer";
 import { FeatureModal } from "../../../components/board/FeatureModal";
 import { ConfirmModal } from "../../../components/ui/ConfirmModal";
+import { PageErrorState, PageLoadingState } from "../../../components/ui/PageStates";
 import { ProgressBar } from "../../../components/ui/ProgressBar";
-import { SkeletonProjectDetail } from "../../../components/ui/SkeletonProjectDetail";
 import { StatusBadge } from "../../../components/ui/StatusBadge";
 import { useToastContext } from "../../../components/ui/ToastProvider";
 import { usePolling } from "../../../hooks/usePolling";
@@ -21,16 +21,16 @@ import { useSSE } from "../../../hooks/useSSE";
 import {
   type AgentTask,
   type AgentDefinition,
-  type Feature,
+  type Ticket,
   type Project,
-  type Workspace,
+  type Company,
   type Workstream,
   api,
   getErrorDetails,
   getErrorMessage,
 } from "../../../lib/api";
 import { getProviderStyle, timeAgo } from "../../../lib/utils";
-import { buildBoardHref, buildWorkspaceHref } from "../../../lib/workspaceNavigation";
+import { buildBoardHref, buildCompanyHref } from "../../../lib/companyNavigation";
 
 const DependencyGraph = dynamic(
   () => import("../../../components/DependencyGraph").then((m) => m.DependencyGraph),
@@ -126,6 +126,20 @@ function getStageSummary(project: Project, runningTaskCount: number) {
   }
 }
 
+function getLaunchStatusSummary(status?: string) {
+  switch (status) {
+    case "running":
+      return "Running";
+    case "starting":
+      return "Starting";
+    case "failed":
+      return "Failed";
+    case "stopped":
+    default:
+      return "Stopped";
+  }
+}
+
 export default function ProjectDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -135,10 +149,10 @@ export default function ProjectDetailPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [workstreams, setWorkstreams] = useState<Workstream[]>([]);
   const [tasksByWorkstream, setTasksByWorkstream] = useState<Record<string, AgentTask[]>>({});
-  const [linkedFeature, setLinkedFeature] = useState<Feature | null>(null);
-  const [issues, setIssues] = useState<Feature[]>([]);
-  const [workspace, setWorkspace] = useState<Workspace | null>(null);
-  const [workspaceAgents, setWorkspaceAgents] = useState<AgentDefinition[]>([]);
+  const [linkedFeature, setLinkedFeature] = useState<Ticket | null>(null);
+  const [issues, setIssues] = useState<Ticket[]>([]);
+  const [company, setCompany] = useState<Company | null>(null);
+  const [companyAgents, setCompanyAgents] = useState<AgentDefinition[]>([]);
   const [costBreakdown, setCostBreakdown] = useState<{
     total: number;
     byWorkstream: { workstreamId: string; name: string; cost: number }[];
@@ -167,6 +181,7 @@ export default function ProjectDetailPage() {
     url?: string;
     status?: string;
     logs?: string[];
+    startedAt?: string;
   } | null>(null);
   const [launching, setLaunching] = useState(false);
   const [stoppingLaunch, setStoppingLaunch] = useState(false);
@@ -197,12 +212,12 @@ export default function ProjectDetailPage() {
         .then((result) => setIssues(result.data))
         .catch(() => setIssues([]));
 
-      // Fetch workspace info for breadcrumbs
+      // Fetch company info for breadcrumbs
       if (proj.workspaceId) {
-        Promise.all([api.workspaces.get(proj.workspaceId), api.workspaces.agents(proj.workspaceId)])
-          .then(([workspaceRes, agentsRes]) => {
-            setWorkspace(workspaceRes.workspace);
-            setWorkspaceAgents(agentsRes.agents);
+        Promise.all([api.companies.get(proj.workspaceId), api.companies.agents(proj.workspaceId)])
+          .then(([companyRes, agentsRes]) => {
+            setCompany(companyRes.workspace);
+            setCompanyAgents(agentsRes.agents);
           })
           .catch(() => {});
       }
@@ -315,7 +330,7 @@ export default function ProjectDetailPage() {
     try {
       await api.projects.delete(projectId);
       toast.success("Project deleted");
-      router.push(buildWorkspaceHref(project?.workspaceId));
+      router.push(buildCompanyHref(project?.workspaceId));
     } catch (err) {
       const message = getErrorMessage(err, "Failed to delete project");
       const details = getErrorDetails(err);
@@ -326,7 +341,7 @@ export default function ProjectDetailPage() {
   }
 
   async function handleIssueSave(data: {
-    workspaceId?: string;
+    companyId?: string;
     title: string;
     description?: string;
     type: string;
@@ -337,12 +352,12 @@ export default function ProjectDetailPage() {
     assigneeAgentDefinitionId?: string | null;
   }) {
     if (!project?.workspaceId) {
-      toast.error("Workspace is required");
+      toast.error("Company is required");
       return;
     }
 
     try {
-      await api.features.create({
+      await api.tickets.create({
         workspaceId: project.workspaceId,
         title: data.title,
         description: data.description,
@@ -406,14 +421,29 @@ export default function ProjectDetailPage() {
     }
   }
 
-  // Check launch status on mount and when project is completed
+  // Keep launch status fresh while the project card is visible.
   useEffect(() => {
-    if (project?.status === "completed") {
-      api.launch
-        .status(projectId)
-        .then(setLaunchStatus)
-        .catch(() => {});
-    }
+    if (project?.status !== "completed") return;
+
+    let cancelled = false;
+    const syncStatus = async () => {
+      try {
+        const status = await api.launch.status(projectId);
+        if (!cancelled) setLaunchStatus(status);
+      } catch {
+        // best-effort only
+      }
+    };
+
+    void syncStatus();
+    const interval = setInterval(() => {
+      void syncStatus();
+    }, 2000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, [project?.status, projectId]);
 
   async function handleLaunch() {
@@ -421,23 +451,16 @@ export default function ProjectDetailPage() {
     setActionError(null);
     try {
       const result = await api.launch.start(projectId);
-      setLaunchStatus({ running: true, port: result.port, url: result.url, status: result.status });
-      toast.success({
-        title: "Project launched",
-        message: `Running at ${result.url}`,
+      setLaunchStatus({
+        running: result.status === "running",
+        port: result.port,
+        url: result.url,
+        status: result.status,
       });
-      // Poll status to detect when it's ready
-      const interval = setInterval(async () => {
-        try {
-          const status = await api.launch.status(projectId);
-          setLaunchStatus(status);
-          if (status.status === "running" || status.status === "failed" || !status.running) {
-            clearInterval(interval);
-          }
-        } catch {
-          clearInterval(interval);
-        }
-      }, 2000);
+      toast.success({
+        title: "Launch started",
+        message: "Starting dev server, waiting for readiness...",
+      });
     } catch (err) {
       setActionError({
         message: getErrorMessage(err, "Failed to launch project"),
@@ -497,24 +520,28 @@ export default function ProjectDetailPage() {
     el?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
-  if (loading) return <SkeletonProjectDetail />;
+  if (loading) {
+    return (
+      <PageLoadingState
+        title="Project"
+        subtitle="Loading project status, workstreams, and tasks..."
+        height={300}
+      />
+    );
+  }
   if (loadError)
     return (
-      <div className="project-load-error">
-        <div className="error-banner" role="alert">
-          <strong>Project page failed to load</strong>
-          <div>{loadError}</div>
-          {loadErrorDetails && <pre className="error-banner-details">{loadErrorDetails}</pre>}
-        </div>
-        <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-          <button type="button" className="btn btn-primary" onClick={fetchData}>
-            Retry
-          </button>
-          <button type="button" className="btn btn-secondary" onClick={() => router.push("/")}>
-            Back to Projects
-          </button>
-        </div>
-      </div>
+      <PageErrorState
+        title="Project page failed to load"
+        message={loadError}
+        details={loadErrorDetails}
+        onRetry={() => void fetchData()}
+        secondaryAction={
+          <Link href="/companies" className="btn btn-secondary">
+            Back to Companies
+          </Link>
+        }
+      />
     );
   if (!project) return <p>Project not found.</p>;
 
@@ -523,10 +550,15 @@ export default function ProjectDetailPage() {
   const canArchive = ["completed", "failed", "cancelled", "draft"].includes(project.status);
   const canDelete = ["archived", "completed", "failed", "cancelled"].includes(project.status);
   const canChangeProvider = ["draft", "failed", "cancelled"].includes(project.status);
-  const boardHref = buildBoardHref(project.workspaceId);
-  const workspaceHref = buildWorkspaceHref(project.workspaceId);
-  const agentNameById = Object.fromEntries(workspaceAgents.map((agent) => [agent.id, agent.name]));
+  const projectCompanyId = project.workspaceId;
+  const boardHref = buildBoardHref(projectCompanyId);
+  const companyHref = buildCompanyHref(projectCompanyId);
+  const agentNameById = Object.fromEntries(companyAgents.map((agent) => [agent.id, agent.name]));
   const boardIssuesHref = `${boardHref}${boardHref.includes("?") ? "&" : "?"}type=bug&projectId=${projectId}`;
+  const boardProjectTicketsHref = `${boardHref}${boardHref.includes("?") ? "&" : "?"}projectId=${projectId}`;
+  const linkedFeatureHref = linkedFeature
+    ? `${boardHref}${boardHref.includes("?") ? "&" : "?"}q=${encodeURIComponent(linkedFeature.title)}`
+    : boardHref;
 
   const completedWs = workstreams.filter((ws) => ws.status === "completed").length;
   const activeWs = workstreams.filter((ws) => ws.status === "in_progress").length;
@@ -536,6 +568,34 @@ export default function ProjectDetailPage() {
   const totalTaskCount = allTasks.length;
   const deliverableCount = workstreams.reduce((count, ws) => count + ws.deliverables.length, 0);
   const stageSummary = getStageSummary(project, runningTasks.length);
+  const launchState = launchStatus?.status ?? "stopped";
+  const launchSummary = getLaunchStatusSummary(launchState);
+  const launchUrl = launchStatus?.url;
+  const launchHasLogs = !!(launchStatus?.logs && launchStatus.logs.length > 0);
+  const launchStatusTone =
+    launchState === "running"
+      ? "var(--color-status-green-bg)"
+      : launchState === "failed"
+        ? "var(--color-status-red-bg)"
+        : launchState === "starting"
+          ? "var(--color-status-yellow-bg)"
+          : "var(--color-status-gray-bg)";
+  const stagePrimaryAction = (() => {
+    if (project.status === "draft") {
+      return { kind: "button" as const, label: planning ? "Starting..." : "Start Planning", disabled: planning };
+    }
+    if (project.status === "failed") {
+      return { kind: "link" as const, href: boardIssuesHref, label: "Open Issues On Board" };
+    }
+    if (project.status === "in_progress") {
+      return {
+        kind: "link" as const,
+        href: `/companies/${projectCompanyId}/activity`,
+        label: "Monitor Activity",
+      };
+    }
+    return { kind: "link" as const, href: boardProjectTicketsHref, label: "Open Related Tickets" };
+  })();
 
   // Build cost lookup by workstream
   const costByWorkstream: Record<string, number> = {};
@@ -550,8 +610,8 @@ export default function ProjectDetailPage() {
       {/* Breadcrumbs */}
       <Breadcrumbs
         items={[
-          { label: "Workspaces", href: "/workspaces" },
-          ...(workspace ? [{ label: workspace.name, href: `/workspaces/${workspace.id}` }] : []),
+          { label: "Companies", href: "/companies" },
+          ...(company ? [{ label: company.name, href: `/companies/${company.id}` }] : []),
           { label: project.name },
         ]}
       />
@@ -657,8 +717,8 @@ export default function ProjectDetailPage() {
 
       {linkedFeature && (
         <p className="text-sm project-source-link">
-          Created from feature:{" "}
-          <Link href={boardHref} style={{ color: "var(--color-primary)" }}>
+          Created from ticket:{" "}
+          <Link href={linkedFeatureHref} style={{ color: "var(--color-primary)" }}>
             {linkedFeature.title}
           </Link>
         </p>
@@ -691,7 +751,16 @@ export default function ProjectDetailPage() {
                 }}
               >
                 <div className="flex justify-between items-center" style={{ gap: "0.75rem", flexWrap: "wrap" }}>
-                  <strong>{issue.title}</strong>
+                  <Link
+                    href={
+                      issue.orchestrationProjectId
+                        ? `/projects/${issue.orchestrationProjectId}`
+                        : `${boardHref}${boardHref.includes("?") ? "&" : "?"}q=${encodeURIComponent(issue.title)}`
+                    }
+                    style={{ color: "var(--color-primary)", textDecoration: "none", fontWeight: 600 }}
+                  >
+                    {issue.title}
+                  </Link>
                   <StatusBadge status={issue.status} />
                 </div>
                 <p className="text-sm text-muted" style={{ margin: "0.35rem 0 0" }}>
@@ -700,6 +769,18 @@ export default function ProjectDetailPage() {
                     ? "Main orchestrator"
                     : agentNameById[issue.assigneeAgentDefinitionId ?? ""] || "Assigned agent"}
                 </p>
+                <div style={{ marginTop: "0.4rem" }}>
+                  <Link
+                    href={
+                      issue.orchestrationProjectId
+                        ? `/projects/${issue.orchestrationProjectId}`
+                        : `${boardHref}${boardHref.includes("?") ? "&" : "?"}q=${encodeURIComponent(issue.title)}`
+                    }
+                    className="btn btn-secondary"
+                  >
+                    {issue.orchestrationProjectId ? "Open Linked Project" : "Open Ticket On Board"}
+                  </Link>
+                </div>
               </div>
             ))}
           </div>
@@ -724,11 +805,28 @@ export default function ProjectDetailPage() {
             <span>{stageSummary.nextStep}</span>
           </div>
           <div className="project-stage-actions">
-            <Link href={boardHref} className="btn btn-secondary">
-              Open Workspace Board
+            {stagePrimaryAction.kind === "button" ? (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleStartPlanning}
+                disabled={stagePrimaryAction.disabled}
+              >
+                {stagePrimaryAction.label}
+              </button>
+            ) : (
+              <Link href={stagePrimaryAction.href} className="btn btn-primary">
+                {stagePrimaryAction.label}
+              </Link>
+            )}
+            <Link href={boardProjectTicketsHref} className="btn btn-secondary">
+              Open Related Tickets
             </Link>
-            <Link href={workspaceHref} className="btn btn-secondary">
-              Open Workspace
+            <Link href={companyHref} className="btn btn-secondary">
+              Open Company
+            </Link>
+            <Link href={`/companies/${projectCompanyId}/activity`} className="btn btn-secondary">
+              Open Activity
             </Link>
           </div>
         </div>
@@ -737,8 +835,8 @@ export default function ProjectDetailPage() {
           <p className="project-card-eyebrow">Source and context</p>
           <ul className="project-meta-list">
             <li>
-              <span>Workspace</span>
-              <strong>{workspace?.name ?? "Loading workspace..."}</strong>
+              <span>Company</span>
+              <strong>{company?.name ?? "Loading company..."}</strong>
             </li>
             <li>
               <span>Mode</span>
@@ -888,20 +986,40 @@ export default function ProjectDetailPage() {
               <strong>Project completed</strong>
               <p className="text-sm" style={{ margin: "4px 0 0" }}>
                 All workstreams finished. Output files in{" "}
-                <code>apps/orchestrator/projects/{project.id.slice(0, 8)}...</code>
+                <code>companies/{projectCompanyId}/projects/{project.id}</code>
+              </p>
+              <p className="text-sm" style={{ margin: "6px 0 0" }}>
+                Launch status:{" "}
+                <span
+                  style={{
+                    background: launchStatusTone,
+                    border: "1px solid var(--color-border)",
+                    borderRadius: 6,
+                    padding: "2px 8px",
+                    fontWeight: 600,
+                  }}
+                >
+                  {launchSummary}
+                </span>
+                {launchUrl ? (
+                  <>
+                    {" "}
+                    at <code>{launchUrl}</code>
+                  </>
+                ) : null}
               </p>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              {launchStatus?.running ? (
+              {launchState === "running" && launchUrl ? (
                 <>
                   <a
-                    href={launchStatus.url}
+                    href={launchUrl}
                     target="_blank"
                     rel="noreferrer"
                     className="btn btn-primary"
                     style={{ textDecoration: "none" }}
                   >
-                    Open {launchStatus.url}
+                    Open App
                   </a>
                   <button
                     type="button"
@@ -913,18 +1031,36 @@ export default function ProjectDetailPage() {
                   </button>
                 </>
               ) : (
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={handleLaunch}
-                  disabled={launching}
-                >
-                  {launching ? "Launching..." : "Launch Locally"}
-                </button>
+                <>
+                  {launchUrl && launchState === "starting" ? (
+                    <a
+                      href={launchUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="btn btn-secondary"
+                      style={{ textDecoration: "none" }}
+                    >
+                      Try Open App
+                    </a>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handleLaunch}
+                    disabled={launching || launchState === "starting"}
+                  >
+                    {launching || launchState === "starting" ? "Launching..." : "Launch Locally"}
+                  </button>
+                </>
               )}
             </div>
           </div>
-          {launchStatus?.running && launchStatus.logs && launchStatus.logs.length > 0 && (
+          {launchState === "failed" && (
+            <p className="text-sm" style={{ margin: "10px 0 0", color: "var(--color-danger)" }}>
+              Launch failed. Check server logs below for exact error.
+            </p>
+          )}
+          {launchHasLogs && (
             <details style={{ marginTop: 8 }}>
               <summary className="text-sm" style={{ cursor: "pointer" }}>
                 Server logs
@@ -942,7 +1078,7 @@ export default function ProjectDetailPage() {
                   whiteSpace: "pre-wrap",
                 }}
               >
-                {launchStatus.logs.join("")}
+                {launchStatus.logs?.join("")}
               </pre>
             </details>
           )}
@@ -1375,10 +1511,10 @@ export default function ProjectDetailPage() {
         onClose={() => setIssueModalOpen(false)}
         onSave={handleIssueSave}
         feature={null}
-        workspaces={workspace ? [workspace] : []}
-        agents={workspaceAgents}
+        companies={company ? [company] : []}
+        agents={companyAgents}
         projects={project ? [{ id: project.id, name: project.name, status: project.status }] : []}
-        defaultWorkspaceId={project.workspaceId}
+        defaultCompanyId={projectCompanyId}
         defaultType="bug"
         defaultSourceProjectId={projectId}
       />

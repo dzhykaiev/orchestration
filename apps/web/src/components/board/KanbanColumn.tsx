@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import type { Feature, Project } from "../../lib/api";
+import type { Project, Ticket } from "../../lib/api";
 import { FeatureCard } from "./FeatureCard";
 
-const STATUS_META: Record<Feature["status"], { label: string; subtitle: string; color: string }> = {
+const STATUS_META: Record<Ticket["status"], { label: string; subtitle: string; color: string }> = {
   backlog: {
     label: "Backlog",
     subtitle: "Ideas, requests, and work that still needs triage.",
@@ -33,15 +33,15 @@ const STATUS_META: Record<Feature["status"], { label: string; subtitle: string; 
 };
 
 interface KanbanColumnProps {
-  status: Feature["status"];
-  features: Feature[];
+  status: Ticket["status"];
+  features: Ticket[];
   linkedProjects: Record<string, Pick<Project, "id" | "name" | "status">>;
   assigneeNamesById?: Record<string, string>;
-  onDrop: (featureId: string, newStatus: Feature["status"]) => void;
-  onEdit: (feature: Feature) => void;
-  onKickoff?: (feature: Feature) => void;
-  onStatusChange?: (feature: Feature, newStatus: Feature["status"]) => void;
-  onDelete: (feature: Feature) => void;
+  onDrop: (featureId: string, newStatus: Ticket["status"]) => void;
+  onEdit: (feature: Ticket) => void;
+  onKickoff?: (feature: Ticket) => void;
+  onStatusChange?: (feature: Ticket, newStatus: Ticket["status"]) => void;
+  onDelete: (feature: Ticket) => void;
 }
 
 export function KanbanColumn({

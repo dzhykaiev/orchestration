@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { Feature, Project } from "../../lib/api";
+import type { Project, Ticket } from "../../lib/api";
 import { StatusBadge } from "../ui/StatusBadge";
 
 const TYPE_LABELS: Record<string, string> = {
@@ -19,8 +19,8 @@ const PRIORITY_LABELS: Record<number, string> = {
 };
 
 const STATUS_ACTIONS: Record<
-  Feature["status"],
-  { label: string; status: Feature["status"] }
+  Ticket["status"],
+  { label: string; status: Ticket["status"] }
 > = {
   backlog: { label: "Move to Todo", status: "todo" },
   todo: { label: "Start", status: "in_progress" },
@@ -30,14 +30,14 @@ const STATUS_ACTIONS: Record<
 };
 
 interface FeatureCardProps {
-  feature: Feature;
+  feature: Ticket;
   linkedProject?: Pick<Project, "id" | "name" | "status">;
   sourceProject?: Pick<Project, "id" | "name" | "status">;
   assigneeLabel?: string;
-  onEdit: (feature: Feature) => void;
-  onKickoff?: (feature: Feature) => void;
-  onStatusChange?: (feature: Feature, newStatus: Feature["status"]) => void;
-  onDelete: (feature: Feature) => void;
+  onEdit: (feature: Ticket) => void;
+  onKickoff?: (feature: Ticket) => void;
+  onStatusChange?: (feature: Ticket, newStatus: Ticket["status"]) => void;
+  onDelete: (feature: Ticket) => void;
 }
 
 export function FeatureCard({

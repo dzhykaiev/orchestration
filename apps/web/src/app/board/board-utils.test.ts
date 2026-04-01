@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Feature } from "../../lib/api";
+import type { Ticket } from "../../lib/api";
 import { buildFeatureSearchText } from "./board-utils";
 
 describe("buildFeatureSearchText", () => {
@@ -10,7 +10,7 @@ describe("buildFeatureSearchText", () => {
       type: "feature",
       status: "todo",
       assigneeMode: "agent",
-    } as Feature;
+    } as Ticket;
 
     const haystack = buildFeatureSearchText(feature, "Orchestrator One", "Frontend", "HQ Rollout");
 

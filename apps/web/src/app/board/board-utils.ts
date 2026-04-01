@@ -1,7 +1,7 @@
-import type { Feature } from "../../lib/api";
+import type { Ticket } from "../../lib/api";
 
 export function buildFeatureSearchText(
-  feature: Feature,
+  feature: Ticket,
   agentName: string,
   sourceProjectName?: string,
   linkedProjectName?: string,

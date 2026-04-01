@@ -4,18 +4,18 @@ import type { OrchestratorEvent } from "@orchestration/shared";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityFeed } from "../components/ActivityFeed";
-import { SkeletonCard } from "../components/ui/SkeletonCard";
+import { NextActionPanel } from "../components/ui/NextActionPanel";
+import { PageErrorState, PageLoadingState } from "../components/ui/PageStates";
 import { StatusBadge } from "../components/ui/StatusBadge";
 import { usePolling } from "../hooks/usePolling";
 import { useSSE } from "../hooks/useSSE";
 import { type ActivityItem, eventToActivity } from "../lib/activity";
-import { type Project, type Workspace, api } from "../lib/api";
+import { type Company, type Project, api } from "../lib/api";
 import { getProviderStyle, timeAgo } from "../lib/utils";
 import {
   buildBoardHref,
-  readStoredBoardWorkspaceId,
-  resolveWorkspaceSelection,
-} from "../lib/workspaceNavigation";
+  resolveCompanySelection,
+} from "../lib/companyNavigation";
 
 const PROJECT_PAGE_LIMIT = 100;
 
@@ -60,14 +60,14 @@ type GuidanceAction =
 
 function getHomeGuidance({
   boardHref,
-  workspaceCount,
+  companyCount,
   projectCount,
   activeCount,
   draftCount,
   failedCount,
 }: {
   boardHref: string;
-  workspaceCount: number;
+  companyCount: number;
   projectCount: number;
   activeCount: number;
   draftCount: number;
@@ -78,17 +78,17 @@ function getHomeGuidance({
   description: string;
   actions: GuidanceAction[];
 } {
-  if (workspaceCount === 0) {
+  if (companyCount === 0) {
     return {
       eyebrow: "Set up the system",
-      title: "Create the first workspace",
+      title: "Create the first company",
       description:
-        "Workspaces hold your features, projects, and agent configuration. Nothing else is useful until this exists.",
+        "Companies hold your tickets, projects, and agent configuration. Nothing else is useful until this exists.",
       actions: [
         {
           kind: "link",
-          href: "/workspaces/new",
-          label: "Create Workspace",
+          href: "/companies/new",
+          label: "Create Company",
           variant: "primary" as const,
         },
       ],
@@ -98,17 +98,11 @@ function getHomeGuidance({
   if (projectCount === 0) {
     return {
       eyebrow: "No execution yet",
-      title: "Turn ideas into the first project",
+      title: "Capture the first ticket, then kick off execution",
       description:
-        "Add features on the board if you want prioritization, or create a project directly if the goal is already clear.",
+        "Use the board as the default intake path so work is visible and prioritized before execution starts.",
       actions: [
-        { kind: "link", href: boardHref, label: "Open Feature Board", variant: "primary" as const },
-        {
-          kind: "link",
-          href: "/projects/new",
-          label: "Create Project",
-          variant: "secondary" as const,
-        },
+        { kind: "link", href: boardHref, label: "Open Ticket Board", variant: "primary" as const },
       ],
     };
   }
@@ -129,7 +123,7 @@ function getHomeGuidance({
         {
           kind: "link",
           href: boardHref,
-          label: "Check Feature Board",
+          label: "Check Ticket Board",
           variant: "secondary" as const,
         },
       ],
@@ -143,13 +137,7 @@ function getHomeGuidance({
       description:
         "Use the project detail pages to inspect workstreams, failed tasks, escalations, and generated artifacts while execution is live.",
       actions: [
-        { kind: "link", href: boardHref, label: "Open Feature Board", variant: "primary" as const },
-        {
-          kind: "link",
-          href: "/projects/new",
-          label: "Create Another Project",
-          variant: "secondary" as const,
-        },
+        { kind: "link", href: boardHref, label: "Open Ticket Board", variant: "primary" as const },
       ],
     };
   }
@@ -163,14 +151,8 @@ function getHomeGuidance({
       actions: [
         {
           kind: "link",
-          href: "/projects/new",
-          label: "Create Project",
-          variant: "secondary" as const,
-        },
-        {
-          kind: "link",
           href: boardHref,
-          label: "Prioritize Features",
+          label: "Prioritize Tickets",
           variant: "primary" as const,
         },
       ],
@@ -186,14 +168,8 @@ function getHomeGuidance({
       {
         kind: "link",
         href: boardHref,
-        label: "Prioritize Features",
+        label: "Prioritize Tickets",
         variant: "primary" as const,
-      },
-      {
-        kind: "link",
-        href: "/projects/new",
-        label: "Create Project",
-        variant: "secondary" as const,
       },
     ],
   };
@@ -201,7 +177,7 @@ function getHomeGuidance({
 
 export default function HomePage() {
   const [projects, setProjects] = useState<Project[]>([]);
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -210,17 +186,16 @@ export default function HomePage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [activityEvents, setActivityEvents] = useState<ActivityItem[]>([]);
-  const [storedBoardWorkspaceId, setStoredBoardWorkspaceId] = useState("");
 
   const fetchProjects = useCallback(async () => {
     try {
-      const [data, wsData] = await Promise.all([
+      const [data, companiesData] = await Promise.all([
         api.projects.list(PROJECT_PAGE_LIMIT, 0, showArchived),
-        api.workspaces.list(100, 0),
+        api.companies.list(100, 0),
       ]);
       setProjects(data.data);
       setTotal(data.total);
-      setWorkspaces(wsData.data);
+      setCompanies(companiesData.data);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load projects");
@@ -232,11 +207,6 @@ export default function HomePage() {
   useEffect(() => {
     fetchProjects();
   }, [fetchProjects]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    setStoredBoardWorkspaceId(readStoredBoardWorkspaceId(window.localStorage));
-  }, []);
 
   const hasActive = projects.some((p) => ["planning", "in_progress"].includes(p.status));
   usePolling(fetchProjects, 10000, hasActive);
@@ -299,15 +269,14 @@ export default function HomePage() {
   const draftCount = projects.filter((p) => p.status === "draft").length;
   const failedCount = projects.filter((p) => p.status === "failed").length;
   const completedCount = projects.filter((p) => p.status === "completed").length;
-  const boardWorkspaceId = resolveWorkspaceSelection({
-    requestedWorkspaceId: "",
-    storedWorkspaceId: storedBoardWorkspaceId,
-    availableWorkspaceIds: workspaces.map((workspace) => workspace.id),
+  const boardCompanyId = resolveCompanySelection({
+    requestedCompanyId: "",
+    availableCompanyIds: companies.map((company) => company.id),
   });
-  const boardHref = buildBoardHref(boardWorkspaceId);
+  const boardHref = buildBoardHref(boardCompanyId);
   const homeGuidance = getHomeGuidance({
     boardHref,
-    workspaceCount: workspaces.length,
+    companyCount: companies.length,
     projectCount: projects.length,
     activeCount,
     draftCount,
@@ -317,22 +286,21 @@ export default function HomePage() {
 
   if (loading) {
     return (
-      <div>
-        <SkeletonCard />
-        <SkeletonCard />
-        <SkeletonCard />
-      </div>
+      <PageLoadingState
+        title="Home"
+        subtitle="Loading companies, projects, and activity context..."
+        height={280}
+      />
     );
   }
 
   if (error) {
     return (
-      <div>
-        <p style={{ color: "var(--color-danger)" }}>Error: {error}</p>
-        <button type="button" className="btn btn-secondary" onClick={fetchProjects}>
-          Retry
-        </button>
-      </div>
+      <PageErrorState
+        title="Home failed to load"
+        message={error}
+        onRetry={() => void fetchProjects()}
+      />
     );
   }
 
@@ -341,11 +309,16 @@ export default function HomePage() {
       <div className="home-projects">
         <section className="home-overview card">
           <div className="home-overview-copy">
-            <p className="home-overview-eyebrow">{homeGuidance.eyebrow}</p>
-            <h1 className="home-overview-title">{homeGuidance.title}</h1>
-            <p className="home-overview-description">{homeGuidance.description}</p>
-            <div className="home-overview-actions">
-              {homeGuidance.actions.map((action) =>
+            <NextActionPanel
+              eyebrow={homeGuidance.eyebrow}
+              title={homeGuidance.title}
+              description={homeGuidance.description}
+              titleTag="h1"
+              eyebrowClassName="home-overview-eyebrow"
+              titleClassName="home-overview-title"
+              descriptionClassName="home-overview-description"
+              actionsClassName="home-overview-actions"
+              actions={homeGuidance.actions.map((action) =>
                 action.kind === "link" ? (
                   <Link
                     key={`${action.kind}:${action.href}:${action.label}`}
@@ -365,13 +338,13 @@ export default function HomePage() {
                   </button>
                 ),
               )}
-            </div>
+            />
           </div>
 
-          <div className="home-overview-stats" aria-label="Workspace and project summary">
+          <div className="home-overview-stats" aria-label="Company and project summary">
             <div className="home-stat-card">
-              <span className="home-stat-value">{workspaces.length}</span>
-              <span className="home-stat-label">Workspaces</span>
+              <span className="home-stat-value">{companies.length}</span>
+              <span className="home-stat-label">Companies</span>
             </div>
             <div className="home-stat-card">
               <span className="home-stat-value">{activeCount}</span>
@@ -452,30 +425,26 @@ export default function HomePage() {
         {filteredProjects.length === 0 ? (
           <div className="card home-empty-state">
             {projects.length === 0 ? (
-              workspaces.length === 0 ? (
+              companies.length === 0 ? (
                 <>
-                  <p className="home-empty-title">No workspaces yet</p>
+                  <p className="home-empty-title">No companies yet</p>
                   <p className="text-muted mb-2">
-                    Create a workspace first. After that you can add features on the board or open a
+                    Create a company first. After that you can add tickets on the board or open a
                     project directly.
                   </p>
-                  <Link href="/workspaces/new" className="btn btn-primary">
-                    Create Workspace
+                  <Link href="/companies/new" className="btn btn-primary">
+                    Create Company
                   </Link>
                 </>
               ) : (
                 <>
                   <p className="home-empty-title">No projects yet</p>
                   <p className="text-muted mb-2">
-                    Start from the feature board if you want prioritization, or create a project now
-                    if the brief is ready.
+                    Start from the ticket board to capture and prioritize the first execution item.
                   </p>
                   <div className="home-empty-actions">
-                    <Link href={boardHref} className="btn btn-secondary">
-                      Feature Board
-                    </Link>
-                    <Link href="/projects/new" className="btn btn-primary">
-                      Create Project
+                    <Link href={boardHref} className="btn btn-primary">
+                      Ticket Board
                     </Link>
                   </div>
                 </>
