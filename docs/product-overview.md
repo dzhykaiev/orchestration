@@ -16,13 +16,16 @@ This is not a replacement for a development team. It is a force multiplier for a
 
 ## Core User Flow
 
-1. **Submit a goal.** The user describes what they want built in plain language via the web dashboard or API.
-2. **Architect plans.** The orchestrator invokes an architect agent (powered by Claude) that produces a system design: components, data models, APIs, file structure.
-3. **Workstreams created.** The plan is decomposed into parallel workstreams, each with a clear scope, deliverables, and interface contracts.
-4. **Agents execute.** Implementation agents pick up tasks from a job queue and write code, tests, and configuration files to the project directory.
-5. **Validation.** Each agent's output is validated against the contracts defined during planning. Failures trigger retries with corrective context.
-6. **Progress tracked.** The web dashboard shows real-time progress: which workstreams are active, which tasks are complete, what files have been generated.
-7. **Output delivered.** The final result is a project directory on disk containing the generated codebase.
+1. **Create or select a company.** Companies are the context boundary for tickets, projects, and agents.
+2. **Capture tickets on the board (default path).** The user adds and prioritizes ticket work before execution.
+3. **Kick off from a ready ticket.** The system creates a linked execution project from prioritized work.
+4. **Architect plans.** The orchestrator invokes an architect agent that produces a system design: components, data models, APIs, file structure.
+5. **Workstreams created.** The plan is decomposed into parallel workstreams, each with a clear scope, deliverables, and interface contracts.
+6. **Agents execute.** Implementation agents pick up tasks from a job queue and write code, tests, and configuration files to the project directory.
+7. **Progress tracked.** The dashboard shows real-time progress, linked back to company and ticket context.
+8. **Next actions are explicit.** Each key screen exposes one primary "what to do now" action so users do not get stuck between tickets, projects, and activity.
+
+Direct "New Project" remains available as an advanced path when a brief is already clear and ticket intake can be skipped intentionally.
 
 ## MVP Scope
 

@@ -1,12 +1,11 @@
-import { resolve } from "node:path";
 import type { AgentRole } from "@orchestration/shared";
+import { resolveCompanyProjectRoot } from "../../runtime/company-paths.js";
 import type {
   ImplementationDependencies,
   ImplementationJobData,
   ImplementationJobHandler,
 } from "./ports.js";
 
-const PROJECTS_DIR = resolve(process.env.PROJECTS_DIR || "./projects");
 const MAX_RETRY_DELAY_MS = 120_000;
 
 export function createImplementationJobHandler(
@@ -39,7 +38,7 @@ export function createImplementationJobHandler(
       );
       return;
     }
-    deps.eventBus.emitTyped("task.started", { taskId });
+    deps.eventBus.emitTyped("task.started", { taskId, projectId });
 
     try {
       await deps.auditLogRepo.createAuditLog({
@@ -56,9 +55,7 @@ export function createImplementationJobHandler(
     }
 
     const project = await deps.projectRepo.getProjectById(projectId);
-    const projectDir = project?.repoPath
-      ? resolve(project.repoPath)
-      : resolve(PROJECTS_DIR, projectId);
+    const projectDir = project ? resolveCompanyProjectRoot(project.workspaceId, projectId) : "";
     let newSessionId: string | undefined;
 
     try {
@@ -133,7 +130,7 @@ export function createImplementationJobHandler(
       }
 
       await deps.taskRepo.markTaskCompleted(taskId, result || "", newOrModified, costUsd);
-      deps.eventBus.emitTyped("task.completed", { taskId, filesModified: newOrModified });
+      deps.eventBus.emitTyped("task.completed", { taskId, projectId, filesModified: newOrModified });
 
       try {
         await deps.auditLogRepo.createAuditLog({
@@ -218,7 +215,7 @@ export function createImplementationJobHandler(
       } catch (markErr) {
         console.error(`[Implementation] Failed to mark task ${taskId} as failed:`, markErr);
       }
-      deps.eventBus.emitTyped("task.failed", { taskId, error: errorMessage });
+      deps.eventBus.emitTyped("task.failed", { taskId, projectId, error: errorMessage });
 
       try {
         await deps.auditLogRepo.createAuditLog({

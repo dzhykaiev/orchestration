@@ -54,6 +54,13 @@ pnpm db:seed      # Seed data
 - Agent roles: `ceo | planner | architect | lead | backend | frontend | data | devops | qa | reviewer`
 - Project statuses: `draft | planning | in_progress | completed | failed | cancelled | archived`
 
+## Main Agent Autonomy Rules
+
+- Execute assigned plans in autopilot mode until all steps are complete.
+- After each completed step, continue to the next step automatically without waiting for user confirmation.
+- Request user input only for hard blockers (permissions, destructive actions, or critical ambiguity).
+- When main-agent context usage reaches ~50%, run `/compact` and continue from the next unfinished step.
+
 <!-- AUTO_START -->
 ## Project Structure (auto-generated)
 
@@ -64,13 +71,21 @@ pnpm db:seed      # Seed data
     execution-plan/
     frontend-design/
     frontend-ux-review/
+    jira-state-sync/
+    jira-task-captain/
     product-design-review/
+    product-designer-jira/
     product-flow-redesign/
     project-architect-review/
+    system-ux-architect/
     ux-improvement-plan/
 .opencode/
   plans/
 .pnpm-store/
+  v10/
+    files/
+    index/
+    projects/
   v3/
 apps/
   api/
@@ -80,6 +95,9 @@ apps/
     src/
   web/
     src/
+companies/
+  3896512c-f846-42f9-8186-160ea3670538/
+    projects/
 contracts/
   api/
   events/
@@ -100,6 +118,12 @@ docs/
     agent-playbooks/
   plans/
   runbooks/
+jira/
+  _meta/
+  blocked/
+  done/
+  inprogress/
+  todo/
 logs/
 packages/
   db/

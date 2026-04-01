@@ -217,47 +217,89 @@ interface FileEntry {
 }
 
 // Re-export shared DTO types for use in components
-type Workspace = WorkspaceDto;
+type Company = WorkspaceDto;
 type Project = ProjectDto;
 type AuditLog = AuditLogDto;
 type Artifact = ArtifactDto;
 type AgentDefinition = AgentDefinitionDto;
 type Workstream = WorkstreamDto;
 type AgentTask = AgentTaskDto;
-type Feature = FeatureDto;
+type Ticket = FeatureDto;
+/** @deprecated Use Company */
+type Workspace = Company;
+/** @deprecated Use Ticket */
+type Feature = Ticket;
+
+const warnedDeprecations = new Set<string>();
+
+function warnDeprecatedApi(legacyKey: string, replacementKey: string) {
+  if (process.env.NODE_ENV === "production") return;
+  const warningKey = `${legacyKey}->${replacementKey}`;
+  if (warnedDeprecations.has(warningKey)) return;
+  warnedDeprecations.add(warningKey);
+  // Keep a soft warning in development while preserving runtime compatibility.
+  console.warn(`[api] '${legacyKey}' is deprecated. Use '${replacementKey}' instead.`);
+}
+
+const markWorkspacesDeprecated = () => warnDeprecatedApi("api.workspaces", "api.companies");
+const markFeaturesDeprecated = () => warnDeprecatedApi("api.features", "api.tickets");
 
 // --- API Client ---
 
 export const api = {
   workspaces: {
     list: (limit = 20, offset = 0) =>
-      fetchAPI<{ data: Workspace[]; total: number; limit: number; offset: number }>(
-        `/api/workspaces?limit=${limit}&offset=${offset}`,
-      ),
-    get: (id: string) => fetchAPI<{ workspace: Workspace }>(`/api/workspaces/${id}`),
-    create: (body: { name: string; slug?: string; description?: string }) =>
-      fetchAPI<{ workspace: Workspace }>("/api/workspaces", {
+      (markWorkspacesDeprecated(),
+      fetchAPI<{ data: Company[]; total: number; limit: number; offset: number }>(
+        `/api/companies?limit=${limit}&offset=${offset}`,
+      )),
+    get: (id: string) => (
+      markWorkspacesDeprecated(),
+      fetchAPI<{ workspace: Company }>(`/api/companies/${id}`)
+    ),
+    create: (body: {
+      name: string;
+      slug?: string;
+      description?: string;
+      mission?: string;
+      bootstrapAgentRole?: "ceo" | "orchestrator";
+      bootstrapAgentProvider?: "claude" | "codex" | "opencode";
+    }) =>
+      (markWorkspacesDeprecated(),
+      fetchAPI<{ workspace: Company }>("/api/companies", {
         method: "POST",
         body: JSON.stringify(body),
-      }),
+      })),
     update: (id: string, body: Record<string, unknown>) =>
-      fetchAPI<{ workspace: Workspace }>(`/api/workspaces/${id}`, {
+      (markWorkspacesDeprecated(),
+      fetchAPI<{ workspace: Company }>(`/api/companies/${id}`, {
         method: "PATCH",
         body: JSON.stringify(body),
-      }),
+      })),
     delete: (id: string) =>
-      fetchAPI<void>(`/api/workspaces/${id}`, {
+      (markWorkspacesDeprecated(),
+      fetchAPI<void>(`/api/companies/${id}`, {
         method: "DELETE",
-      }),
+      })),
     projects: (id: string, limit = 20, offset = 0, includeArchived = false) =>
+      (markWorkspacesDeprecated(),
       fetchAPI<{ data: Project[]; total: number; limit: number; offset: number }>(
-        `/api/workspaces/${id}/projects?limit=${limit}&offset=${offset}&includeArchived=${includeArchived}`,
-      ),
-    agents: (id: string) => fetchAPI<{ agents: AgentDefinition[] }>(`/api/workspaces/${id}/agents`),
+        `/api/companies/${id}/projects?limit=${limit}&offset=${offset}&includeArchived=${includeArchived}`,
+      )),
+    agents: (id: string) => (
+      markWorkspacesDeprecated(),
+      fetchAPI<{ agents: AgentDefinition[] }>(`/api/companies/${id}/agents`)
+    ),
     features: (id: string, limit = 100, offset = 0) =>
-      fetchAPI<{ data: Feature[]; total: number; limit: number; offset: number }>(
-        `/api/workspaces/${id}/features?limit=${limit}&offset=${offset}`,
-      ),
+      (markWorkspacesDeprecated(),
+      fetchAPI<{ tickets: Ticket[]; total: number; limit: number; offset: number }>(
+        `/api/companies/${id}/tickets?limit=${limit}&offset=${offset}`,
+      ).then((response) => ({
+        data: response.tickets,
+        total: response.total,
+        limit: response.limit,
+        offset: response.offset,
+      }))),
     createAgent: (
       id: string,
       body: {
@@ -266,9 +308,83 @@ export const api = {
         name: string;
         parentRole?: string;
         systemPrompt?: string;
+        capabilities?: string[];
+        maxConcurrentTasks?: number;
+        provider?: string;
       },
     ) =>
-      fetchAPI<{ agent: AgentDefinition }>(`/api/workspaces/${id}/agents`, {
+      (markWorkspacesDeprecated(),
+      fetchAPI<{ agent: AgentDefinition }>(`/api/companies/${id}/agents`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      })),
+  },
+  companies: {
+    list: (limit = 20, offset = 0) =>
+      fetchAPI<{ data: Company[]; total: number; limit: number; offset: number }>(
+        `/api/companies?limit=${limit}&offset=${offset}`,
+      ),
+    get: (id: string) => fetchAPI<{ workspace: Company }>(`/api/companies/${id}`),
+    create: (body: {
+      name: string;
+      slug?: string;
+      description?: string;
+      mission?: string;
+      bootstrapAgentRole?: "ceo" | "orchestrator";
+      bootstrapAgentProvider?: "claude" | "codex" | "opencode";
+    }) =>
+      fetchAPI<{ workspace: Company }>("/api/companies", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    update: (id: string, body: Record<string, unknown>) =>
+      fetchAPI<{ workspace: Company }>(`/api/companies/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }),
+    delete: (id: string) =>
+      fetchAPI<void>(`/api/companies/${id}`, {
+        method: "DELETE",
+      }),
+    projects: (id: string, limit = 20, offset = 0, includeArchived = false) =>
+      fetchAPI<{ data: Project[]; total: number; limit: number; offset: number }>(
+        `/api/companies/${id}/projects?limit=${limit}&offset=${offset}&includeArchived=${includeArchived}`,
+      ),
+    agents: (id: string) => fetchAPI<{ agents: AgentDefinition[] }>(`/api/companies/${id}/agents`),
+    tickets: (id: string, limit = 100, offset = 0) =>
+      fetchAPI<{ tickets: Ticket[]; total: number; limit: number; offset: number }>(
+        `/api/companies/${id}/tickets?limit=${limit}&offset=${offset}`,
+      ),
+    createTicket: (
+      id: string,
+      body: {
+        title: string;
+        description?: string;
+        status?: string;
+        type?: string;
+        sourceProjectId?: string;
+        assigneeMode?: "orchestrator" | "agent";
+        assigneeAgentDefinitionId?: string;
+      },
+    ) =>
+      fetchAPI<{ ticket: Ticket }>(`/api/companies/${id}/tickets`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    createAgent: (
+      id: string,
+      body: {
+        role: string;
+        tier: string;
+        name: string;
+        parentRole?: string;
+        systemPrompt?: string;
+        capabilities?: string[];
+        maxConcurrentTasks?: number;
+        provider?: string;
+      },
+    ) =>
+      fetchAPI<{ agent: AgentDefinition }>(`/api/companies/${id}/agents`, {
         method: "POST",
         body: JSON.stringify(body),
       }),
@@ -320,7 +436,7 @@ export const api = {
         project: Project;
         workstreams: Workstream[];
         tasks: AgentTask[];
-        feature?: Feature | null;
+        feature?: Ticket | null;
       }>(`/api/projects/${id}/detail`),
     costs: (id: string) =>
       fetchAPI<{
@@ -341,7 +457,7 @@ export const api = {
     },
     issues: (id: string, limit = 20, offset = 0, status?: string) => {
       const statusQuery = status ? `&status=${encodeURIComponent(status)}` : "";
-      return fetchAPI<{ data: Feature[]; total: number; limit: number; offset: number }>(
+      return fetchAPI<{ data: Ticket[]; total: number; limit: number; offset: number }>(
         `/api/projects/${id}/issues?limit=${limit}&offset=${offset}${statusQuery}`,
       );
     },
@@ -360,12 +476,23 @@ export const api = {
   },
   features: {
     list: (status?: string) => {
+      markFeaturesDeprecated();
       const query = status ? `?status=${status}&limit=100` : "?limit=100";
-      return fetchAPI<{ data: Feature[]; total: number; limit: number; offset: number }>(
-        `/api/features${query}`,
-      );
+      return fetchAPI<{ tickets: Ticket[]; total: number; limit: number; offset: number }>(
+        `/api/tickets${query}`,
+      ).then((response) => ({
+        data: response.tickets,
+        total: response.total,
+        limit: response.limit,
+        offset: response.offset,
+      }));
     },
-    get: (id: string) => fetchAPI<{ feature: Feature }>(`/api/features/${id}`),
+    get: (id: string) => (
+      markFeaturesDeprecated(),
+      fetchAPI<{ ticket: Ticket }>(`/api/tickets/${id}`).then((response) => ({
+        feature: response.ticket,
+      }))
+    ),
     create: (body: {
       workspaceId: string;
       title: string;
@@ -376,25 +503,119 @@ export const api = {
       assigneeMode?: "orchestrator" | "agent";
       assigneeAgentDefinitionId?: string | null;
     }) =>
-      fetchAPI<{ feature: Feature }>("/api/features", {
+      (markFeaturesDeprecated(),
+      fetchAPI<{ ticket: Ticket }>("/api/tickets", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }).then((response) => ({
+        feature: response.ticket,
+      }))),
+    update: (id: string, body: Record<string, unknown>) =>
+      (markFeaturesDeprecated(),
+      fetchAPI<{ ticket: Ticket }>(`/api/tickets/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }).then((response) => ({
+        feature: response.ticket,
+      }))),
+    delete: (id: string) =>
+      (markFeaturesDeprecated(),
+      fetchAPI<void>(`/api/tickets/${id}`, {
+        method: "DELETE",
+      })),
+    kickoff: (id: string) =>
+      (markFeaturesDeprecated(),
+      fetchAPI<{ ticket: Ticket; project: Project }>(`/api/tickets/${id}/kickoff`, {
+        method: "POST",
+      }).then((response) => ({
+        feature: response.ticket,
+        project: response.project,
+      }))),
+    reorder: (updates: { id: string; sortOrder: number }[]) =>
+      (markFeaturesDeprecated(),
+      fetchAPI<{ ok: boolean }>("/api/tickets/reorder", {
+        method: "PATCH",
+        body: JSON.stringify({ updates }),
+      })),
+  },
+  tickets: {
+    list: (status?: string) => {
+      const query = status ? `?status=${status}&limit=100` : "?limit=100";
+      return fetchAPI<{ tickets: Ticket[]; total: number; limit: number; offset: number }>(
+        `/api/tickets${query}`,
+      );
+    },
+    get: (id: string) => fetchAPI<{ ticket: Ticket }>(`/api/tickets/${id}`),
+    create: (body: {
+      workspaceId: string;
+      title: string;
+      description?: string;
+      type?: string;
+      priority?: number;
+      sourceProjectId?: string;
+      assigneeMode?: "orchestrator" | "agent";
+      assigneeAgentDefinitionId?: string | null;
+    }) =>
+      fetchAPI<{ ticket: Ticket }>("/api/tickets", {
         method: "POST",
         body: JSON.stringify(body),
       }),
     update: (id: string, body: Record<string, unknown>) =>
-      fetchAPI<{ feature: Feature }>(`/api/features/${id}`, {
+      fetchAPI<{ ticket: Ticket }>(`/api/tickets/${id}`, {
         method: "PATCH",
         body: JSON.stringify(body),
       }),
     delete: (id: string) =>
-      fetchAPI<void>(`/api/features/${id}`, {
+      fetchAPI<void>(`/api/tickets/${id}`, {
         method: "DELETE",
       }),
     kickoff: (id: string) =>
-      fetchAPI<{ feature: Feature; project: Project }>(`/api/features/${id}/kickoff`, {
+      fetchAPI<{ ticket: Ticket; project: Project }>(`/api/tickets/${id}/kickoff`, {
         method: "POST",
       }),
+    logs: (id: string, limit = 50, offset = 0) =>
+      fetchAPI<{ logs: AuditLog[]; total: number; limit: number; offset: number }>(
+        `/api/tickets/${id}/log?limit=${limit}&offset=${offset}`,
+      ),
+    addLog: (
+      id: string,
+      body: {
+        message: string;
+        channel?: "comment" | "question" | "handoff" | "note";
+        actorType?: "user" | "agent" | "system";
+        actorId?: string;
+        projectId?: string;
+        metadata?: Record<string, unknown>;
+      },
+    ) =>
+      fetchAPI<{ log: AuditLog | null }>(`/api/tickets/${id}/log`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    hire: (
+      id: string,
+      body: {
+        role: string;
+        tier: string;
+        name: string;
+        parentRole?: string;
+        systemPrompt?: string;
+        capabilities?: string[];
+        maxConcurrentTasks?: number;
+        provider?: string;
+        createFollowupTicket?: boolean;
+        followupTitle?: string;
+        followupDescription?: string;
+        requestedByActorType?: "user" | "agent" | "system";
+        requestedByActorId?: string;
+      },
+    ) =>
+      fetchAPI<{ agent: AgentDefinition; delegatedTicket: Ticket | null }>(`/api/tickets/${id}/hire`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
     reorder: (updates: { id: string; sortOrder: number }[]) =>
-      fetchAPI<{ ok: boolean }>("/api/features/reorder", {
+      fetchAPI<{ ok: boolean }>("/api/tickets/reorder", {
         method: "PATCH",
         body: JSON.stringify({ updates }),
       }),
@@ -431,11 +652,13 @@ export const api = {
 };
 
 export type {
+  Company,
   Workspace,
   Project,
   Workstream,
   AgentTask,
   FileEntry,
+  Ticket,
   Feature,
   AuditLog,
   Artifact,

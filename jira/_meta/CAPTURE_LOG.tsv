@@ -1,0 +1,10 @@
+created_at	ticket_id	status	file	title
+2026-04-01T07:21:37Z	JIRA-010	todo	jira/todo/JIRA-010-add-registration-button.md	Add registration button
+2026-04-01T07:54:24Z	JIRA-012	todo	jira/todo/JIRA-012-canonical-domain-language-and-route-cleanup-company-ticket.md	Canonical domain language and route cleanup (Company/Ticket)
+2026-04-01T07:54:25Z	JIRA-013	todo	jira/todo/JIRA-013-company-shell-ia-refactor-overview-tickets-projects-agents-activity.md	Company Shell IA refactor (Overview/Tickets/Projects/Agents/Activity)
+2026-04-01T07:54:25Z	JIRA-014	todo	jira/todo/JIRA-014-context-first-navigation-and-header-simplification.md	Context-first navigation and header simplification
+2026-04-01T07:54:25Z	JIRA-015	todo	jira/todo/JIRA-015-ticket-first-primary-flow-and-project-flow-demotion.md	Ticket-first primary flow and Project flow demotion
+2026-04-01T07:54:25Z	JIRA-016	todo	jira/todo/JIRA-016-board-context-state-cleanup-remove-hidden-workspace-state.md	Board context/state cleanup (remove hidden workspace state)
+2026-04-01T07:54:25Z	JIRA-017	todo	jira/todo/JIRA-017-unified-action-and-state-patterns-confirm-error-loading-empty.md	Unified action and state patterns (confirm/error/loading/empty)
+2026-04-01T07:54:25Z	JIRA-018	todo	jira/todo/JIRA-018-cross-entity-linking-and-next-action-guidance-system.md	Cross-entity linking and next-action guidance system
+2026-04-01T07:54:25Z	JIRA-019	todo	jira/todo/JIRA-019-api-alias-deprecation-and-contract-stabilization-plan.md	API alias deprecation and contract stabilization plan

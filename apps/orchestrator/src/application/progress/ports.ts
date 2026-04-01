@@ -22,6 +22,7 @@ export interface ProgressTask {
 
 export interface ProgressProject {
   id: string;
+  workspaceId: string;
   name: string;
   status: string;
   provider?: string | null;

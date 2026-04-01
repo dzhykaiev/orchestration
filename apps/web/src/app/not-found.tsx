@@ -7,8 +7,8 @@ export default function NotFound() {
       <p style={{ color: "var(--color-text-muted)", marginBottom: "2rem" }}>
         The page you are looking for does not exist.
       </p>
-      <Link href="/" className="btn btn-primary">
-        Back to Projects
+      <Link href="/companies" className="btn btn-primary">
+        Back to Companies
       </Link>
     </div>
   );

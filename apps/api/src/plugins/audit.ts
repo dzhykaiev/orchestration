@@ -46,13 +46,20 @@ function parseRoute(url: string): {
   if (segments.length >= 4 && resourceId && nestedResource) {
     const nestedId = segments[4] && UUID_RE.test(segments[4]) ? segments[4] : undefined;
 
-    // The nested resource is the main entity
-    entityType = singularize(nestedResource);
-    entityId = nestedId;
-
-    // If parent is "projects", extract projectId
-    if (resource === "projects") {
-      projectId = resourceId;
+    // Treat nested resource as main entity only when nested id is present.
+    // For routes like /api/projects/:id/launch, keep "project" as entity.
+    if (nestedId) {
+      entityType = singularize(nestedResource);
+      entityId = nestedId;
+      if (resource === "projects") {
+        projectId = resourceId;
+      }
+    } else {
+      entityType = resource ? singularize(resource) : undefined;
+      entityId = resourceId;
+      if (resource === "projects") {
+        projectId = resourceId;
+      }
     }
   } else {
     entityType = resource ? singularize(resource) : undefined;
@@ -98,10 +105,11 @@ const auditPluginImpl: FastifyPluginAsync = async (app) => {
     const action = methodToAction(request.method);
 
     try {
+      if (!entityId) return;
       await auditLogRepo.createAuditLog({
         projectId: projectId || undefined,
         entityType,
-        entityId: entityId || "unknown",
+        entityId,
         action,
         actorType: "user",
         metadata: {

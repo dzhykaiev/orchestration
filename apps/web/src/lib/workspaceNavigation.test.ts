@@ -1,79 +1,71 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  BOARD_WORKSPACE_STORAGE_KEY,
   buildBoardHref,
+  buildCompanyHref,
   buildWorkspaceHref,
-  readStoredBoardWorkspaceId,
+  resolveCompanySelection,
   resolveWorkspaceSelection,
-  writeStoredBoardWorkspaceId,
 } from "./workspaceNavigation";
 
 describe("workspaceNavigation", () => {
-  beforeEach(() => {
-    window.localStorage.clear();
-  });
-
-  it("builds board href with and without workspace context", () => {
-    expect(buildBoardHref("ws-123")).toBe("/board?workspaceId=ws-123");
+  it("builds board href with and without company context", () => {
+    expect(buildBoardHref("ws-123")).toBe("/companies/ws-123/board");
     expect(buildBoardHref("")).toBe("/board");
     expect(buildBoardHref(undefined)).toBe("/board");
   });
 
-  it("builds workspace href with and without workspace context", () => {
-    expect(buildWorkspaceHref("ws-123")).toBe("/workspaces/ws-123");
-    expect(buildWorkspaceHref("")).toBe("/workspaces");
-    expect(buildWorkspaceHref(undefined)).toBe("/workspaces");
+  it("builds board href with optional board query params", () => {
+    expect(buildBoardHref("ws-123", { q: "billing api", status: "todo" })).toBe(
+      "/companies/ws-123/board?q=billing+api&status=todo",
+    );
+    expect(buildBoardHref(undefined, { q: "infra" })).toBe("/board?q=infra");
   });
 
-  it("resolves workspace from requested id first", () => {
-    const selected = resolveWorkspaceSelection({
-      requestedWorkspaceId: "ws-2",
-      storedWorkspaceId: "ws-1",
-      availableWorkspaceIds: ["ws-1", "ws-2"],
+  it("builds company href with and without company context", () => {
+    expect(buildCompanyHref("ws-123")).toBe("/companies/ws-123");
+    expect(buildCompanyHref("")).toBe("/companies");
+    expect(buildCompanyHref(undefined)).toBe("/companies");
+  });
+
+  it("keeps workspace href alias for backward compatibility", () => {
+    expect(buildWorkspaceHref("ws-123")).toBe("/companies/ws-123");
+    expect(buildWorkspaceHref("")).toBe("/companies");
+    expect(buildWorkspaceHref(undefined)).toBe("/companies");
+  });
+
+  it("resolves company from requested id first", () => {
+    const selected = resolveCompanySelection({
+      requestedCompanyId: "ws-2",
+      availableCompanyIds: ["ws-1", "ws-2"],
     });
 
     expect(selected).toBe("ws-2");
   });
 
-  it("falls back to stored id when requested is invalid", () => {
-    const selected = resolveWorkspaceSelection({
-      requestedWorkspaceId: "ws-missing",
-      storedWorkspaceId: "ws-1",
-      availableWorkspaceIds: ["ws-1", "ws-2"],
+  it("falls back to first available id when requested is invalid", () => {
+    const selected = resolveCompanySelection({
+      requestedCompanyId: "ws-missing",
+      availableCompanyIds: ["ws-1", "ws-2"],
     });
 
     expect(selected).toBe("ws-1");
   });
 
-  it("falls back to first workspace when requested and stored are invalid", () => {
-    const selected = resolveWorkspaceSelection({
-      requestedWorkspaceId: "ws-missing",
-      storedWorkspaceId: "ws-also-missing",
-      availableWorkspaceIds: ["ws-1", "ws-2"],
-    });
-
-    expect(selected).toBe("ws-1");
-  });
-
-  it("returns empty selection when no workspaces are available", () => {
-    const selected = resolveWorkspaceSelection({
-      requestedWorkspaceId: "ws-1",
-      storedWorkspaceId: "ws-2",
-      availableWorkspaceIds: [],
+  it("returns empty selection when no companies are available", () => {
+    const selected = resolveCompanySelection({
+      requestedCompanyId: "ws-1",
+      availableCompanyIds: [],
     });
 
     expect(selected).toBe("");
   });
 
-  it("reads and writes stored workspace id safely", () => {
-    expect(readStoredBoardWorkspaceId(window.localStorage)).toBe("");
+  it("keeps workspace selection alias for backward compatibility", () => {
+    const selected = resolveWorkspaceSelection({
+      requestedWorkspaceId: "ws-2",
+      availableWorkspaceIds: ["ws-1", "ws-2"],
+    });
 
-    writeStoredBoardWorkspaceId(window.localStorage, "ws-55");
-    expect(window.localStorage.getItem(BOARD_WORKSPACE_STORAGE_KEY)).toBe("ws-55");
-    expect(readStoredBoardWorkspaceId(window.localStorage)).toBe("ws-55");
-
-    writeStoredBoardWorkspaceId(window.localStorage, "");
-    expect(window.localStorage.getItem(BOARD_WORKSPACE_STORAGE_KEY)).toBeNull();
-    expect(readStoredBoardWorkspaceId(window.localStorage)).toBe("");
+    expect(selected).toBe("ws-2");
   });
 });

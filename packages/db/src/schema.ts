@@ -20,7 +20,8 @@ export const projectStatusEnum = pgEnum("project_status", [
   "archived",
 ]);
 
-export const providerEnum = pgEnum("provider", ["claude", "opencode"]);
+export const providerEnum = pgEnum("provider", ["claude", "codex", "opencode"]);
+export const bootstrapAgentRoleEnum = pgEnum("bootstrap_agent_role", ["ceo", "orchestrator"]);
 export const projectModeEnum = pgEnum("project_mode", ["greenfield", "existing"]);
 export const validationStatusEnum = pgEnum("validation_status", ["pass", "fail", "error"]);
 export const reviewVerdictEnum = pgEnum("review_verdict", [
@@ -118,6 +119,9 @@ export const workspaces = pgTable("workspaces", {
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
   description: text("description"),
+  mission: text("mission").default("").notNull(),
+  bootstrapAgentRole: bootstrapAgentRoleEnum("bootstrap_agent_role").default("ceo").notNull(),
+  bootstrapAgentProvider: providerEnum("bootstrap_agent_provider").default("opencode").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

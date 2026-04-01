@@ -1,10 +1,18 @@
 import { createApiApp } from "../../application/bootstrap/create-api-app.js";
+import { ticketAutoRunner } from "../../services/scheduler/ticket-auto-runner.js";
 
 const DEFAULT_PORT = 3001;
 
 export async function startApiServer() {
   const port = Number.parseInt(process.env.PORT || String(DEFAULT_PORT), 10);
+  const autoRunnerEnabled =
+    (process.env.AUTO_TICKET_RUNNER_ENABLED ?? "true").toLowerCase() !== "false";
   const app = await createApiApp({ logger: true });
+
+  if (autoRunnerEnabled) {
+    ticketAutoRunner.start(app.queues.planning);
+    console.log("[TicketAutoRunner] Started autonomous ticket loop");
+  }
 
   let shuttingDown = false;
   const shutdown = async () => {
@@ -18,6 +26,7 @@ export async function startApiServer() {
     }, 10_000);
 
     try {
+      ticketAutoRunner.stop();
       await app.close();
       clearTimeout(forceTimeout);
       console.log("Shutdown complete");

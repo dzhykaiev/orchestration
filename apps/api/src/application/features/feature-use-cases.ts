@@ -4,6 +4,7 @@ import type {
   UpdateFeatureInput,
 } from "@orchestration/shared";
 import { BusinessError, NotFoundError } from "../../domain/common/errors.js";
+import { resolveCompanyProjectRoot } from "../../services/runtime/company-paths.js";
 import { buildPlanJobPayload } from "../planning/plan-job-payload.js";
 import type { FeaturesDependencies, PlanningQueuePort } from "./ports.js";
 
@@ -68,18 +69,18 @@ export class FeatureUseCases {
       throw new BusinessError("Feature already has an orchestration project");
     }
 
-    const selfRepoPath = process.env.SELF_REPO_PATH?.trim() || process.cwd();
-
     if (!feature.workspaceId) {
       throw new BusinessError("Feature must belong to a workspace before kickoff");
     }
+
+    const initialSandboxRepoPath = resolveCompanyProjectRoot(feature.workspaceId, id);
 
     const project = await this.deps.projectRepo.createProject({
       name: feature.title,
       goal: feature.description || feature.title,
       workspaceId: feature.workspaceId,
       projectMode: "existing",
-      repoPath: selfRepoPath,
+      repoPath: initialSandboxRepoPath,
     });
     if (!project) {
       throw new Error("Failed to create project for feature");

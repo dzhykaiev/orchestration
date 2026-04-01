@@ -53,6 +53,9 @@ export async function createWorkspace(input: CreateWorkspaceInput) {
       name: input.name,
       slug,
       description: input.description,
+      mission: input.mission || input.description || input.name,
+      bootstrapAgentRole: input.bootstrapAgentRole ?? "ceo",
+      bootstrapAgentProvider: input.bootstrapAgentProvider ?? "opencode",
     })
     .returning();
 

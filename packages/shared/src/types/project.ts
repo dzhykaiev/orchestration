@@ -6,7 +6,7 @@ export type ProjectStatus =
   | "failed"
   | "cancelled"
   | "archived";
-export type LLMProviderType = "claude" | "opencode";
+export type LLMProviderType = "claude" | "codex" | "opencode";
 export type ProjectMode = "greenfield" | "existing";
 
 export interface Project {

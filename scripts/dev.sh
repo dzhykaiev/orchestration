@@ -39,7 +39,9 @@ ORCH_PID=$!
 echo "  Orchestrator started (PID $ORCH_PID) → logs/orchestrator_${TIMESTAMP}.log"
 
 # Start Web
-pnpm --filter @orchestration/web run dev > "$LOGS_DIR/web_${TIMESTAMP}.log" 2>&1 &
+# Watchpack can hit OS file descriptor limits in large monorepos.
+# Force polling to avoid random 404s caused by missed route watchers (EMFILE).
+WATCHPACK_POLLING=true CHOKIDAR_USEPOLLING=true pnpm --filter @orchestration/web run dev > "$LOGS_DIR/web_${TIMESTAMP}.log" 2>&1 &
 WEB_PID=$!
 echo "  Web started (PID $WEB_PID) → logs/web_${TIMESTAMP}.log"
 

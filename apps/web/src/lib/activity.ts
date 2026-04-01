@@ -13,11 +13,11 @@ let counter = 0;
 export function formatEventDescription(event: OrchestratorEvent): string {
   switch (event.type) {
     case "workspace.created":
-      return "Workspace created";
+      return "Company created";
     case "workspace.updated":
-      return "Workspace updated";
+      return "Company updated";
     case "workspace.deleted":
-      return "Workspace deleted";
+      return "Company deleted";
     case "project.created":
       return "New project created";
     case "project.planning_started":

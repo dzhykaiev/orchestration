@@ -6,6 +6,20 @@ const internalApiOrigin = (process.env.API_INTERNAL_URL || process.env.NEXT_PUBL
 
 const config: NextConfig = {
   transpilePackages: ["@orchestration/shared"],
+  async redirects() {
+    return [
+      {
+        source: "/workspaces",
+        destination: "/companies",
+        permanent: true,
+      },
+      {
+        source: "/workspaces/:path*",
+        destination: "/companies/:path*",
+        permanent: true,
+      },
+    ];
+  },
   async rewrites() {
     if (internalApiOrigin) {
       return [

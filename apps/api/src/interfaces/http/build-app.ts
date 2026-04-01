@@ -17,6 +17,7 @@ import { launchRoutes } from "../../routes/launch.js";
 import { projectRoutes } from "../../routes/projects.js";
 import { taskReviewRoutes, workstreamReviewRoutes } from "../../routes/reviews.js";
 import { taskRoutes } from "../../routes/tasks.js";
+import { ticketRoutes } from "../../routes/tickets.js";
 import { workspaceRoutes } from "../../routes/workspaces.js";
 import { workstreamRoutes } from "../../routes/workstreams.js";
 
@@ -56,7 +57,9 @@ export async function buildHttpApp(opts: ApiAppOptions = {}): Promise<FastifyIns
 
   await app.register(healthRoutes);
   await app.register(workspaceRoutes, { prefix: "/api/workspaces" });
+  await app.register(workspaceRoutes, { prefix: "/api/companies" });
   await app.register(workspaceAgentRoutes, { prefix: "/api/workspaces" });
+  await app.register(workspaceAgentRoutes, { prefix: "/api/companies" });
   await app.register(agentDefinitionRoutes, { prefix: "/api/agents" });
   await app.register(projectRoutes, { prefix: "/api/projects" });
   await app.register(workstreamRoutes, { prefix: "/api/workstreams" });
@@ -72,6 +75,7 @@ export async function buildHttpApp(opts: ApiAppOptions = {}): Promise<FastifyIns
   await app.register(fileRoutes, { prefix: "/api/projects" });
   await app.register(launchRoutes, { prefix: "/api/projects" });
   await app.register(featureRoutes, { prefix: "/api/features" });
+  await app.register(ticketRoutes, { prefix: "/api/tickets" });
 
   return app;
 }

@@ -22,8 +22,7 @@ export interface ImplementationLlmProvider {
 
 export interface ImplementationProject {
   status: string;
-  repoPath?: string | null;
-  workspaceId?: string | null;
+  workspaceId: string;
   architecture?: string | null;
 }
 

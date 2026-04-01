@@ -159,6 +159,7 @@ describe("handlePlanningJob dependency normalization", () => {
     });
     expect(emitTyped).toHaveBeenCalledWith("task.queued", {
       taskId: "task-1",
+      projectId: "project-1",
       workstreamId: "11111111-1111-1111-1111-111111111111",
     });
     expect(emitTyped).toHaveBeenCalledWith("project.planning_completed", {

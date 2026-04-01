@@ -60,6 +60,7 @@ describe("event bus contract", () => {
 
     bus.emitTyped("task.queued", {
       taskId: "task-1",
+      projectId: "project-1",
       workstreamId: "ws-1",
     });
     bus.emitTyped("project.planning_completed", {
@@ -71,7 +72,7 @@ describe("event bus contract", () => {
       EVENTS_CHANNEL,
       JSON.stringify({
         type: "task.queued",
-        payload: { taskId: "task-1", workstreamId: "ws-1" },
+        payload: { taskId: "task-1", projectId: "project-1", workstreamId: "ws-1" },
       }),
     );
     expect(publish).toHaveBeenCalledWith(

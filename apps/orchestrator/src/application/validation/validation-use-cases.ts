@@ -1,14 +1,12 @@
 import { access } from "node:fs/promises";
-import { resolve } from "node:path";
 import type { ValidationStatus } from "@orchestration/shared";
+import { resolveCompanyProjectRoot } from "../../runtime/company-paths.js";
 import type {
   ValidationDependencies,
   ValidationJobData,
   ValidationJobHandler,
   ValidationPromptWorkstream,
 } from "./ports.js";
-
-const PROJECTS_DIR = resolve(process.env.PROJECTS_DIR || "./projects");
 
 function buildValidationPrompt(
   workstream: ValidationPromptWorkstream,
@@ -55,9 +53,7 @@ export function createValidationJobHandler(deps: ValidationDependencies): Valida
         throw new Error(`Project ${projectId} or workstream ${workstreamId} not found`);
       }
 
-      const projectDir = project.repoPath
-        ? resolve(project.repoPath)
-        : resolve(PROJECTS_DIR, projectId);
+      const projectDir = resolveCompanyProjectRoot(project.workspaceId, projectId);
 
       try {
         await access(projectDir);

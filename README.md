@@ -4,10 +4,11 @@ AI-driven software development orchestration platform. Provide a high-level soft
 
 ## How It Works
 
-1. **Submit a goal** — Describe what you want built in plain language
-2. **Architect agent plans** — Breaks the goal into architecture, contracts, and parallel workstreams
-3. **Implementation agents execute** — Backend, frontend, data, and DevOps agents work in parallel
-4. **Progress tracked** — Dashboard shows real-time status of all workstreams and tasks
+1. **Create a company** — Define company name, strategic goal, and bootstrap operator agent
+2. **Start ticket-first operations** — The system creates an initial operating ticket automatically
+3. **Hire and delegate via tickets** — Agents are hired from ticket context and receive delegated tickets
+4. **Run 24/7 execution** — Autonomous runner picks ready tickets, kicks off execution projects, and applies retry/backoff
+5. **Track everything in logs** — Ticket timelines capture user, agent, and system communication
 
 ## Architecture
 
@@ -47,13 +48,21 @@ AI-driven software development orchestration platform. Provide a high-level soft
     execution-plan/
     frontend-design/
     frontend-ux-review/
+    jira-state-sync/
+    jira-task-captain/
     product-design-review/
+    product-designer-jira/
     product-flow-redesign/
     project-architect-review/
+    system-ux-architect/
     ux-improvement-plan/
 .opencode/
   plans/
 .pnpm-store/
+  v10/
+    files/
+    index/
+    projects/
   v3/
 apps/
   api/
@@ -63,6 +72,9 @@ apps/
     src/
   web/
     src/
+companies/
+  3896512c-f846-42f9-8186-160ea3670538/
+    projects/
 contracts/
   api/
   events/
@@ -83,6 +95,12 @@ docs/
     agent-playbooks/
   plans/
   runbooks/
+jira/
+  _meta/
+  blocked/
+  done/
+  inprogress/
+  todo/
 logs/
 packages/
   db/
@@ -120,8 +138,10 @@ See [docs/runbooks/local-development.md](docs/runbooks/local-development.md) for
 | Document | Description |
 |----------|-------------|
 | [Product Overview](docs/product-overview.md) | What this system does and MVP scope |
+| [Zero-Human Company Flow](docs/product-flow-zero-human-company.md) | Jira-like autonomous company flow, entities, and operating model |
 | [Architecture](docs/architecture.md) | System design, data flow, database schema |
 | [Stack Decisions](docs/stack-decisions.md) | Why each technology was chosen |
+| [Agent Company Runbook](docs/runbooks/agent-company-operations.md) | Practical operating guide for autonomous ticket execution |
 | [Implementation Plan](docs/plans/implementation-plan.md) | Phased build plan |
 | [Workstreams](docs/plans/workstreams.md) | Parallel work definitions |
 | [Assumptions](docs/assumptions.md) | Assumptions made for MVP |

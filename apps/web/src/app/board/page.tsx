@@ -1,69 +1,91 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Breadcrumbs } from "../../components/Breadcrumbs";
 import { FeatureModal } from "../../components/board/FeatureModal";
 import { KanbanColumn } from "../../components/board/KanbanColumn";
+import { ConfirmModal } from "../../components/ui/ConfirmModal";
+import { PageEmptyState, PageErrorState, PageLoadingState } from "../../components/ui/PageStates";
 import { useToastContext } from "../../components/ui/ToastProvider";
 import { api, getErrorDetails, getErrorMessage } from "../../lib/api";
-import type { AgentDefinition, Feature, Project, Workspace } from "../../lib/api";
-import {
-  readStoredBoardWorkspaceId,
-  resolveWorkspaceSelection,
-  writeStoredBoardWorkspaceId,
-} from "../../lib/workspaceNavigation";
+import type { AgentDefinition, Company, Project, Ticket } from "../../lib/api";
+import { resolveCompanySelection } from "../../lib/companyNavigation";
+import { buildFeatureSearchText } from "./board-utils";
 
 const STATUSES = ["backlog", "todo", "in_progress", "done", "rejected"] as const;
+
+const STATUS_LABELS: Record<Ticket["status"], string> = {
+  backlog: "Backlog",
+  todo: "Ready",
+  in_progress: "In progress",
+  done: "Done",
+  rejected: "Rejected",
+};
+
+function getCompanyIdFromScopedPath(pathname: string): string {
+  const match = pathname.match(/^\/companies\/([^/]+)\/board$/);
+  return match?.[1] ?? "";
+}
 
 export default function BoardPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [features, setFeatures] = useState<Feature[]>([]);
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string>("");
+  const pathname = usePathname();
+  const [features, setFeatures] = useState<Ticket[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
   const [projectsById, setProjectsById] = useState<
     Record<string, Pick<Project, "id" | "name" | "status">>
   >({});
   const [agents, setAgents] = useState<AgentDefinition[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [projectFilter, setProjectFilter] = useState<string>("all");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<Ticket["status"] | "all">("all");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadErrorDetails, setLoadErrorDetails] = useState<string | undefined>();
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingFeature, setEditingFeature] = useState<Feature | null>(null);
+  const [editingFeature, setEditingFeature] = useState<Ticket | null>(null);
+  const [confirmKickoffFeature, setConfirmKickoffFeature] = useState<Ticket | null>(null);
+  const [confirmDeleteFeature, setConfirmDeleteFeature] = useState<Ticket | null>(null);
   const toast = useToastContext();
-  const toastRef = useRef(toast);
-  toastRef.current = toast;
+  const scopedCompanyId = useMemo(() => getCompanyIdFromScopedPath(pathname), [pathname]);
+  const isCompanyScoped = scopedCompanyId.length > 0;
 
-  // Load workspaces first, then features for selected workspace
-  const fetchWorkspaces = useCallback(async () => {
+  const fetchCompanies = useCallback(async () => {
     try {
-      const workspacesData = await api.workspaces.list(100, 0);
-      setWorkspaces(workspacesData.data);
-      return workspacesData.data;
-    } catch (err) {
-      toastRef.current.error(err instanceof Error ? err.message : "Failed to load workspaces");
+      const companiesData = await api.companies.list(100, 0);
+      setCompanies(companiesData.data);
+      setLoadError(null);
+      setLoadErrorDetails(undefined);
+      return companiesData.data;
+    } catch (error) {
+      setLoadError(getErrorMessage(error, "Failed to load companies"));
+      setLoadErrorDetails(getErrorDetails(error));
       return [];
     }
   }, []);
 
-  const fetchBoardData = useCallback(async (workspaceId: string) => {
-    if (!workspaceId) {
+  const fetchBoardData = useCallback(async (companyId: string) => {
+    if (!companyId) {
       setFeatures([]);
       setProjectsById({});
       setAgents([]);
       setLoading(false);
       return;
     }
+
     try {
       const [featuresData, projectsData, agentsData] = await Promise.all([
-        api.workspaces.features(workspaceId),
-        api.workspaces.projects(workspaceId, 100, 0, true),
-        api.workspaces.agents(workspaceId),
+        api.companies.tickets(companyId),
+        api.companies.projects(companyId, 100, 0, true),
+        api.companies.agents(companyId),
       ]);
-      setFeatures(featuresData.data);
+      setFeatures(featuresData.tickets);
       setAgents(agentsData.agents);
       setProjectsById(
         Object.fromEntries(
@@ -73,124 +95,238 @@ export default function BoardPage() {
           ]),
         ),
       );
-    } catch (err) {
-      toastRef.current.error({
-        title: "Couldn't load the board",
-        message: getErrorMessage(err, "Failed to load features"),
-        details: getErrorDetails(err),
-      });
+      setLoadError(null);
+      setLoadErrorDetails(undefined);
+    } catch (error) {
+      setLoadError(getErrorMessage(error, "Failed to load board data"));
+      setLoadErrorDetails(getErrorDetails(error));
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const syncWorkspaceContext = useCallback(
-    (workspaceId: string) => {
-      const currentWorkspaceId = searchParams.get("workspaceId") || "";
-      if (currentWorkspaceId === workspaceId) {
+  const syncCompanyContext = useCallback(
+    (companyId: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("companyId");
+      params.delete("workspaceId");
+      const nextQuery = params.toString();
+      const currentQuery = searchParams.toString();
+
+      if (isCompanyScoped) {
+        if (companyId === scopedCompanyId) return;
+        const nextPath = companyId ? `/companies/${companyId}/board` : "/board";
+        const nextHref = nextQuery ? `${nextPath}?${nextQuery}` : nextPath;
+        if (nextHref === `${pathname}${currentQuery ? `?${currentQuery}` : ""}`) return;
+        router.replace(nextHref, { scroll: false });
         return;
       }
-      const params = new URLSearchParams(searchParams.toString());
-      if (workspaceId) {
-        params.set("workspaceId", workspaceId);
-      } else {
-        params.delete("workspaceId");
-      }
-      const nextQuery = params.toString();
-      router.replace(nextQuery ? `/board?${nextQuery}` : "/board", { scroll: false });
+      const nextPath = companyId ? `/companies/${companyId}/board` : "/board";
+      const nextHref = nextQuery ? `${nextPath}?${nextQuery}` : nextPath;
+      if (nextHref === `${pathname}${currentQuery ? `?${currentQuery}` : ""}`) return;
+      router.replace(nextHref, { scroll: false });
     },
-    [router, searchParams],
+    [isCompanyScoped, pathname, router, scopedCompanyId, searchParams],
   );
 
-  useEffect(() => {
-    fetchWorkspaces().then((ws) => {
-      if (ws.length === 0) {
-        setLoading(false);
-        return;
-      }
-      const requestedWorkspaceId = searchParams.get("workspaceId") || "";
-      const stored = readStoredBoardWorkspaceId(
-        typeof window === "undefined" ? null : window.localStorage,
-      );
-      const initial = resolveWorkspaceSelection({
-        requestedWorkspaceId,
-        storedWorkspaceId: stored,
-        availableWorkspaceIds: ws.map((workspace) => workspace.id),
-      });
-      setSelectedWorkspaceId(initial);
-      const queryType = searchParams.get("type");
-      const queryProjectId = searchParams.get("projectId");
-      if (queryType === "bug") {
-        setTypeFilter("bug");
-      }
-      if (queryProjectId) {
-        setProjectFilter(queryProjectId);
-      }
-      writeStoredBoardWorkspaceId(
-        typeof window === "undefined" ? null : window.localStorage,
-        initial,
-      );
-      syncWorkspaceContext(initial);
-      fetchBoardData(initial);
-    });
-  }, [fetchWorkspaces, fetchBoardData, searchParams, syncWorkspaceContext]);
-
-  function handleWorkspaceChange(wsId: string) {
-    setSelectedWorkspaceId(wsId);
-    writeStoredBoardWorkspaceId(typeof window === "undefined" ? null : window.localStorage, wsId);
-    syncWorkspaceContext(wsId);
+  const initializeBoard = useCallback(async () => {
     setLoading(true);
-    fetchBoardData(wsId);
+    const availableCompanies = await fetchCompanies();
+    if (availableCompanies.length === 0) {
+      setSelectedCompanyId("");
+      setLoading(false);
+      return;
+    }
+
+    const requestedCompanyId =
+      scopedCompanyId || searchParams.get("companyId") || searchParams.get("workspaceId") || "";
+    const initialCompanyId = resolveCompanySelection({
+      requestedCompanyId,
+      availableCompanyIds: availableCompanies.map((company) => company.id),
+    });
+
+    setSelectedCompanyId(initialCompanyId);
+
+    const queryType = searchParams.get("type");
+    const queryProjectId = searchParams.get("projectId");
+    const querySearch = searchParams.get("q");
+    const queryStatus = searchParams.get("status");
+
+    setTypeFilter(queryType === "bug" ? "bug" : "all");
+    setProjectFilter(queryProjectId || "all");
+    setSearchQuery(querySearch || "");
+    setStatusFilter(
+      queryStatus && STATUSES.includes(queryStatus as Ticket["status"])
+        ? (queryStatus as Ticket["status"])
+        : "all",
+    );
+
+    if (isCompanyScoped) {
+      if (initialCompanyId && initialCompanyId !== scopedCompanyId) {
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete("companyId");
+        params.delete("workspaceId");
+        const nextQuery = params.toString();
+        const nextPath = `/companies/${initialCompanyId}/board`;
+        router.replace(nextQuery ? `${nextPath}?${nextQuery}` : nextPath, { scroll: false });
+      }
+    } else {
+      syncCompanyContext(initialCompanyId);
+    }
+    await fetchBoardData(initialCompanyId);
+  }, [
+    fetchBoardData,
+    fetchCompanies,
+    isCompanyScoped,
+    router,
+    scopedCompanyId,
+    searchParams,
+    syncCompanyContext,
+  ]);
+
+  useEffect(() => {
+    void initializeBoard();
+  }, [initializeBoard]);
+
+  function handleCompanyChange(companyId: string) {
+    setSelectedCompanyId(companyId);
+    syncCompanyContext(companyId);
+    setLoading(true);
+    void fetchBoardData(companyId);
+  }
+
+  function clearFilters() {
+    setSearchQuery("");
+    setTypeFilter("all");
+    setProjectFilter("all");
+    setAssigneeFilter("all");
+    setStatusFilter("all");
+  }
+
+  function handleStatusFilterClick(nextStatus: Ticket["status"] | "all") {
+    setStatusFilter(nextStatus);
   }
 
   const refreshFeatures = useCallback(async () => {
-    if (selectedWorkspaceId) {
-      await fetchBoardData(selectedWorkspaceId);
+    if (selectedCompanyId) {
+      await fetchBoardData(selectedCompanyId);
     }
-  }, [selectedWorkspaceId, fetchBoardData]);
+  }, [selectedCompanyId, fetchBoardData]);
 
-  const filteredFeatures = features.filter((feature) => {
-    if (typeFilter !== "all" && feature.type !== typeFilter) return false;
-    if (projectFilter !== "all" && feature.sourceProjectId !== projectFilter) return false;
-    if (assigneeFilter === "orchestrator" && feature.assigneeMode !== "orchestrator") return false;
-    if (assigneeFilter.startsWith("agent:")) {
-      const agentId = assigneeFilter.replace("agent:", "");
-      if (feature.assigneeAgentDefinitionId !== agentId) return false;
-    }
-    return true;
-  });
-
-  const featuresByStatus = STATUSES.reduce(
-    (acc, status) => {
-      acc[status] = filteredFeatures.filter((f) => f.status === status);
-      return acc;
-    },
-    {} as Record<string, Feature[]>,
+  const agentNameById = useMemo(
+    () => Object.fromEntries(agents.map((agent) => [agent.id, agent.name])),
+    [agents],
   );
 
-  async function handleDrop(featureId: string, newStatus: Feature["status"]) {
+  const hasActiveFilters =
+    searchQuery.trim().length > 0 ||
+    typeFilter !== "all" ||
+    projectFilter !== "all" ||
+    assigneeFilter !== "all" ||
+    statusFilter !== "all";
+
+  const filteredFeatures = useMemo(() => {
+    const normalizedSearch = searchQuery.trim().toLowerCase();
+
+    return features.filter((feature) => {
+      if (statusFilter !== "all" && feature.status !== statusFilter) return false;
+      if (typeFilter !== "all" && feature.type !== typeFilter) return false;
+      if (projectFilter !== "all" && feature.sourceProjectId !== projectFilter) return false;
+      if (assigneeFilter === "orchestrator" && feature.assigneeMode !== "orchestrator") return false;
+      if (assigneeFilter.startsWith("agent:")) {
+        const agentId = assigneeFilter.replace("agent:", "");
+        if (feature.assigneeAgentDefinitionId !== agentId) return false;
+      }
+
+      if (normalizedSearch) {
+        const sourceProjectName = feature.sourceProjectId
+          ? projectsById[feature.sourceProjectId]?.name
+          : undefined;
+        const linkedProjectName = feature.orchestrationProjectId
+          ? projectsById[feature.orchestrationProjectId]?.name
+          : undefined;
+        const assigneeName =
+          feature.assigneeMode === "agent"
+            ? agentNameById[feature.assigneeAgentDefinitionId ?? ""] || "Assigned agent"
+            : "Main orchestrator";
+        const haystack = buildFeatureSearchText(
+          feature,
+          assigneeName,
+          sourceProjectName,
+          linkedProjectName,
+        );
+        if (!haystack.includes(normalizedSearch)) return false;
+      }
+
+      return true;
+    });
+  }, [
+    agentNameById,
+    assigneeFilter,
+    features,
+    projectFilter,
+    projectsById,
+    searchQuery,
+    statusFilter,
+    typeFilter,
+  ]);
+
+  const visibleStatuses = useMemo(
+    () => (statusFilter === "all" ? [...STATUSES] : [statusFilter]),
+    [statusFilter],
+  );
+
+  const boardMinWidth = `${visibleStatuses.length * 260 + Math.max(visibleStatuses.length - 1, 0) * 16}px`;
+
+  const featuresByStatus = useMemo(
+    () =>
+      visibleStatuses.reduce(
+        (acc, currentStatus) => {
+          acc[currentStatus] = filteredFeatures.filter((feature) => feature.status === currentStatus);
+          return acc;
+        },
+        {} as Record<Ticket["status"], Ticket[]>,
+      ),
+    [filteredFeatures, visibleStatuses],
+  );
+
+  const statusCounts = useMemo(
+    () =>
+      STATUSES.reduce(
+        (acc, currentStatus) => {
+          acc[currentStatus] = features.filter((feature) => feature.status === currentStatus).length;
+          return acc;
+        },
+        {} as Record<Ticket["status"], number>,
+      ),
+    [features],
+  );
+
+  async function handleDrop(featureId: string, newStatus: Ticket["status"]) {
     const feature = features.find((f) => f.id === featureId);
     if (!feature || feature.status === newStatus) return;
 
-    // Optimistic update
     setFeatures((prev) => prev.map((f) => (f.id === featureId ? { ...f, status: newStatus } : f)));
 
     try {
-      await api.features.update(featureId, { status: newStatus });
-    } catch (err) {
-      // Revert on error
+      await api.tickets.update(featureId, { status: newStatus });
+    } catch (error) {
       setFeatures((prev) =>
         prev.map((f) => (f.id === featureId ? { ...f, status: feature.status } : f)),
       );
       toast.error({
-        title: "Couldn't move feature",
-        message: getErrorMessage(err, "Failed to update status"),
-        details: getErrorDetails(err),
+        title: "Couldn't move ticket",
+        message: getErrorMessage(error, "Failed to update status"),
+        details: getErrorDetails(error),
       });
     }
   }
 
-  function handleEdit(feature: Feature) {
+  function handleStatusChange(feature: Ticket, newStatus: Ticket["status"]) {
+    void handleDrop(feature.id, newStatus);
+  }
+
+  function handleEdit(feature: Ticket) {
     setEditingFeature(feature);
     setModalOpen(true);
   }
@@ -201,7 +337,7 @@ export default function BoardPage() {
   }
 
   async function handleSave(data: {
-    workspaceId?: string;
+    companyId?: string;
     title: string;
     description?: string;
     type: string;
@@ -213,16 +349,18 @@ export default function BoardPage() {
   }) {
     try {
       if (editingFeature) {
-        const { workspaceId: _, ...updateData } = data;
-        await api.features.update(editingFeature.id, updateData);
-        toast.success("Feature updated");
+        const updateData = data;
+        await api.tickets.update(editingFeature.id, updateData);
+        toast.success("Ticket updated");
       } else {
-        if (!data.workspaceId) {
-          toast.error("Workspace is required");
+        const companyId = data.companyId;
+        if (!companyId) {
+          toast.error("Company is required");
           return;
         }
-        await api.features.create({
-          workspaceId: data.workspaceId,
+        await api.tickets.create({
+          // API contract still accepts legacy workspaceId key; value is canonical company id.
+          workspaceId: companyId,
           title: data.title,
           description: data.description,
           type: data.type,
@@ -231,65 +369,68 @@ export default function BoardPage() {
           assigneeMode: data.assigneeMode,
           assigneeAgentDefinitionId: data.assigneeAgentDefinitionId,
         });
-        toast.success("Feature created");
+        toast.success("Ticket created");
       }
       setModalOpen(false);
       setEditingFeature(null);
       await refreshFeatures();
-    } catch (err) {
+    } catch (error) {
       toast.error({
-        title: editingFeature ? "Couldn't update feature" : "Couldn't create feature",
-        message: getErrorMessage(err, "Failed to save feature"),
-        details: getErrorDetails(err),
+        title: editingFeature ? "Couldn't update ticket" : "Couldn't create ticket",
+        message: getErrorMessage(error, "Failed to save ticket"),
+        details: getErrorDetails(error),
       });
-      throw err;
+      throw error;
     }
   }
 
-  async function handleKickoff(feature: Feature) {
-    if (
-      !confirm(
-        `Start orchestration for "${feature.title}"? This will create a new project targeting the platform's own repo.`,
-      )
-    ) {
-      return;
-    }
+  function handleKickoff(feature: Ticket) {
+    setConfirmKickoffFeature(feature);
+  }
+
+  async function confirmKickoff() {
+    if (!confirmKickoffFeature) return;
 
     try {
-      const { project } = await api.features.kickoff(feature.id);
+      const { project } = await api.tickets.kickoff(confirmKickoffFeature.id);
       toast.success({
         title: "Kickoff started",
         message: `Project created: ${project.name}`,
         details: "The linked project is now ready for planning.",
       });
       await refreshFeatures();
-    } catch (err) {
+    } catch (error) {
       toast.error({
-        title: "Couldn't kick off feature",
-        message: getErrorMessage(err, "Failed to kickoff"),
-        details: getErrorDetails(err),
+        title: "Couldn't kick off ticket",
+        message: getErrorMessage(error, "Failed to kickoff"),
+        details: getErrorDetails(error),
       });
     }
   }
 
-  async function handleDelete(feature: Feature) {
-    if (!confirm(`Delete "${feature.title}"?`)) return;
+  function handleDelete(feature: Ticket) {
+    setConfirmDeleteFeature(feature);
+  }
+
+  async function confirmDelete() {
+    if (!confirmDeleteFeature) return;
 
     try {
-      await api.features.delete(feature.id);
-      setFeatures((prev) => prev.filter((f) => f.id !== feature.id));
-      toast.success("Feature deleted");
-    } catch (err) {
+      await api.tickets.delete(confirmDeleteFeature.id);
+      setFeatures((prev) => prev.filter((f) => f.id !== confirmDeleteFeature.id));
+      toast.success("Ticket deleted");
+    } catch (error) {
       toast.error({
-        title: "Couldn't delete feature",
-        message: getErrorMessage(err, "Failed to delete"),
-        details: getErrorDetails(err),
+        title: "Couldn't delete ticket",
+        message: getErrorMessage(error, "Failed to delete"),
+        details: getErrorDetails(error),
       });
     }
   }
 
-  const selectedWorkspace = workspaces.find((w) => w.id === selectedWorkspaceId);
+  const selectedCompany = companies.find((company) => company.id === selectedCompanyId);
   const issueMode = typeFilter === "bug";
+  const visibleTicketCount = filteredFeatures.length;
   const readyToKickoff = filteredFeatures.filter(
     (feature) => feature.status === "todo" && !feature.orchestrationProjectId,
   ).length;
@@ -297,107 +438,107 @@ export default function BoardPage() {
   const activeProjectCount = Object.values(projectsById).filter((project) =>
     ["planning", "in_progress"].includes(project.status),
   ).length;
-  const agentNameById = Object.fromEntries(agents.map((agent) => [agent.id, agent.name]));
-  const boardTip =
-    issueMode
+  const boardTip = hasActiveFilters
+    ? `Showing ${visibleTicketCount} ticket${visibleTicketCount === 1 ? "" : "s"} in ${statusFilter === "all" ? "all statuses" : STATUS_LABELS[statusFilter]}.`
+    : issueMode
       ? "Issue mode is active. Track bugs, assign owners, and move items toward resolution."
       : readyToKickoff > 0
-      ? `${readyToKickoff} feature${readyToKickoff > 1 ? "s are" : " is"} ready to kick off.`
+        ? `${readyToKickoff} ticket${readyToKickoff > 1 ? "s are" : " is"} ready to kick off.`
+        : activeProjectCount > 0
+          ? `${activeProjectCount} linked project${activeProjectCount > 1 ? "s are" : " is"} currently running.`
+          : "Move backlog items into Ready when they are clear enough for orchestration.";
+  const companyProjectsHref = selectedCompanyId ? `/companies/${selectedCompanyId}/projects` : "/companies";
+  const companyActivityHref = selectedCompanyId ? `/companies/${selectedCompanyId}/activity` : "/companies";
+  const boardBreadcrumbs = [
+    { label: "Companies", href: "/companies" },
+    ...(selectedCompanyId
+      ? [
+          {
+            label: selectedCompany?.name ?? "Company",
+            href: `/companies/${selectedCompanyId}`,
+          },
+        ]
+      : []),
+    { label: "Tickets" },
+  ];
+  const boardNextAction =
+    readyToKickoff > 0
+      ? `Kick off ${readyToKickoff} ready ticket${readyToKickoff === 1 ? "" : "s"}, then monitor linked projects.`
       : activeProjectCount > 0
-        ? `${activeProjectCount} linked project${activeProjectCount > 1 ? "s are" : " is"} currently running.`
-        : "Move backlog items into Todo when they are ready for orchestration.";
+        ? "Execution is active. Follow project and activity pages to catch blockers quickly."
+        : "No ready tickets yet. Refine backlog items and move the next one to Ready.";
 
-  if (loading) {
+  if (loadError) {
     return (
       <div className="kanban-page">
-        <Breadcrumbs items={[{ label: "Board" }]} />
-        <div className="ws-page-header">
-          <div className="ws-page-header-row">
-            <div>
-              <h2 className="ws-page-title">Feature Board</h2>
-              <p className="ws-page-subtitle">Loading...</p>
-            </div>
-          </div>
-        </div>
-        <div className="skeleton" style={{ height: 300 }} />
+        <Breadcrumbs items={boardBreadcrumbs} />
+        <PageErrorState
+          title="Ticket board failed to load"
+          message={loadError}
+          details={loadErrorDetails}
+          onRetry={() => void initializeBoard()}
+        />
       </div>
     );
   }
 
-  if (workspaces.length === 0) {
+  if (loading) {
     return (
       <div className="kanban-page">
-        <Breadcrumbs items={[{ label: "Board" }]} />
-        <div className="ws-page-header">
-          <div className="ws-page-header-row">
-            <div>
-              <h2 className="ws-page-title">Feature Board</h2>
-              <p className="ws-page-subtitle">Manage features across your workspace</p>
-            </div>
-          </div>
-        </div>
-        <div className="workspace-empty">
-          <div className="workspace-empty-icon" aria-hidden="true">
-            <svg
-              aria-hidden="true"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <rect x="3" y="3" width="7" height="7" />
-              <rect x="14" y="3" width="7" height="7" />
-              <rect x="14" y="14" width="7" height="7" />
-              <rect x="3" y="14" width="7" height="7" />
-            </svg>
-          </div>
-          <h3 className="workspace-empty-title">No workspaces found</h3>
-          <p className="workspace-empty-desc">
-            Create a workspace first to manage features on a Kanban board.
-          </p>
-          <Link href="/workspaces/new" className="btn btn-primary">
-            Create Workspace
-          </Link>
-        </div>
+        <Breadcrumbs items={boardBreadcrumbs} />
+        <PageLoadingState title="Ticket Board" subtitle="Loading tickets and projects..." height={300} />
+      </div>
+    );
+  }
+
+  if (companies.length === 0) {
+    return (
+      <div className="kanban-page">
+        <Breadcrumbs items={boardBreadcrumbs} />
+        <PageEmptyState
+          title="No companies found"
+          description="Create a company first to manage tickets on a Kanban board."
+          actions={
+            <Link href="/companies/new" className="btn btn-primary">
+              Create Company
+            </Link>
+          }
+        />
       </div>
     );
   }
 
   return (
     <div className="kanban-page">
-      <Breadcrumbs items={[{ label: "Board" }]} />
+      <Breadcrumbs items={boardBreadcrumbs} />
 
       <div className="ws-page-header">
         <div className="ws-page-header-row">
           <div>
-            <h2 className="ws-page-title">Feature Board</h2>
+            <h2 className="ws-page-title">Ticket Board</h2>
             <p className="ws-page-subtitle">
-              {selectedWorkspace
-                ? `Plan work inside ${selectedWorkspace.name}. Move items to Todo, then kick off orchestration when they are ready.`
-                : "Drag features between columns. Kickoff from Todo to start self-improvement."}
+              {selectedCompany
+                ? `Plan work inside ${selectedCompany.name}. Use filters to narrow the queue, then kick off tickets when they are ready.`
+                : "Use the board to triage tickets, assign agents, and launch work."}
             </p>
           </div>
           <div className="board-header-actions">
             <select
-              className="input board-workspace-select"
-              value={selectedWorkspaceId}
+              className="input board-company-select"
+              value={selectedCompanyId}
               onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                handleWorkspaceChange(e.target.value)
+                handleCompanyChange(e.target.value)
               }
-              aria-label="Select workspace"
+              aria-label="Select company"
             >
-              {workspaces.map((ws) => (
-                <option key={ws.id} value={ws.id}>
-                  {ws.name}
+              {companies.map((company) => (
+                <option key={company.id} value={company.id}>
+                  {company.name}
                 </option>
               ))}
             </select>
             <button type="button" className="btn btn-primary" onClick={handleNewFeature}>
-              {issueMode ? "New Issue" : "New Feature"}
+              New Ticket
             </button>
           </div>
         </div>
@@ -409,7 +550,7 @@ export default function BoardPage() {
           className={`btn ${!issueMode ? "btn-primary" : "btn-secondary"}`}
           onClick={() => setTypeFilter("all")}
         >
-          All Work
+          All Tickets
         </button>
         <button
           type="button"
@@ -418,6 +559,44 @@ export default function BoardPage() {
         >
           Issues
         </button>
+      </div>
+
+      <div className="board-search-row">
+        <input
+          className="input board-search-input"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search tickets, descriptions, projects, and assignees"
+          aria-label="Search tickets"
+        />
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={clearFilters}
+          disabled={!hasActiveFilters}
+        >
+          Clear filters
+        </button>
+      </div>
+
+      <div className="board-status-chips filter-chips" role="tablist" aria-label="Ticket status">
+        <button
+          type="button"
+          className={`filter-chip ${statusFilter === "all" ? "active" : ""}`}
+          onClick={() => handleStatusFilterClick("all")}
+        >
+          All <span className="chip-count">{features.length}</span>
+        </button>
+        {STATUSES.map((status) => (
+          <button
+            key={status}
+            type="button"
+            className={`filter-chip ${statusFilter === status ? "active" : ""}`}
+            onClick={() => handleStatusFilterClick(status)}
+          >
+            {STATUS_LABELS[status]} <span className="chip-count">{statusCounts[status]}</span>
+          </button>
+        ))}
       </div>
 
       <div className="board-filters">
@@ -429,7 +608,7 @@ export default function BoardPage() {
         >
           <option value="all">All types</option>
           <option value="bug">Bug</option>
-          <option value="feature">Feature</option>
+          <option value="feature">Ticket</option>
           <option value="improvement">Improvement</option>
           <option value="refactor">Refactor</option>
         </select>
@@ -466,7 +645,7 @@ export default function BoardPage() {
         <div className="board-stats">
           <div className="board-stat">
             <span className="board-stat-value">{filteredFeatures.length}</span>
-            <span className="board-stat-label">Visible items</span>
+            <span className="board-stat-label">Visible tickets</span>
           </div>
           <div className="board-stat">
             <span className="board-stat-value">{readyToKickoff}</span>
@@ -484,42 +663,59 @@ export default function BoardPage() {
         <p className="board-tip">{boardTip}</p>
       </div>
 
-      {filteredFeatures.length === 0 ? (
-        <div className="workspace-empty">
-          <div className="workspace-empty-icon" aria-hidden="true">
-            <svg
-              aria-hidden="true"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <line x1="8" y1="6" x2="21" y2="6" />
-              <line x1="8" y1="12" x2="21" y2="12" />
-              <line x1="8" y1="18" x2="21" y2="18" />
-              <line x1="3" y1="6" x2="3.01" y2="6" />
-              <line x1="3" y1="12" x2="3.01" y2="12" />
-              <line x1="3" y1="18" x2="3.01" y2="18" />
-            </svg>
+      <section className="card" style={{ marginBottom: "1rem" }}>
+        <div className="flex justify-between items-center" style={{ gap: "0.75rem", flexWrap: "wrap" }}>
+          <div>
+            <p className="project-card-eyebrow">Next action</p>
+            <h3 style={{ margin: 0 }}>Keep signal to action within two clicks</h3>
+            <p className="text-sm text-muted" style={{ marginTop: "0.4rem" }}>
+              {boardNextAction}
+            </p>
           </div>
-          <h3 className="workspace-empty-title">No features yet</h3>
-          <p className="workspace-empty-desc">
-            {issueMode
-              ? "No issues match current filters. Create one from this board or from a project page."
-              : "Add your first feature to the backlog and start organizing."}
-          </p>
-          <button type="button" className="btn btn-primary" onClick={handleNewFeature}>
-            {issueMode ? "New Issue" : "New Feature"}
-          </button>
+          <div className="company-empty-actions">
+            <Link href={companyProjectsHref} className="btn btn-secondary">
+              Open Projects
+            </Link>
+            <Link href={companyActivityHref} className="btn btn-secondary">
+              Open Activity
+            </Link>
+          </div>
         </div>
+      </section>
+
+      {filteredFeatures.length === 0 ? (
+        <PageEmptyState
+          title={features.length > 0 ? "No tickets match these filters" : "No tickets yet"}
+          description={
+            features.length > 0
+              ? "Try a different search, clear the filters, or switch to another status lane."
+              : issueMode
+                ? "No issues exist yet. Create one from this board or from a project page."
+                : "Add your first ticket to the backlog and start organizing."
+          }
+          actions={
+            <div className="company-empty-actions">
+              {features.length > 0 && (
+                <button type="button" className="btn btn-secondary" onClick={clearFilters}>
+                  Clear filters
+                </button>
+              )}
+              <button type="button" className="btn btn-primary" onClick={handleNewFeature}>
+                New Ticket
+              </button>
+            </div>
+          }
+        />
       ) : (
         <div className="board-shell">
-          <div className="kanban-board">
-            {STATUSES.map((status) => (
+          <div
+            className="kanban-board"
+            style={{
+              "--kanban-column-count": String(visibleStatuses.length),
+              minWidth: boardMinWidth,
+            } as CSSProperties}
+          >
+            {visibleStatuses.map((status) => (
               <KanbanColumn
                 key={status}
                 status={status}
@@ -529,6 +725,7 @@ export default function BoardPage() {
                 onDrop={handleDrop}
                 onEdit={handleEdit}
                 onKickoff={handleKickoff}
+                onStatusChange={handleStatusChange}
                 onDelete={handleDelete}
               />
             ))}
@@ -544,11 +741,38 @@ export default function BoardPage() {
         }}
         onSave={handleSave}
         feature={editingFeature}
-        workspaces={workspaces}
+        companies={companies}
         agents={agents}
         projects={Object.values(projectsById)}
-        defaultWorkspaceId={selectedWorkspaceId}
+        defaultCompanyId={selectedCompanyId}
         defaultType={issueMode ? "bug" : "feature"}
+      />
+
+      <ConfirmModal
+        isOpen={Boolean(confirmKickoffFeature)}
+        onClose={() => setConfirmKickoffFeature(null)}
+        onConfirm={() => void confirmKickoff()}
+        title="Start Ticket Execution"
+        message={
+          confirmKickoffFeature
+            ? `Start execution for "${confirmKickoffFeature.title}"? This creates a linked project.`
+            : "Start execution for this ticket?"
+        }
+        confirmText="Kickoff"
+      />
+
+      <ConfirmModal
+        isOpen={Boolean(confirmDeleteFeature)}
+        onClose={() => setConfirmDeleteFeature(null)}
+        onConfirm={() => void confirmDelete()}
+        title="Delete Ticket"
+        message={
+          confirmDeleteFeature
+            ? `Delete "${confirmDeleteFeature.title}"? This cannot be undone.`
+            : "Delete this ticket?"
+        }
+        confirmText="Delete"
+        variant="danger"
       />
     </div>
   );

@@ -112,6 +112,7 @@ export function createDelegationHandler(
 
         deps.eventBus.emitTyped("task.queued", {
           taskId: childTask.id,
+          projectId: params.projectId,
           workstreamId: params.workstreamId,
         });
 
