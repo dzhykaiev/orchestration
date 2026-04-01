@@ -1,11 +1,6 @@
 import * as db from "@orchestration/db";
-import { FEATURE_TRANSITIONS, assertTransition, resolveProvider } from "@orchestration/shared";
-import type { FeatureStatus } from "@orchestration/shared";
+import { assertFeatureTransition, resolveProvider } from "@orchestration/shared";
 import type { FeaturesDependencies } from "../../application/features/ports.js";
-
-function assertFeatureTransition(from: FeatureStatus, to: FeatureStatus) {
-  assertTransition(FEATURE_TRANSITIONS, from, to, "feature");
-}
 
 export function getDefaultFeaturesDependencies(): FeaturesDependencies {
   const featureRepo =
@@ -32,6 +27,13 @@ export function getDefaultFeaturesDependencies(): FeaturesDependencies {
           deleteProject: async () => undefined,
         };
 
+  const agentDefinitionRepo =
+    "agentDefinitionRepo" in db
+      ? db.agentDefinitionRepo
+      : {
+          getById: async () => null,
+        };
+
   const auditLogRepo =
     "auditLogRepo" in db
       ? db.auditLogRepo
@@ -41,6 +43,7 @@ export function getDefaultFeaturesDependencies(): FeaturesDependencies {
 
   return {
     featureRepo,
+    agentDefinitionRepo,
     projectRepo,
     auditLogRepo,
     resolveProvider,

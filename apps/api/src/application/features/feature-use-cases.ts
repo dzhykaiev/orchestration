@@ -1,11 +1,25 @@
-import type { CreateFeatureInput, UpdateFeatureInput } from "@orchestration/shared";
+import type {
+  CreateFeatureInput,
+  FeatureAssigneeMode,
+  UpdateFeatureInput,
+} from "@orchestration/shared";
 import { BusinessError, NotFoundError } from "../../domain/common/errors.js";
+import { buildPlanJobPayload } from "../planning/plan-job-payload.js";
 import type { FeaturesDependencies, PlanningQueuePort } from "./ports.js";
 
 export class FeatureUseCases {
   constructor(private readonly deps: FeaturesDependencies) {}
 
-  async list(opts: { status?: string; workspaceId?: string; limit: number; offset: number }) {
+  async list(opts: {
+    status?: string;
+    type?: string;
+    workspaceId?: string;
+    sourceProjectId?: string;
+    assigneeMode?: string;
+    assigneeAgentDefinitionId?: string;
+    limit: number;
+    offset: number;
+  }) {
     return this.deps.featureRepo.listFeatures(opts);
   }
 
@@ -18,10 +32,18 @@ export class FeatureUseCases {
   }
 
   async create(input: CreateFeatureInput) {
+    await this.validateAssignee(input.workspaceId, input.assigneeMode, input.assigneeAgentDefinitionId);
     return this.deps.featureRepo.createFeature(input);
   }
 
   async update(id: string, input: UpdateFeatureInput) {
+    const current = await this.getById(id);
+    await this.validateAssignee(
+      current.workspaceId,
+      input.assigneeMode ?? (current.assigneeMode as FeatureAssigneeMode | undefined),
+      input.assigneeAgentDefinitionId ?? current.assigneeAgentDefinitionId,
+    );
+
     const feature = await this.deps.featureRepo.updateFeature(id, input);
     if (!feature) {
       throw new NotFoundError("Feature not found");
@@ -74,11 +96,15 @@ export class FeatureUseCases {
       });
       featureUpdated = true;
 
-      await planningQueue.add("plan", {
-        projectId: project.id,
-        goal: project.goal,
-        provider: this.deps.resolveProvider(project.provider),
-      });
+      await planningQueue.add(
+        "plan",
+        buildPlanJobPayload({
+          projectId: project.id,
+          goal: project.goal,
+          projectProvider: project.provider,
+          resolveProvider: this.deps.resolveProvider,
+        }),
+      );
     } catch (err) {
       try {
         if (featureUpdated) {
@@ -110,5 +136,39 @@ export class FeatureUseCases {
 
     const updatedFeature = await this.deps.featureRepo.getFeatureById(id);
     return { feature: updatedFeature ?? feature, project };
+  }
+
+  private async validateAssignee(
+    workspaceId: string | null | undefined,
+    assigneeMode?: FeatureAssigneeMode,
+    assigneeAgentDefinitionId?: string | null,
+  ) {
+    const mode = assigneeMode ?? "orchestrator";
+
+    if (mode === "orchestrator") {
+      if (assigneeAgentDefinitionId) {
+        throw new BusinessError(
+          "assigneeAgentDefinitionId must be empty when assigneeMode is orchestrator",
+        );
+      }
+      return;
+    }
+
+    if (!assigneeAgentDefinitionId) {
+      throw new BusinessError("assigneeAgentDefinitionId is required when assigneeMode is agent");
+    }
+
+    if (!workspaceId) {
+      throw new BusinessError("Feature workspace is required for assignee validation");
+    }
+
+    const agent = await this.deps.agentDefinitionRepo.getById(assigneeAgentDefinitionId);
+    if (!agent) {
+      throw new NotFoundError("Assigned agent not found");
+    }
+
+    if (agent.workspaceId !== workspaceId) {
+      throw new BusinessError("Assigned agent must belong to the same workspace as the feature");
+    }
   }
 }

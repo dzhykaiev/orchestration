@@ -1,3 +1,7 @@
+import { execFile } from "node:child_process";
+import { mkdir } from "node:fs/promises";
+import { resolve } from "node:path";
+import { promisify } from "node:util";
 import {
   artifactRepo,
   auditLogRepo,
@@ -17,6 +21,9 @@ import {
 import { buildUserMessage } from "../../prompts/implementation.js";
 import { implementationQueue } from "../../shared-resources.js";
 
+const execFileAsync = promisify(execFile);
+const PROJECTS_DIR = resolve(process.env.PROJECTS_DIR || "./projects");
+
 export const defaultPlanningDependencies: PlanningDependencies = {
   projectRepo,
   workstreamRepo,
@@ -32,5 +39,26 @@ export const defaultPlanningDependencies: PlanningDependencies = {
   architectPrompts: {
     existingCodebase: ARCHITECT_EXISTING_CODEBASE_PROMPT,
     greenfield: ARCHITECT_SYSTEM_PROMPT,
+  },
+  async resolveProjectDir(project) {
+    const isExisting = project.projectMode === "existing";
+
+    if (isExisting && project.repoPath) {
+      return resolve(project.repoPath);
+    }
+
+    if (isExisting && project.repoUrl) {
+      const projectDir = resolve(PROJECTS_DIR, project.id);
+      await mkdir(projectDir, { recursive: true });
+      await execFileAsync("git", ["clone", project.repoUrl, projectDir]);
+      return projectDir;
+    }
+
+    const projectDir = resolve(PROJECTS_DIR, project.id);
+    await mkdir(projectDir, { recursive: true });
+    return projectDir;
+  },
+  async checkoutWorkBranch(projectDir, branchName) {
+    await execFileAsync("git", ["-C", projectDir, "checkout", "-b", branchName]);
   },
 };

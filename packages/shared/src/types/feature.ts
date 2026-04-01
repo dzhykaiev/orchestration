@@ -1,5 +1,6 @@
 export type FeatureStatus = "backlog" | "todo" | "in_progress" | "done" | "rejected";
 export type FeatureType = "feature" | "bug" | "improvement" | "refactor";
+export type FeatureAssigneeMode = "orchestrator" | "agent";
 
 export interface Feature {
   id: string;
@@ -10,6 +11,9 @@ export interface Feature {
   type: FeatureType;
   priority: number;
   sortOrder: number;
+  sourceProjectId: string | null;
+  assigneeMode: FeatureAssigneeMode;
+  assigneeAgentDefinitionId: string | null;
   orchestrationProjectId: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -21,6 +25,9 @@ export interface CreateFeatureInput {
   description?: string;
   type?: FeatureType;
   priority?: number;
+  sourceProjectId?: string;
+  assigneeMode?: FeatureAssigneeMode;
+  assigneeAgentDefinitionId?: string | null;
 }
 
 export interface UpdateFeatureInput {
@@ -30,5 +37,8 @@ export interface UpdateFeatureInput {
   type?: FeatureType;
   priority?: number;
   sortOrder?: number;
+  sourceProjectId?: string;
+  assigneeMode?: FeatureAssigneeMode;
+  assigneeAgentDefinitionId?: string | null;
   orchestrationProjectId?: string;
 }

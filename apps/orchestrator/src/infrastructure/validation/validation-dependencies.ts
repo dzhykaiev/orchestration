@@ -5,7 +5,7 @@ import {
   taskRepo,
   workstreamRepo,
 } from "@orchestration/db";
-import { WORKSTREAM_TRANSITIONS, canTransition, resolveProvider } from "@orchestration/shared";
+import { canWorkstreamTransition as canWorkstreamStatusTransition, resolveProvider } from "@orchestration/shared";
 import type { WorkstreamStatus } from "@orchestration/shared";
 import type { ValidationDependencies } from "../../application/validation/ports.js";
 import { eventBus } from "../../events/index.js";
@@ -26,6 +26,6 @@ export const defaultValidationDependencies: ValidationDependencies = {
   unblockDependents,
   checkProjectCompletion,
   canWorkstreamTransition(from: string, to: string): boolean {
-    return canTransition(WORKSTREAM_TRANSITIONS, from as WorkstreamStatus, to as WorkstreamStatus);
+    return canWorkstreamStatusTransition(from as WorkstreamStatus, to as WorkstreamStatus);
   },
 };

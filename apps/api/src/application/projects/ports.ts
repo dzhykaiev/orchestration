@@ -71,6 +71,13 @@ export interface TaskRepositoryPort {
 
 export interface FeatureRepositoryPort {
   getFeatureByProjectId(projectId: string): Promise<FeatureRecord | null>;
+  listFeatures(opts: {
+    type?: string;
+    status?: string;
+    sourceProjectId?: string;
+    limit: number;
+    offset: number;
+  }): Promise<{ data: FeatureRecord[]; total: number }>;
 }
 
 export interface AuditLogRepositoryPort {

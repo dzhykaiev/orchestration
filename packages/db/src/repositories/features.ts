@@ -4,7 +4,11 @@ import { db, schema } from "../client.js";
 
 export async function listFeatures(opts: {
   status?: string;
+  type?: string;
   workspaceId?: string;
+  sourceProjectId?: string;
+  assigneeMode?: string;
+  assigneeAgentDefinitionId?: string;
   limit: number;
   offset: number;
 }) {
@@ -14,8 +18,27 @@ export async function listFeatures(opts: {
       eq(schema.features.status, opts.status as typeof schema.features.$inferSelect.status),
     );
   }
+  if (opts.type) {
+    conditions.push(eq(schema.features.type, opts.type as typeof schema.features.$inferSelect.type));
+  }
   if (opts.workspaceId) {
     conditions.push(eq(schema.features.workspaceId, opts.workspaceId));
+  }
+  if (opts.sourceProjectId) {
+    conditions.push(eq(schema.features.sourceProjectId, opts.sourceProjectId));
+  }
+  if (opts.assigneeMode) {
+    conditions.push(
+      eq(
+        schema.features.assigneeMode,
+        opts.assigneeMode as typeof schema.features.$inferSelect.assigneeMode,
+      ),
+    );
+  }
+  if (opts.assigneeAgentDefinitionId) {
+    conditions.push(
+      eq(schema.features.assigneeAgentDefinitionId, opts.assigneeAgentDefinitionId),
+    );
   }
 
   const where = conditions.length > 0 ? and(...conditions) : undefined;
@@ -66,6 +89,9 @@ export async function createFeature(input: CreateFeatureInput) {
       description: input.description,
       type: input.type || "feature",
       priority: input.priority ?? 0,
+      sourceProjectId: input.sourceProjectId,
+      assigneeMode: input.assigneeMode ?? "orchestrator",
+      assigneeAgentDefinitionId: input.assigneeAgentDefinitionId,
     })
     .returning();
 

@@ -15,6 +15,7 @@ export type {
   Feature,
   FeatureStatus,
   FeatureType,
+  FeatureAssigneeMode,
   CreateFeatureInput,
   UpdateFeatureInput,
 } from "./feature.js";

@@ -1,14 +1,9 @@
-import { execFile } from "node:child_process";
-import { mkdir } from "node:fs/promises";
-import { resolve } from "node:path";
-import { promisify } from "node:util";
 import {
   type AgentRole,
-  PROJECT_TRANSITIONS,
   type ProjectStatus,
-  WORKSTREAM_TRANSITIONS,
   type WorkstreamStatus,
-  canTransition,
+  canProjectTransition,
+  canWorkstreamTransition,
 } from "@orchestration/shared";
 import type {
   PlanningDependencies,
@@ -17,9 +12,6 @@ import type {
   PlanningWorkstream,
   PlanningWorkstreamDefinition,
 } from "./ports.js";
-
-const execFileAsync = promisify(execFile);
-const PROJECTS_DIR = resolve(process.env.PROJECTS_DIR || "./projects");
 
 function detectCircularDeps(workstreamDefs: PlanningWorkstreamDefinition[]): string[] | null {
   const visited = new Set<string>();
@@ -54,38 +46,6 @@ function toRelativeFiles(files: string[], projectDir: string): string[] {
   return files.map((file) => file.replace(prefix, ""));
 }
 
-function canProjectTransition(from: string, to: ProjectStatus): boolean {
-  return canTransition(PROJECT_TRANSITIONS, from as ProjectStatus, to);
-}
-
-function canWorkstreamTransition(from: string, to: WorkstreamStatus): boolean {
-  return canTransition(WORKSTREAM_TRANSITIONS, from as WorkstreamStatus, to);
-}
-
-async function resolveProjectDir(project: {
-  id: string;
-  projectMode?: string | null;
-  repoPath?: string | null;
-  repoUrl?: string | null;
-}): Promise<string> {
-  const isExisting = project.projectMode === "existing";
-
-  if (isExisting && project.repoPath) {
-    return resolve(project.repoPath);
-  }
-
-  if (isExisting && project.repoUrl) {
-    const projectDir = resolve(PROJECTS_DIR, project.id);
-    await mkdir(projectDir, { recursive: true });
-    await execFileAsync("git", ["clone", project.repoUrl, projectDir]);
-    return projectDir;
-  }
-
-  const projectDir = resolve(PROJECTS_DIR, project.id);
-  await mkdir(projectDir, { recursive: true });
-  return projectDir;
-}
-
 async function tryCreateWorkBranch(
   deps: PlanningDependencies,
   projectId: string,
@@ -98,7 +58,7 @@ async function tryCreateWorkBranch(
 
   const branchName = `orchestration/${projectId.slice(0, 8)}`;
   try {
-    await execFileAsync("git", ["-C", projectDir, "checkout", "-b", branchName]);
+    await deps.checkoutWorkBranch(projectDir, branchName);
     await deps.projectRepo.updateProject(projectId, { workBranch: branchName });
   } catch (err) {
     console.warn(`[Planning] Could not create branch ${branchName}:`, err);
@@ -126,7 +86,10 @@ async function createInitialWorkstreamTasks(
     ).getWorkstreamById;
 
     const forTransition = getWorkstreamById ? await getWorkstreamById(workstream.id) : workstream;
-    if (!forTransition || !canWorkstreamTransition(forTransition.status, "in_progress")) {
+    if (
+      !forTransition ||
+      !canWorkstreamTransition(forTransition.status as WorkstreamStatus, "in_progress")
+    ) {
       console.warn(
         `[Planning] Cannot transition workstream ${workstream.id} to in_progress, skipping dispatch`,
       );
@@ -187,12 +150,12 @@ export function createPlanningJobHandler(deps: PlanningDependencies): PlanningJo
       }
 
       const isExisting = project.projectMode === "existing";
-      const projectDir = await resolveProjectDir(project);
+      const projectDir = await deps.resolveProjectDir(project);
 
       await tryCreateWorkBranch(deps, projectId, projectDir, isExisting);
 
       const currentProject = await deps.projectRepo.getProjectById(projectId);
-      if (currentProject && canProjectTransition(currentProject.status, "planning")) {
+      if (currentProject && canProjectTransition(currentProject.status as ProjectStatus, "planning")) {
         await deps.projectRepo.updateProject(projectId, { status: "planning" });
       }
       deps.eventBus.emitTyped("project.planning_started", { projectId });

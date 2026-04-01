@@ -147,6 +147,15 @@ describe("Feature Routes", () => {
   });
 
   it("PATCH /api/features/:id updates when found", async () => {
+    getFeatureById.mockResolvedValueOnce({
+      id: UUID,
+      title: "Current",
+      status: "backlog",
+      workspaceId: "00000000-0000-0000-0000-000000000001",
+      assigneeMode: "orchestrator",
+      assigneeAgentDefinitionId: null,
+      orchestrationProjectId: null,
+    });
     updateFeature.mockResolvedValueOnce({ id: UUID, title: "Updated", status: "backlog" });
     const app = await buildApp();
     const res = await app.inject({
@@ -205,6 +214,37 @@ describe("Feature Routes", () => {
     const app = await buildApp();
     const res = await app.inject({ method: "POST", url: `/api/features/${UUID}/kickoff` });
     expect(res.statusCode).toBe(400);
+  });
+
+  it("POST /api/features/:id/kickoff enqueues planning with canonical payload", async () => {
+    getFeatureById
+      .mockResolvedValueOnce({
+        id: UUID,
+        title: "Queue Success Feature",
+        description: "Build feature orchestration",
+        status: "backlog",
+        workspaceId: "00000000-0000-0000-0000-000000000001",
+        orchestrationProjectId: null,
+      })
+      .mockResolvedValueOnce({
+        id: UUID,
+        title: "Queue Success Feature",
+        description: "Build feature orchestration",
+        status: "in_progress",
+        workspaceId: "00000000-0000-0000-0000-000000000001",
+        orchestrationProjectId: "proj-uuid",
+      });
+
+    const app = await buildApp();
+    const res = await app.inject({ method: "POST", url: `/api/features/${UUID}/kickoff` });
+
+    expect(res.statusCode).toBe(200);
+    expect(mockQueues.planning.add).toHaveBeenCalledTimes(1);
+    expect(mockQueues.planning.add).toHaveBeenCalledWith("plan", {
+      projectId: "proj-uuid",
+      goal: "Test",
+      provider: "opencode",
+    });
   });
 
   it("POST /api/features/:id/kickoff rolls back project+feature when queue enqueue fails", async () => {

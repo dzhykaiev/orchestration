@@ -50,6 +50,20 @@
       "when": 1775145600000,
       "tag": "0006_workspace_id_required",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1775149200000,
+      "tag": "0007_fix_enums_and_constraints",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1775152800000,
+      "tag": "0008_issue_assignment",
+      "breakpoints": true
     }
   ]
 }

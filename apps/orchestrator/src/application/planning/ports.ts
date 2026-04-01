@@ -130,6 +130,8 @@ export interface PlanningDependencies {
     existingCodebase: string;
     greenfield: string;
   };
+  resolveProjectDir(project: PlanningProject): Promise<string>;
+  checkoutWorkBranch(projectDir: string, branchName: string): Promise<void>;
 }
 
 export type PlanningJobHandler = (job: Job<PlanningJobData>) => Promise<

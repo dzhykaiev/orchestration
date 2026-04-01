@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
+import { featureListQuerySchema } from "../schemas/features.js";
 import {
   createProjectSchema,
   idParamSchema,
@@ -88,6 +89,18 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
     const { id } = idParamSchema.parse(request.params);
     const workstreams = await projectService.listWorkstreams(id);
     return { workstreams };
+  });
+
+  // GET /:id/issues — list issue tickets (bug features) reported from this project
+  app.get<{ Params: { id: string } }>("/:id/issues", async (request) => {
+    const { id } = idParamSchema.parse(request.params);
+    const query = featureListQuerySchema.parse(request.query);
+    const result = await projectService.listIssues(id, {
+      status: query.status,
+      limit: query.limit,
+      offset: query.offset,
+    });
+    return { ...result, limit: query.limit, offset: query.offset };
   });
 
   // POST /:id/workstreams — create workstream for a project

@@ -81,6 +81,7 @@ export const featureTypeEnum = pgEnum("feature_type", [
   "improvement",
   "refactor",
 ]);
+export const featureAssigneeModeEnum = pgEnum("feature_assignee_mode", ["orchestrator", "agent"]);
 
 export const auditActionEnum = pgEnum("audit_action", [
   "created",
@@ -240,6 +241,14 @@ export const features = pgTable(
     type: featureTypeEnum("type").default("feature").notNull(),
     priority: integer("priority").default(0).notNull(),
     sortOrder: integer("sort_order").default(0).notNull(),
+    sourceProjectId: uuid("source_project_id").references(() => projects.id, {
+      onDelete: "set null",
+    }),
+    assigneeMode: featureAssigneeModeEnum("assignee_mode").default("orchestrator").notNull(),
+    assigneeAgentDefinitionId: uuid("assignee_agent_definition_id").references(
+      () => agentDefinitions.id,
+      { onDelete: "set null" },
+    ),
     orchestrationProjectId: uuid("orchestration_project_id").references(() => projects.id, {
       onDelete: "set null",
     }),
@@ -249,6 +258,9 @@ export const features = pgTable(
   (t) => [
     index("idx_features_status").on(t.status),
     index("idx_features_workspace_id").on(t.workspaceId),
+    index("idx_features_source_project_id").on(t.sourceProjectId),
+    index("idx_features_assignee_mode").on(t.assigneeMode),
+    index("idx_features_assignee_agent_definition_id").on(t.assigneeAgentDefinitionId),
     index("idx_features_orchestration_project_id").on(t.orchestrationProjectId),
   ],
 );

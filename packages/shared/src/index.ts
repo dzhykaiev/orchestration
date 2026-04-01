@@ -11,6 +11,7 @@ export type {
   Feature,
   FeatureStatus,
   FeatureType,
+  FeatureAssigneeMode,
   CreateFeatureInput,
   UpdateFeatureInput,
   Workstream,
@@ -84,6 +85,7 @@ export {
   ReorderFeaturesSchema,
   featureStatusValues,
   featureTypeValues,
+  featureAssigneeModeValues,
   EscalationDtoSchema,
   EscalationListQuerySchema,
   escalationStatusValues,
@@ -121,9 +123,17 @@ export {
   FEATURE_TRANSITIONS,
   WORKSTREAM_TRANSITIONS,
   TASK_TRANSITIONS,
+  canProjectTransition,
+  canFeatureTransition,
+  canWorkstreamTransition,
+  canTaskTransition,
   canTransition,
   InvalidTransitionError,
   assertTransition,
+  assertProjectTransition,
+  assertFeatureTransition,
+  assertWorkstreamTransition,
+  assertTaskTransition,
 } from "./state-machine.js";
 
 export { resolveProvider } from "./provider.js";

@@ -85,5 +85,6 @@ export {
   ReorderFeaturesSchema,
   featureStatusValues,
   featureTypeValues,
+  featureAssigneeModeValues,
   type FeatureDto,
 } from "./feature.js";

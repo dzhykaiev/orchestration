@@ -1,5 +1,6 @@
 import type { CreateProjectInput, UpdateProjectInput } from "@orchestration/shared";
 import { BusinessError, NotFoundError } from "../../domain/common/errors.js";
+import { buildPlanJobPayload } from "../planning/plan-job-payload.js";
 import type { ProjectQueuePort, ProjectsDependencies } from "./ports.js";
 
 export class ProjectUseCases {
@@ -50,11 +51,15 @@ export class ProjectUseCases {
       );
     }
 
-    await planningQueue.add("plan", {
-      projectId: id,
-      goal: project.goal,
-      provider: this.deps.resolveProvider(project.provider),
-    });
+    await planningQueue.add(
+      "plan",
+      buildPlanJobPayload({
+        projectId: id,
+        goal: project.goal,
+        projectProvider: project.provider,
+        resolveProvider: this.deps.resolveProvider,
+      }),
+    );
 
     try {
       await this.deps.auditLogRepo.createAuditLog({
@@ -169,6 +174,22 @@ export class ProjectUseCases {
   async listWorkstreams(id: string) {
     await this.getById(id);
     return this.deps.workstreamRepo.listWorkstreamsByProject(id);
+  }
+
+  async listIssues(
+    id: string,
+    opts: {
+      status?: string;
+      limit: number;
+      offset: number;
+    },
+  ) {
+    await this.getById(id);
+    return this.deps.featureRepo.listFeatures({
+      ...opts,
+      type: "bug",
+      sourceProjectId: id,
+    });
   }
 
   private async removeProjectJobs(queue: ProjectQueuePort, projectId: string) {

@@ -41,6 +41,22 @@ export const TASK_TRANSITIONS: TransitionMap<AgentTaskStatus> = {
   cancelled: [],
 };
 
+export function canProjectTransition(from: ProjectStatus, to: ProjectStatus): boolean {
+  return canTransition(PROJECT_TRANSITIONS, from, to);
+}
+
+export function canFeatureTransition(from: FeatureStatus, to: FeatureStatus): boolean {
+  return canTransition(FEATURE_TRANSITIONS, from, to);
+}
+
+export function canWorkstreamTransition(from: WorkstreamStatus, to: WorkstreamStatus): boolean {
+  return canTransition(WORKSTREAM_TRANSITIONS, from, to);
+}
+
+export function canTaskTransition(from: AgentTaskStatus, to: AgentTaskStatus): boolean {
+  return canTransition(TASK_TRANSITIONS, from, to);
+}
+
 export function canTransition<S extends string>(map: TransitionMap<S>, from: S, to: S): boolean {
   return map[from]?.includes(to) ?? false;
 }
@@ -67,4 +83,20 @@ export function assertTransition<S extends string>(
   if (!canTransition(transitions, from, to)) {
     throw new InvalidTransitionError(entity, from, to);
   }
+}
+
+export function assertProjectTransition(from: ProjectStatus, to: ProjectStatus): void {
+  assertTransition(PROJECT_TRANSITIONS, from, to, "project");
+}
+
+export function assertFeatureTransition(from: FeatureStatus, to: FeatureStatus): void {
+  assertTransition(FEATURE_TRANSITIONS, from, to, "feature");
+}
+
+export function assertWorkstreamTransition(from: WorkstreamStatus, to: WorkstreamStatus): void {
+  assertTransition(WORKSTREAM_TRANSITIONS, from, to, "workstream");
+}
+
+export function assertTaskTransition(from: AgentTaskStatus, to: AgentTaskStatus): void {
+  assertTransition(TASK_TRANSITIONS, from, to, "task");
 }

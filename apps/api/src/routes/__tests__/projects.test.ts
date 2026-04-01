@@ -23,6 +23,7 @@ const transitionStatus = vi.fn().mockResolvedValue(null);
 const listWorkstreamsByProject = vi.fn().mockResolvedValue([]);
 const cancelWorkstreamsByProject = vi.fn().mockResolvedValue([]);
 const listTasksByProject = vi.fn().mockResolvedValue([]);
+const listFeatures = vi.fn().mockResolvedValue({ data: [], total: 0 });
 const createWorkstream = vi.fn().mockImplementation((input: Record<string, unknown>) =>
   Promise.resolve({
     id: "ws-uuid",
@@ -61,6 +62,7 @@ vi.mock("@orchestration/db", () => ({
   },
   featureRepo: {
     getFeatureByProjectId: vi.fn().mockResolvedValue(null),
+    listFeatures,
   },
   auditLogRepo: {
     createAuditLog: vi.fn().mockResolvedValue(undefined),
@@ -100,7 +102,41 @@ describe("Project Routes", () => {
     vi.clearAllMocks();
     getProjectById.mockResolvedValue(null);
     listProjects.mockResolvedValue({ data: [], total: 0 });
+    listFeatures.mockResolvedValue({ data: [], total: 0 });
     mockQueues.planning.add.mockResolvedValue(undefined);
+  });
+
+  it("GET /api/projects/:id/issues returns bug tickets reported from project", async () => {
+    const projectId = "00000000-0000-0000-0000-000000000000";
+    getProjectById.mockResolvedValueOnce({
+      id: projectId,
+      name: "Test",
+      goal: "Test",
+      status: "in_progress",
+      provider: "opencode",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    listFeatures.mockResolvedValueOnce({
+      data: [{ id: "feat-1", type: "bug", sourceProjectId: projectId, title: "UI bug" }],
+      total: 1,
+    });
+
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/projects/${projectId}/issues`,
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body.total).toBe(1);
+    expect(listFeatures).toHaveBeenCalledWith({
+      type: "bug",
+      sourceProjectId: projectId,
+      status: undefined,
+      limit: 20,
+      offset: 0,
+    });
   });
 
   it("GET /api/projects returns empty list", async () => {
@@ -317,7 +353,12 @@ describe("Project Routes", () => {
       url: "/api/projects/00000000-0000-0000-0000-000000000000/plan",
     });
     expect(res.statusCode).toBe(200);
-    expect(mockQueues.planning.add).toHaveBeenCalled();
+    expect(mockQueues.planning.add).toHaveBeenCalledTimes(1);
+    expect(mockQueues.planning.add).toHaveBeenCalledWith("plan", {
+      projectId: "00000000-0000-0000-0000-000000000000",
+      goal: "Build it",
+      provider: "opencode",
+    });
   });
 
   it("POST /api/projects/:id/stop returns 404 for non-existent", async () => {
