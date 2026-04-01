@@ -42,3 +42,6 @@ Regression checklist for create/update/delete + network/validation/conflict erro
   - error: `PageErrorState` з `Retry` + secondary `Back to Companies`
   - empty: `PageEmptyState` з єдиною дією `Create Company`
 - При `companies.length === 0` форма створення проєкту більше не рендериться паралельно з empty-state, щоб прибрати суперечливий UX і зробити flow лінійним.
+
+## Remaining
+- TBD

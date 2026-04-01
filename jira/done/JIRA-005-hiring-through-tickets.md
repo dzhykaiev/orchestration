@@ -16,6 +16,9 @@
 ## Dependencies
 - JIRA-004
 
+## Owner
+mixed
+
 ## Risks
 - Конфлікти ролей/доступів.
 

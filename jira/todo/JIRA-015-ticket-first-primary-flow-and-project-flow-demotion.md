@@ -35,3 +35,6 @@ E2E сценарій: Company create -> Ticket create -> Kickoff -> Project moni
   - primary: `Open Tickets`
   - secondary: `Advanced: Direct Project`
 - Home guidance/empty state: прибрано `Advanced: Direct Project` CTA, залишено єдиний ticket-first primary (`Open Ticket Board` / `Ticket Board`).
+
+## Remaining
+- TBD

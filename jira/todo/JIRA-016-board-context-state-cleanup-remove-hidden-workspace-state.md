@@ -59,3 +59,6 @@ Board завжди відкривається у явному company context; h
 - Validation:
   - `pnpm --filter @orchestration/web typecheck` passed.
   - `pnpm --filter @orchestration/web test -- src/lib/workspaceNavigation.test.ts src/app/board/board-utils.test.ts` passed.
+
+## Remaining
+- TBD

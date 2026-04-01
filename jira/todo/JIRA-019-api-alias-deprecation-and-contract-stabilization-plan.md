@@ -26,6 +26,9 @@ TBD
 ## Validation
 API contract tests + docs review
 
+## Definition of Done
+Команда має задокументований і протестований план переходу до canonical API без втрати сумісності.
+
 ## Progress (2026-04-01, web)
 - `apps/web/src/lib/api.ts`
   - Added canonical type aliases `Company` and `Ticket`.
@@ -72,6 +75,3 @@ API contract tests + docs review
 
 ## Remaining
 - Optional: replace process-local `X-API-Alias-Usage` counter with centralized metrics sink in production telemetry.
-
-## Definition of Done
-Команда має задокументований і протестований план переходу до canonical API без втрати сумісності.

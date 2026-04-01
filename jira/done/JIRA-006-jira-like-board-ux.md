@@ -15,6 +15,9 @@
 ## Dependencies
 - JIRA-001
 
+## Owner
+mixed
+
 ## Risks
 - UI перевантаження без ієрархії.
 

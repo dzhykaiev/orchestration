@@ -17,6 +17,9 @@
 - JIRA-005
 - JIRA-007
 
+## Owner
+mixed
+
 ## Risks
 - Неконтрольований ріст задач або retry-loop.
 

@@ -15,6 +15,9 @@
 ## Dependencies
 - none
 
+## Owner
+mixed
+
 ## Risks
 - Випадкове змішування контекстів між компаніями.
 

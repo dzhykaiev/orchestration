@@ -38,3 +38,6 @@ rg -n '/workspaces|Workspace(s)?' apps/web/src ; ручний проход ос�
 - `companies/new` переведено на canonical hooks/id:
   - container class: `workspace-create-card` -> `company-create-card`
   - form field ids: `ws-*` -> `company-*`
+
+## Remaining
+- TBD

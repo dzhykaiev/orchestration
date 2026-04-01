@@ -33,3 +33,6 @@ UX checklist: кожен екран має 1 primary action + коректний
 - Компанійний shell breadcrumb стандартизовано до `Companies / Company`.
 - Board breadcrumb зроблено context-first: `Companies / {Company} / Tickets` (включно з loading/error/empty станами).
 - У `projects/new` breadcrumb додано ієрархію компанії: `Companies / {Company} / Advanced: New Project`.
+
+## Remaining
+- TBD

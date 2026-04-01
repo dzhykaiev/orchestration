@@ -15,6 +15,9 @@
 ## Dependencies
 - none
 
+## Owner
+mixed
+
 ## Risks
 - Несумісність між версіями `vite`/`vitest`/ts runtime.
 

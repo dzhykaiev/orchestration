@@ -13,6 +13,21 @@
 - Щоб почати задачу: перемістити файл з `todo/` у `inprogress/`.
 - Щоб закрити: перемістити в `done/` і додати секцію `## Result`.
 - Якщо блокер: перемістити в `blocked/` і додати `## Blocker`.
+- Для нових задач використовувати шаблон: `jira/_meta/TICKET_TEMPLATE.md`.
+- Перед merge запускати аудит структури: `./jira/_meta/audit-jira.sh`.
+
+## Стандарт секцій задачі
+- `## Purpose`
+- `## Scope`
+- `## Files/Modules Likely Affected`
+- `## Dependencies`
+- `## Owner`
+- `## Risks`
+- `## Validation`
+- `## Definition of Done`
+- `## Progress (YYYY-MM-DD)`
+- `## Remaining` (для `todo/inprogress/blocked`)
+- Для `done/*`: обов'язково `## Result`
 
 ## Корисні команди
 ```bash
@@ -24,4 +39,7 @@ mv jira/inprogress/JIRA-001-domain-cutover.md jira/done/
 
 # список задач у роботі
 ls -1 jira/inprogress
+
+# перевірити структуру jira-квитків
+./jira/_meta/audit-jira.sh
 ```

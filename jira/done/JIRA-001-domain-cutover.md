@@ -16,6 +16,9 @@
 ## Dependencies
 - none
 
+## Owner
+mixed
+
 ## Risks
 - Злам існуючих клієнтських викликів.
 

@@ -16,6 +16,9 @@
 ## Dependencies
 - JIRA-001
 
+## Owner
+mixed
+
 ## Risks
 - Ріст об'єму логів.
 

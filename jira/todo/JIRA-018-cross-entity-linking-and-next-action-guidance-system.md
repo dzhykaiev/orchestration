@@ -40,3 +40,6 @@ Scenario walkthrough: user can move from signal -> action in <=2 clicks
   - issue tickets отримали прямі переходи:
     - у linked project (коли існує)
     - або у Board з prefilled ticket search
+
+## Remaining
+- TBD

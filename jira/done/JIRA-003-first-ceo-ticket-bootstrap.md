@@ -15,6 +15,9 @@
 ## Dependencies
 - JIRA-002
 
+## Owner
+mixed
+
 ## Risks
 - Дублікат автотікета при повторному submit/retry.
 

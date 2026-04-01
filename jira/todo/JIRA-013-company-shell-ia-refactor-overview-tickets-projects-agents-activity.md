@@ -31,3 +31,6 @@ TBD
 ## Progress (2026-04-01)
 - `companies/[id]/agents` тепер має власну канонічну реалізацію (без залежності від legacy `workspaces/[id]/agents`).
 - Знято прямий зв'язок `companies/* -> workspaces/*`, що спрощує наступні IA-рефактори.
+
+## Remaining
+- TBD

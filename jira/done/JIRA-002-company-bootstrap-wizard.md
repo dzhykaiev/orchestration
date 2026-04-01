@@ -17,6 +17,9 @@
 ## Dependencies
 - JIRA-001
 
+## Owner
+mixed
+
 ## Risks
 - Неповна валідація форми.
 

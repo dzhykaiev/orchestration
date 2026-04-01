@@ -1,5 +1,38 @@
 # JIRA-020 System UX Architecture Master Plan (chaos -> scalable)
 
+## Purpose
+Зафіксувати цільову UX-архітектуру системи (IA, навігація, action/state патерни), щоб привести продукт до стабільної context-first моделі `Company -> Tickets -> Projects -> Agents -> Activity`.
+
+## Scope
+- Сформувати цільовий IA/navigation contract і core user flows.
+- Зафіксувати правила UX-системи (naming, one-primary-action, state patterns, link contracts).
+- Вести conformance log для змін JIRA-012..019, які мають відповідати цій архітектурі.
+
+## Files/Modules Likely Affected
+- apps/web/src/app/**
+- apps/web/src/components/**
+- apps/web/src/lib/companyNavigation.ts
+- apps/web/src/lib/workspaceNavigation.ts
+- jira/_meta/AGENT_RUNBOOK.md
+- docs/product-overview.md
+
+## Dependencies
+JIRA-012, JIRA-013, JIRA-014, JIRA-015, JIRA-016, JIRA-017, JIRA-018, JIRA-019
+
+## Owner
+product+frontend+architect
+
+## Risks
+TBD
+
+## Validation
+- `pnpm --filter @orchestration/web typecheck`
+- `pnpm --filter @orchestration/web test -- src/lib/workspaceNavigation.test.ts src/app/board/board-utils.test.ts`
+- Manual walkthrough: Company create -> Tickets -> Kickoff -> Project -> Activity (з перевіркою breadcrumbs + one-primary-action contract)
+
+## Definition of Done
+Цільова UX-архітектура задокументована і підтверджена conformance-оновленнями: ключові маршрути та екрани працюють у context-first моделі, а core сценарії не мають dead-end станів.
+
 ## 1. 🔍 Problems List
 
 1. Domain language is inconsistent in code and UX.
@@ -313,3 +346,6 @@ Enable a team/operator to run autonomous delivery through a predictable ticket-f
    - Reduces legacy language leakage on the first company bootstrap flow.
 3. Validation snapshot:
    - `pnpm --filter @orchestration/web typecheck` passed.
+
+## Remaining
+- TBD
