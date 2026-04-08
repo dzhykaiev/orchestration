@@ -12,7 +12,7 @@
   "dependencies": {
     "bullmq": "^5.30.0",
     "ioredis": "^5.4.0",
-    "drizzle-orm": "^0.39.0",
+    "drizzle-orm": "^0.45.2",
     "@orchestration/db": "workspace:*",
     "@orchestration/shared": "workspace:*"
   },
